@@ -417,7 +417,11 @@ function Canvas({ detail }: { detail: WhiteboardDetail }) {
         if (o) setSketchId(o.id)
         return
       }
-      if (a === 'mindmap') return void (await place('mindmap', { x: c.x - 240, y: c.y - 160 }, { data: {} }))
+      if (a === 'mindmap') {
+        const o = await place('mindmap', { x: c.x - 240, y: c.y - 160 }, { data: {} })
+        if (o) autoEdit.current = o.id
+        return
+      }
       if (a === 'mermaid') {
         const o = await place('mermaid', { x: c.x - 210, y: c.y - 150 }, { data: {} })
         if (o) autoEdit.current = o.id

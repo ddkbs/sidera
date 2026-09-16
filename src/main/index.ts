@@ -296,5 +296,5 @@ async function devShot(w: BrowserWindow): Promise<void> {
     const img = await w.webContents.capturePage()
     await writeFile(process.env.CANVASCL_SHOT!.replace('.png', `-${i}.png`), img.toPNG())
   }
-  if (process.env.CANVASCL_QUIT) app.quit()
+  if (process.env.CANVASCL_QUIT) app.exit(0)
 }

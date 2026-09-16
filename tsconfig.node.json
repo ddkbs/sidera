@@ -13,5 +13,5 @@
     "baseUrl": ".",
     "paths": { "@shared/*": ["src/shared/*"] }
   },
-  "include": ["electron.vite.config.ts", "vitest.config.ts", "drizzle.config.ts", "src/main/**/*", "src/preload/**/*", "src/shared/**/*", "src/renderer/src/features/canvas/history.ts", "src/renderer/src/lib/keys.ts", "tests/**/*"]
+  "include": ["electron.vite.config.ts", "vitest.config.ts", "drizzle.config.ts", "src/main/**/*", "src/preload/**/*", "src/shared/**/*", "src/renderer/src/features/canvas/history.ts", "src/renderer/src/lib/keys.ts", "src/renderer/src/features/canvas/mindmap.ts", "tests/**/*"]
 }
