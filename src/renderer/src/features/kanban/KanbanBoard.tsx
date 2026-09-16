@@ -17,7 +17,9 @@ import { useEffect, useState } from 'react'
 import { color } from '@/lib/colors'
 import { cn } from '@/lib/utils'
 import { useAppDispatch } from '@/store'
-import { useCreateCardMutation, useGetKanbanQuery, useMoveKanbanItemMutation } from '@/store/api'
+import { useCreateCardMutation, useGetKanbanQuery, useMoveKanbanItemMutation, useUpdatePropertyMutation } from '@/store/api'
+import { PALETTE } from '@/lib/colors'
+import { nanoid } from 'nanoid'
 import { openCard } from '@/store/ui'
 import type { CardSummary } from '@shared/types'
 
@@ -28,6 +30,8 @@ export function KanbanBoard({ tagId, filter }: { tagId: string; filter: string }
   const { data: board } = useGetKanbanQuery({ tagId })
   const [move] = useMoveKanbanItemMutation()
   const [createCard] = useCreateCardMutation()
+  const [updateProperty] = useUpdatePropertyMutation()
+  const [newColumn, setNewColumn] = useState<string | null>(null)
   const dispatch = useAppDispatch()
   const [columns, setColumns] = useState<Columns>({})
   const [active, setActive] = useState<CardSummary | null>(null)
@@ -115,6 +119,38 @@ export function KanbanBoard({ tagId, filter }: { tagId: string; filter: string }
             </Column>
           )
         })}
+        <div className="w-64 shrink-0">
+          {newColumn === null ? (
+            <button
+              onClick={() => setNewColumn('')}
+              className="flex h-9 w-full items-center gap-2 rounded-xl px-3 text-sm text-muted-foreground transition hover:bg-muted/60 hover:text-foreground"
+            >
+              <Plus className="size-4" /> Add column
+            </button>
+          ) : (
+            <form
+              onSubmit={(e) => {
+                e.preventDefault()
+                const name = newColumn.trim()
+                if (name) {
+                  const colors = Object.keys(PALETTE)
+                  const opt = { id: nanoid(8), name, color: colors[(board.property.options.length + 3) % colors.length] }
+                  void updateProperty({ id: board.property.id, options: [...board.property.options, opt] })
+                }
+                setNewColumn(null)
+              }}
+            >
+              <input
+                autoFocus
+                value={newColumn}
+                onChange={(e) => setNewColumn(e.target.value)}
+                onBlur={(e) => e.currentTarget.form?.requestSubmit()}
+                placeholder="Column name"
+                className="h-9 w-full rounded-xl border bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-ring/30"
+              />
+            </form>
+          )}
+        </div>
       </div>
       <DragOverlay dropAnimation={{ duration: 180, easing: 'cubic-bezier(0.2, 0, 0, 1)' }}>
         {active && <KanbanCard card={active} className="rotate-2 shadow-xl" />}

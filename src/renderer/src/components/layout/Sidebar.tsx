@@ -4,6 +4,7 @@ import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Kbd } from '@/components/ui/kbd'
 import { ScrollArea } from '@/components/ui/scroll-area'
+import { TagMenu } from '@/features/card/TagMenu'
 import { color } from '@/lib/colors'
 import { cn } from '@/lib/utils'
 import { useAppDispatch, useAppSelector } from '@/store'
@@ -74,14 +75,15 @@ export function Sidebar() {
 
           <SectionHeader>Tags</SectionHeader>
           {tags.map((t) => (
-            <NavItem
-              key={t.id}
-              icon={<Hash className="size-3.5" style={{ color: color(t.color).fg }} />}
-              active={view.type === 'library' && view.tagId === t.id}
-              onClick={() => go({ type: 'library', tagId: t.id, mode: view.type === 'library' ? view.mode : 'table' })}
-            >
-              {t.name}
-            </NavItem>
+            <TagMenu key={t.id} tag={t}>
+              <NavItem
+                icon={<Hash className="size-3.5" style={{ color: color(t.color).fg }} />}
+                active={view.type === 'library' && view.tagId === t.id}
+                onClick={() => go({ type: 'library', tagId: t.id, mode: view.type === 'library' ? view.mode : 'table' })}
+              >
+                {t.name}
+              </NavItem>
+            </TagMenu>
           ))}
           {!tags.length && <p className="px-2 py-1 text-xs text-muted-foreground">Tag cards to build databases</p>}
         </nav>
