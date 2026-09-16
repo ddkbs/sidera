@@ -73,6 +73,11 @@ export interface CanvasApi {
   addConnection(input: { whiteboardId: ID; sourceId: ID; targetId: ID; label?: string }): Promise<Connection>
   updateConnection(input: { id: ID; label?: string; data?: Record<string, unknown> }): Promise<void>
   removeConnections(ids: ID[]): Promise<void>
+  organizeBoard(input: {
+    whiteboardId: ID
+    groups: { title: string; color?: string; objectIds: ID[] }[]
+    removeExistingSections?: boolean
+  }): Promise<{ sections: { id: ID; title: string; objectCount: number }[]; unsorted: number }>
 
   // journal
   getJournal(date: string): Promise<JournalDay>
@@ -101,7 +106,7 @@ export const API_METHODS: ApiMethod[] = [
   'listProperties', 'createProperty', 'updateProperty', 'setPropertyValue',
   'getKanban', 'moveKanbanItem',
   'listWhiteboards', 'getWhiteboard', 'createWhiteboard', 'updateWhiteboard', 'deleteWhiteboard',
-  'addObject', 'updateObjects', 'removeObjects', 'restoreObjects', 'addConnection', 'updateConnection', 'removeConnections',
+  'addObject', 'updateObjects', 'removeObjects', 'restoreObjects', 'addConnection', 'updateConnection', 'removeConnections', 'organizeBoard',
   'getJournal', 'listJournal',
   'search',
   'importFiles', 'getFileUrl',

@@ -26,6 +26,8 @@ export interface UiState {
   openCardId: string | null
   paletteOpen: boolean
   chatOpen: boolean
+  /** set to send a message into the chat panel as soon as it's mounted/open; consumed then cleared */
+  queuedChatMessage: string | null
   settingsOpen: boolean
   settingsSection: string
   /** resolved from settings.theme + OS appearance */
@@ -57,6 +59,7 @@ const initialState: UiState = {
   openCardId: null,
   paletteOpen: false,
   chatOpen: stored.chatOpen ?? false,
+  queuedChatMessage: null,
   settingsOpen: false,
   settingsSection: 'general',
   activity: [],
@@ -140,6 +143,12 @@ export const ui = createSlice({
     openCard: (s, a: PayloadAction<string | null>) => void (s.openCardId = a.payload),
     setPaletteOpen: (s, a: PayloadAction<boolean>) => void (s.paletteOpen = a.payload),
     setChatOpen: (s, a: PayloadAction<boolean>) => void (s.chatOpen = a.payload),
+    /** Opens the chat panel and queues a message for it to send once mounted. */
+    queueChatMessage: (s, a: PayloadAction<string>) => {
+      s.chatOpen = true
+      s.queuedChatMessage = a.payload
+    },
+    clearQueuedChatMessage: (s) => void (s.queuedChatMessage = null),
     openSettings: (s, a: PayloadAction<string | undefined>) => {
       s.settingsOpen = true
       if (a.payload) s.settingsSection = a.payload
@@ -166,6 +175,8 @@ export const {
   openCard,
   setPaletteOpen,
   setChatOpen,
+  queueChatMessage,
+  clearQueuedChatMessage,
   openSettings,
   setSettingsOpen,
   setSettingsSection,

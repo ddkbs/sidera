@@ -8,9 +8,9 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Orb } from '@/components/Orb'
 import { cn } from '@/lib/utils'
-import { useAppDispatch } from '@/store'
+import { useAppDispatch, useAppSelector } from '@/store'
 import { api } from '@/store/api'
-import { setChatOpen } from '@/store/ui'
+import { clearQueuedChatMessage, setChatOpen } from '@/store/ui'
 
 interface Msg {
   role: 'user' | 'assistant'
@@ -28,6 +28,7 @@ const SUGGESTIONS = [
 
 export function ChatPanel() {
   const dispatch = useAppDispatch()
+  const queuedChatMessage = useAppSelector((s) => s.ui.queuedChatMessage)
   const [messages, setMessages] = useState<Msg[]>([])
   const [input, setInput] = useState('')
   const [busy, setBusy] = useState(false)
@@ -69,6 +70,14 @@ export function ChatPanel() {
     setMessages((ms) => [...ms, { role: 'user', text: t, tools: [] }, { role: 'assistant', text: '', tools: [] }])
     void window.chat.send(t)
   }
+
+  // Consume a message queued by another part of the app (e.g. "Organize with AI") once we can actually send it.
+  useEffect(() => {
+    if (!queuedChatMessage || hasKey !== true || busy) return
+    dispatch(clearQueuedChatMessage())
+    send(queuedChatMessage)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [queuedChatMessage, hasKey, busy])
 
   return (
     <motion.aside

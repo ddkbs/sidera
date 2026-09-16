@@ -5,18 +5,20 @@ import { updateSettings } from '@/store/settings'
 import { useEffect, useState } from 'react'
 import { CommandDialog, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList, CommandSeparator, CommandShortcut } from '@/components/ui/command'
 import { useAppDispatch, useAppSelector } from '@/store'
-import { useCreateCardMutation, useCreateWhiteboardMutation, useSearchQuery } from '@/store/api'
-import { navigate, openCard, openSettings, setPaletteOpen, toggleSidebar } from '@/store/ui'
+import { useCreateCardMutation, useCreateWhiteboardMutation, useGetWhiteboardQuery, useSearchQuery } from '@/store/api'
+import { navigate, openCard, openSettings, queueChatMessage, setPaletteOpen, toggleSidebar } from '@/store/ui'
 
 export function CommandPalette() {
   const dispatch = useAppDispatch()
   const open = useAppSelector((s) => s.ui.paletteOpen)
   const theme = useAppSelector((s) => s.ui.theme)
+  const view = useAppSelector((s) => s.ui.view)
   const [q, setQ] = useState('')
   const [debounced, setDebounced] = useState('')
   const { data: hits = [] } = useSearchQuery(debounced, { skip: !open })
   const [createCard] = useCreateCardMutation()
   const [createWhiteboard] = useCreateWhiteboardMutation()
+  const { data: currentBoard } = useGetWhiteboardQuery(view.type === 'whiteboard' ? view.id : '', { skip: view.type !== 'whiteboard' })
 
   useEffect(() => {
     const t = setTimeout(() => setDebounced(q), 80)
@@ -116,6 +118,23 @@ export function CommandPalette() {
               <CommandItem value="mcp" onSelect={run(() => dispatch(openSettings('mcp')))}>
                 <Sparkles /> Connect AI via MCP
               </CommandItem>
+              {view.type === 'whiteboard' && currentBoard && (
+                <CommandItem
+                  value="organize-board"
+                  onSelect={run(async () => {
+                    const hasKey = await window.chat.hasKey()
+                    if (!hasKey) {
+                      toast('Add an Anthropic API key to organize with the built-in assistant', {
+                        description: 'Or ask Claude Desktop/Code to do it via the "organize-board" MCP prompt.'
+                      })
+                      return
+                    }
+                    dispatch(queueChatMessage(`Organize the whiteboard "${currentBoard.whiteboard.name}" (id ${currentBoard.whiteboard.id}) into meaningful sections.`))
+                  })}
+                >
+                  <Sparkles /> Organize this whiteboard with AI
+                </CommandItem>
+              )}
             </>
           )}
         </CommandGroup>
