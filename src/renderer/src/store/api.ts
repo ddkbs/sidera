@@ -36,7 +36,7 @@ export const api = createApi({
     }),
     updateCard: b.mutation<Res<'updateCard'>, Arg<'updateCard'>[0]>({
       queryFn: (input) => call('updateCard', input),
-      invalidatesTags: ['CardList', 'Whiteboard', 'Kanban']
+      invalidatesTags: (_r, _e, { content }) => ['CardList', 'Whiteboard', 'Kanban', ...(content ? [{ type: 'Journal' as const, id: 'LIST' }] : [])]
     }),
     deleteCard: b.mutation<void, string>({
       queryFn: (id) => call('deleteCard', id),
@@ -133,7 +133,7 @@ export const api = createApi({
     }),
     listJournal: b.query<Res<'listJournal'>, number | void>({
       queryFn: (limit) => call('listJournal', limit ?? 30),
-      providesTags: ['Journal']
+      providesTags: [{ type: 'Journal', id: 'LIST' }]
     }),
 
     // search & meta

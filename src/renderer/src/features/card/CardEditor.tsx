@@ -8,6 +8,7 @@ import { useEffect, useRef } from 'react'
 import type { DocJSON } from '@shared/types'
 import { cn } from '@/lib/utils'
 import { CardMention, handleMentionClick } from './mention'
+import { SlashCommand } from './slash'
 import './editor.css'
 
 interface Props {
@@ -20,7 +21,7 @@ interface Props {
 }
 
 /** Rich text editor for card content. Uncontrolled after mount — remount (key) to load a different card. */
-export function CardEditor({ content, onChange, placeholder = 'Write, or type @ to link a card…', className, autofocus, editable = true }: Props) {
+export function CardEditor({ content, onChange, placeholder = "Write, type '/' for commands or '@' to link a card…", className, autofocus, editable = true }: Props) {
   const timer = useRef<ReturnType<typeof setTimeout>>(undefined)
   const latest = useRef(onChange)
   latest.current = onChange
@@ -33,7 +34,8 @@ export function CardEditor({ content, onChange, placeholder = 'Write, or type @ 
       Link.configure({ openOnClick: false, autolink: true }),
       TaskList,
       TaskItem.configure({ nested: true }),
-      CardMention
+      CardMention,
+      SlashCommand
     ],
     content,
     editable,
