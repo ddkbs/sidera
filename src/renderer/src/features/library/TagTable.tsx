@@ -1,4 +1,5 @@
 import { useVirtualizer } from '@tanstack/react-virtual'
+import { CardIcon } from '@/components/CardIcon'
 import { Calendar, CheckSquare, CircleDot, Hash as HashIcon, Plus, Type } from '@/components/icons'
 import { nanoid } from 'nanoid'
 import { useRef, useState } from 'react'
@@ -57,6 +58,7 @@ export function TagTable({ tagId, filter }: { tagId: string; filter: string }) {
                   style={{ gridTemplateColumns: template, transform: `translateY(${item.start}px)`, height: item.size }}
                 >
                   <button onClick={() => dispatch(openCard(card.id))} className="truncate px-3 text-left font-medium hover:underline">
+                    <CardIcon icon={card.icon} className="mr-1.5 inline-grid size-4 align-[-3px] text-[14px]" />
                     {card.title || <span className="text-muted-foreground">Untitled</span>}
                   </button>
                   {props.map((p) => (

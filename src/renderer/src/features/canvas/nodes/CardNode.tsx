@@ -1,4 +1,7 @@
-import type { NodeProps } from '@xyflow/react'
+import { NodeToolbar, Position, type NodeProps } from '@xyflow/react'
+import { CardIcon } from '@/components/CardIcon'
+import { PALETTE, color as paletteColor } from '@/lib/colors'
+import { CARD_COLORS } from '@/features/card/AppearancePicker'
 import { Expand, FileText } from '@/components/icons'
 import { memo, useEffect, useRef, useState } from 'react'
 import { cn } from '@/lib/utils'
@@ -15,6 +18,8 @@ export const CardNode = memo(function CardNode({ data, selected }: NodeProps<Obj
   const card = data.card
   const isOpen = useAppSelector((s) => s.ui.openCardId === card?.id)
   const [editing, setEditing] = useState(false)
+  const [updateCard] = useUpdateCardMutation()
+  const tint = card?.color ? paletteColor(card.color) : null
   const root = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -40,6 +45,26 @@ export const CardNode = memo(function CardNode({ data, selected }: NodeProps<Obj
   return (
     <>
       <Resizer selected={selected} minWidth={180} minHeight={80} />
+      {card && (
+        <NodeToolbar isVisible={selected && !editing} position={Position.Top} offset={10}>
+          <div className="flex items-center gap-1 rounded-full border bg-popover p-1 shadow-md">
+            <button
+              aria-label="Default color"
+              onClick={() => updateCard({ id: card.id, color: null })}
+              className={cn('size-5 rounded-full border bg-card', !card.color && 'ring-2 ring-foreground/40')}
+            />
+            {CARD_COLORS.map((c) => (
+              <button
+                key={c}
+                aria-label={c}
+                onClick={() => updateCard({ id: card.id, color: c })}
+                className={cn('size-5 rounded-full border', card.color === c && 'ring-2 ring-foreground/40')}
+                style={{ background: PALETTE[c].border }}
+              />
+            ))}
+          </div>
+        </NodeToolbar>
+      )}
       <div
         ref={root}
         onDoubleClick={() => card && setEditing(true)}
@@ -48,6 +73,7 @@ export const CardNode = memo(function CardNode({ data, selected }: NodeProps<Obj
           selected && 'ring-2 ring-brand/70',
           (isOpen || editing) && 'ring-2 ring-brand'
         )}
+        style={tint ? { background: `linear-gradient(${tint.bg}, ${tint.bg}), var(--card)`, borderColor: tint.border } : undefined}
       >
         {card && (
           <button
@@ -66,7 +92,10 @@ export const CardNode = memo(function CardNode({ data, selected }: NodeProps<Obj
           <InlineEditor cardId={card.id} />
         ) : (
           <div className="flex min-h-0 flex-1 flex-col gap-1.5 p-4">
-            <div className="line-clamp-2 pr-6 text-[15px] leading-snug font-semibold tracking-tight">{card.title || <span className="text-muted-foreground">Untitled</span>}</div>
+            <div className="flex items-start gap-1.5 pr-6">
+              <CardIcon icon={card.icon} className="mt-0.5 size-[18px] text-[16px]" />
+              <div className="line-clamp-2 text-[15px] leading-snug font-semibold tracking-tight">{card.title || <span className="text-muted-foreground">Untitled</span>}</div>
+            </div>
             {card.tags.length > 0 && (
               <div className="flex flex-wrap gap-1">
                 {card.tags.map((t) => (

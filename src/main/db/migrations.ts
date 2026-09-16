@@ -114,5 +114,9 @@ export const migrations: string[] = [
     INSERT INTO cards_fts(cards_fts, rowid, title, content_text) VALUES ('delete', old.rowid, old.title, old.content_text);
     INSERT INTO cards_fts(rowid, title, content_text) VALUES (new.rowid, new.title, new.content_text);
   END;
+  `,
+  /* 2: card appearance */ `
+  ALTER TABLE cards ADD COLUMN color TEXT;
+  ALTER TABLE cards ADD COLUMN icon TEXT;
   `
 ]

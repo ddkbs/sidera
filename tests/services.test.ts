@@ -20,6 +20,16 @@ describe('cards', () => {
     expect(api.search('entangle')).toHaveLength(0)
   })
 
+  it('stores card colour and icon and returns them in summaries', () => {
+    const c = api.createCard({ title: 'Styled' })
+    expect(c.color).toBeNull()
+    api.updateCard({ id: c.id, color: 'blue', icon: '🚀' })
+    expect(api.getCard(c.id)).toMatchObject({ color: 'blue', icon: '🚀' })
+    expect(api.listCards()[0]).toMatchObject({ color: 'blue', icon: '🚀' })
+    api.updateCard({ id: c.id, icon: null })
+    expect(api.getCard(c.id)!.icon).toBeNull()
+  })
+
   it('tracks backlinks from mentions', () => {
     const a = api.createCard({ title: 'A' })
     const b = api.createCard({

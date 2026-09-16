@@ -1,0 +1,102 @@
+import {
+  Bolt,
+  Bookmark,
+  Briefcase,
+  Bug,
+  Coffee,
+  Compass,
+  Fire,
+  Flag,
+  Globe,
+  Heart,
+  Lightbulb,
+  Lock,
+  Megaphone,
+  Music,
+  Pin,
+  Rocket,
+  Star,
+  Target,
+  Trophy,
+  Users,
+  AskAI,
+  BookOpen,
+  Calendar,
+  Code,
+  File,
+  Home,
+  KeyRound,
+  LayoutDashboard,
+  Library,
+  Link2,
+  ListChecks,
+  Network,
+  Palette,
+  PenTool,
+  Pencil,
+  Search,
+  Server,
+  Settings,
+  Sparkles,
+  User,
+  Workflow,
+  Wrench,
+  type AppIcon
+} from '@/components/icons'
+import { cn } from '@/lib/utils'
+
+/** Icons offered for cards (stored as "icon:<Name>"). */
+export const CARD_ICONS: Record<string, AppIcon> = {
+  Lightbulb,
+  Rocket,
+  Target,
+  Star,
+  Heart,
+  Fire,
+  Bolt,
+  Flag,
+  Pin,
+  Bookmark,
+  Trophy,
+  Compass,
+  Globe,
+  Briefcase,
+  Users,
+  User,
+  Megaphone,
+  Coffee,
+  Music,
+  Lock,
+  Bug,
+  Code,
+  Wrench,
+  Settings,
+  Server,
+  Sparkles,
+  AI: AskAI,
+  Book: BookOpen,
+  Library,
+  File,
+  Pencil,
+  Pen: PenTool,
+  Palette,
+  Calendar,
+  Checklist: ListChecks,
+  Link: Link2,
+  Search,
+  Key: KeyRound,
+  Home,
+  Board: LayoutDashboard,
+  Mindmap: Network,
+  Flow: Workflow
+}
+
+/** Renders a card icon value: an emoji or "icon:<Name>". */
+export function CardIcon({ icon, className }: { icon: string | null | undefined; className?: string }) {
+  if (!icon) return null
+  if (icon.startsWith('icon:')) {
+    const Icon = CARD_ICONS[icon.slice(5)]
+    return Icon ? <Icon className={cn('shrink-0', className)} /> : null
+  }
+  return <span className={cn('inline-grid shrink-0 place-items-center leading-none', className)}>{icon}</span>
+}

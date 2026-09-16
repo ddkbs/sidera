@@ -1,4 +1,6 @@
 import { useVirtualizer } from '@tanstack/react-virtual'
+import { CardIcon } from '@/components/CardIcon'
+import { color as paletteColor } from '@/lib/colors'
 import { Columns3, List, Plus, Table2 } from '@/components/icons'
 import { useRef, useState } from 'react'
 import { Button } from '@/components/ui/button'
@@ -108,7 +110,11 @@ function CardCollection({ tagId, mode, filter }: { tagId: string | null; mode: '
 function TableRow({ card, onOpen }: { card: CardSummary; onOpen: () => void }) {
   return (
     <button onClick={onOpen} className="grid h-full w-full grid-cols-[minmax(200px,2fr)_minmax(160px,1fr)_120px] items-center border-b px-3 text-left text-sm transition hover:bg-accent">
-      <span className="truncate font-medium">{card.title || <span className="text-muted-foreground">Untitled</span>}</span>
+      <span className="flex min-w-0 items-center gap-2 font-medium">
+        {card.color && <span className="size-2 shrink-0 rounded-full" style={{ background: paletteColor(card.color).border }} />}
+        <CardIcon icon={card.icon} className="size-4 text-[14px]" />
+        <span className="truncate">{card.title || <span className="text-muted-foreground">Untitled</span>}</span>
+      </span>
       <span className="flex gap-1 overflow-hidden">{card.tags.map((t) => <TagBadge key={t.id} tag={t} />)}</span>
       <span className="text-right text-xs text-muted-foreground">{new Date(card.updatedAt).toLocaleDateString()}</span>
     </button>
@@ -119,6 +125,8 @@ function ListRow({ card, onOpen }: { card: CardSummary; onOpen: () => void }) {
   return (
     <button onClick={onOpen} className="flex h-[68px] w-full flex-col justify-center gap-0.5 rounded-lg px-3 text-left transition hover:bg-accent">
       <span className="flex items-center gap-2">
+        {card.color && <span className="size-2 shrink-0 rounded-full" style={{ background: paletteColor(card.color).border }} />}
+        <CardIcon icon={card.icon} className="size-4 text-[14px]" />
         <span className="truncate text-sm font-medium">{card.title || 'Untitled'}</span>
         {card.tags.map((t) => <TagBadge key={t.id} tag={t} />)}
       </span>

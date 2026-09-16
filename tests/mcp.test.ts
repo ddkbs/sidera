@@ -60,6 +60,8 @@ describe('mcp', () => {
     await call('set_card_property', { card_id: card.id, tag: 'roadmap', property: 'priority', value: 'High' })
     const listed = await call('list_cards', { tag: 'Roadmap' })
     expect(listed[0].properties).toMatchObject({ Status: 'Done', Priority: 'High' })
+    await call('update_card', { card_id: card.id, color: 'green', icon: '✅' })
+    expect((await call('get_card', { card_id: card.id })).icon).toBe('✅')
     const linked = await call('create_card', { title: 'Follow-up', markdown: 'See [[Ship MCP]] and [[Nope]]' })
     const shipped = await call('get_card', { card_id: card.id })
     expect(shipped.backlinks).toEqual([{ cardId: linked.id, title: 'Follow-up' }])

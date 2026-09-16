@@ -80,15 +80,18 @@ export function createMcpServer(api: Services, version: string, onCall?: ToolCal
   server.registerTool(
     'update_card',
     {
-      description: 'Update a card title and/or replace its content with Markdown (mode=replace) or append Markdown (mode=append).',
+      description:
+        'Update a card: title, content as Markdown (mode=replace or append), color (palette name) and icon (an emoji like "🚀"; null removes).',
       inputSchema: {
         card_id: z.string(),
         title: z.string().optional(),
         markdown: z.string().optional(),
-        mode: z.enum(['replace', 'append']).default('append')
+        mode: z.enum(['replace', 'append']).default('append'),
+        color: z.enum(['red', 'orange', 'yellow', 'green', 'teal', 'blue', 'purple', 'pink']).nullable().optional(),
+        icon: z.string().max(16).nullable().optional()
       }
     },
-    async ({ card_id, title, markdown, mode }) => {
+    async ({ card_id, title, markdown, mode, color, icon }) => {
       const card = api.getCard(card_id)
       if (!card) return { ...ok(`Card ${card_id} not found`), isError: true }
       let content
@@ -96,7 +99,7 @@ export function createMcpServer(api: Services, version: string, onCall?: ToolCal
         const next = toDoc(markdown)
         content = mode === 'replace' ? next : { ...card.content, content: [...(card.content.content ?? []), ...(next.content ?? [])] }
       }
-      const updated = api.updateCard({ id: card_id, title, content })
+      const updated = api.updateCard({ id: card_id, title, content, color, icon })
       return ok({ id: updated.id, title: updated.title })
     }
   )

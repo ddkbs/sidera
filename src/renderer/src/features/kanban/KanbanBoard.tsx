@@ -1,3 +1,4 @@
+import { CardIcon } from '@/components/CardIcon'
 import {
   DndContext,
   DragOverlay,
@@ -14,7 +15,7 @@ import { SortableContext, arrayMove, useSortable, verticalListSortingStrategy } 
 import { CSS } from '@dnd-kit/utilities'
 import { Plus } from '@/components/icons'
 import { useEffect, useState } from 'react'
-import { color } from '@/lib/colors'
+import { color, color as paletteColor } from '@/lib/colors'
 import { cn } from '@/lib/utils'
 import { useAppDispatch } from '@/store'
 import { useCreateCardMutation, useGetKanbanQuery, useMoveKanbanItemMutation, useUpdatePropertyMutation } from '@/store/api'
@@ -179,8 +180,14 @@ function SortableCard({ card, onOpen }: { card: CardSummary; onOpen: () => void 
 
 function KanbanCard({ card, className }: { card: CardSummary; className?: string }) {
   return (
-    <div className={cn('cursor-grab rounded-lg border bg-card p-3 text-sm shadow-xs transition hover:shadow-md active:cursor-grabbing', className)}>
-      <div className="font-medium">{card.title || <span className="text-muted-foreground">Untitled</span>}</div>
+    <div
+      className={cn('cursor-grab rounded-lg border bg-card p-3 text-sm shadow-xs transition hover:shadow-md active:cursor-grabbing', className)}
+      style={card.color ? { borderLeft: `3px solid ${paletteColor(card.color).border}` } : undefined}
+    >
+      <div className="flex items-start gap-1.5 font-medium">
+        <CardIcon icon={card.icon} className="mt-0.5 size-4 text-[14px]" />
+        <span>{card.title || <span className="text-muted-foreground">Untitled</span>}</span>
+      </div>
       {card.excerpt && <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">{card.excerpt}</p>}
     </div>
   )

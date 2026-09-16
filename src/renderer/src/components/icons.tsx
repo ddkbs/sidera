@@ -6,6 +6,26 @@ import type { ComponentType, SVGProps } from 'react'
 import {
   IconAdd,
   IconAddRoundrect,
+  IconLightbulb as ObraLightbulb,
+  IconRocketShip as ObraRocket,
+  IconTarget as ObraTarget,
+  IconFavorite as ObraStar,
+  IconHeart as ObraHeart,
+  IconFire as ObraFire,
+  IconBolt as ObraBolt,
+  IconFlag as ObraFlag,
+  IconPin as ObraPin,
+  IconBookmark as ObraBookmark,
+  IconMedal as ObraTrophy,
+  IconCompass as ObraCompass,
+  IconGlobe as ObraGlobe,
+  IconBriefcase as ObraBriefcase,
+  IconUsers as ObraUsers,
+  IconMegaphone as ObraMegaphone,
+  IconCoffee as ObraCoffee,
+  IconMusicalNoteSingle as ObraMusic,
+  IconLock as ObraLock,
+  IconBug as ObraBug,
   IconBarChart,
   IconBarChartBox,
   IconLineChartUp,
@@ -201,3 +221,25 @@ export const SankeyChart = IconTransfer
 export const TimelineChart = IconGanttChart
 export const MatrixChart = IconMatrixLayout
 export const VennChart = IconBooleanUnion
+
+// Card icon set
+export const Lightbulb = ObraLightbulb
+export const Rocket = ObraRocket
+export const Target = ObraTarget
+export const Star = ObraStar
+export const Heart = ObraHeart
+export const Fire = ObraFire
+export const Bolt = ObraBolt
+export const Flag = ObraFlag
+export const Pin = ObraPin
+export const Bookmark = ObraBookmark
+export const Trophy = ObraTrophy
+export const Compass = ObraCompass
+export const Globe = ObraGlobe
+export const Briefcase = ObraBriefcase
+export const Users = ObraUsers
+export const Megaphone = ObraMegaphone
+export const Coffee = ObraCoffee
+export const Music = ObraMusic
+export const Lock = ObraLock
+export const Bug = ObraBug

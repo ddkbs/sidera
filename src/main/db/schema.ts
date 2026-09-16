@@ -5,6 +5,8 @@ export const cards = sqliteTable('cards', {
   title: text('title').notNull().default(''),
   content: text('content').notNull(),
   contentText: text('content_text').notNull().default(''),
+  color: text('color'),
+  icon: text('icon'),
   createdAt: integer('created_at').notNull(),
   updatedAt: integer('updated_at').notNull(),
   deletedAt: integer('deleted_at')

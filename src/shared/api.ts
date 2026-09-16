@@ -31,7 +31,7 @@ export interface CanvasApi {
   listCards(opts?: { tagId?: ID; limit?: number; offset?: number }): Promise<CardSummary[]>
   getCard(id: ID): Promise<CardDetail | null>
   createCard(input: { title?: string; content?: DocJSON; markdown?: string; tagIds?: ID[] }): Promise<Card>
-  updateCard(input: { id: ID; title?: string; content?: DocJSON }): Promise<Card>
+  updateCard(input: { id: ID; title?: string; content?: DocJSON; color?: string | null; icon?: string | null }): Promise<Card>
   deleteCard(id: ID): Promise<void>
 
   // tags & properties

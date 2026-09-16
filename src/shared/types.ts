@@ -16,6 +16,10 @@ export interface Card {
   title: string
   content: DocJSON
   contentText: string
+  /** palette colour name (gray, red, …) or null */
+  color: string | null
+  /** emoji ("🚀") or app icon reference ("icon:Lightbulb"), or null */
+  icon: string | null
   createdAt: number
   updatedAt: number
 }
@@ -24,6 +28,8 @@ export interface CardSummary {
   id: ID
   title: string
   excerpt: string
+  color: string | null
+  icon: string | null
   updatedAt: number
   tags: Tag[]
   /** property id → value; only filled when listing cards of a tag */

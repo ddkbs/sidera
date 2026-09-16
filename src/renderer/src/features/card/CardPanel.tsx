@@ -11,6 +11,9 @@ import { useAppDispatch } from '@/store'
 import { useAddObjectMutation, useDeleteCardMutation, useGetCardQuery, useListWhiteboardsQuery, useUpdateCardMutation } from '@/store/api'
 import { navigate, openCard } from '@/store/ui'
 import { CardEditor } from './CardEditor'
+import { AppearancePicker } from './AppearancePicker'
+import { CardIcon } from '@/components/CardIcon'
+import { color as paletteColor } from '@/lib/colors'
 import { PropertyList } from './PropertyList'
 import { TagPicker } from './TagPicker'
 
@@ -112,6 +115,21 @@ export function CardPanel({ cardId }: { cardId: string }) {
           </div>
         ) : (
           <div className="px-8 pt-6 pb-16">
+            {card.color && <div className="-mx-8 -mt-6 mb-5 h-1.5" style={{ background: paletteColor(card.color).border }} />}
+            <div className="group/appearance mb-1 flex min-h-7 items-end gap-1">
+              {card.icon && (
+                <AppearancePicker color={card.color} icon={card.icon} onChange={(p) => update({ id: card.id, ...p })}>
+                  <button className="-ml-1 grid size-12 place-items-center rounded-lg text-4xl transition hover:bg-accent" aria-label="Change icon">
+                    <CardIcon icon={card.icon} className="size-9" />
+                  </button>
+                </AppearancePicker>
+              )}
+              <AppearancePicker color={card.color} icon={card.icon} onChange={(p) => update({ id: card.id, ...p })}>
+                <button className="h-7 rounded-md px-2 text-xs text-muted-foreground opacity-0 transition group-hover/appearance:opacity-100 hover:bg-accent hover:text-foreground focus-visible:opacity-100">
+                  {card.icon ? 'Change color' : 'Add icon & color'}
+                </button>
+              </AppearancePicker>
+            </div>
             <textarea
               value={title}
               rows={1}

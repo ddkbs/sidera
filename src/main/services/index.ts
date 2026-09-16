@@ -65,6 +65,8 @@ export function createServices(db: DB, onChange: (scope: DbChangeScope) => void 
     title: r.title,
     content: json<DocJSON>(r.content, emptyDoc()),
     contentText: r.contentText,
+    color: r.color,
+    icon: r.icon,
     createdAt: r.createdAt,
     updatedAt: r.updatedAt
   })
@@ -124,12 +126,14 @@ export function createServices(db: DB, onChange: (scope: DbChangeScope) => void 
     return map
   }
 
-  const summarize = (rows: { id: string; title: string; contentText: string; updatedAt: number }[]): CardSummary[] => {
+  const summarize = (rows: CardSummaryRow[]): CardSummary[] => {
     const tags = tagsFor(rows.map((r) => r.id))
     return rows.map((r) => ({
       id: r.id,
       title: r.title,
       excerpt: r.contentText.slice(0, 280),
+      color: r.color ?? null,
+      icon: r.icon ?? null,
       updatedAt: r.updatedAt,
       tags: tags.get(r.id) ?? []
     }))
@@ -179,7 +183,7 @@ export function createServices(db: DB, onChange: (scope: DbChangeScope) => void 
       const rows = opts.tagId
         ? (sql
             .prepare(
-              `SELECT c.id, c.title, c.content_text AS contentText, c.updated_at AS updatedAt FROM cards c
+              `SELECT c.id, c.title, c.content_text AS contentText, c.color, c.icon, c.updated_at AS updatedAt FROM cards c
                JOIN card_tags ct ON ct.card_id = c.id
                WHERE ct.tag_id = ? AND c.deleted_at IS NULL AND c.id NOT IN (SELECT card_id FROM journal_entries)
                ORDER BY c.updated_at DESC LIMIT ? OFFSET ?`
@@ -187,7 +191,7 @@ export function createServices(db: DB, onChange: (scope: DbChangeScope) => void 
             .all(opts.tagId, limit, offset) as CardSummaryRow[])
         : (sql
             .prepare(
-              `SELECT id, title, content_text AS contentText, updated_at AS updatedAt FROM cards
+              `SELECT id, title, content_text AS contentText, color, icon, updated_at AS updatedAt FROM cards
                WHERE deleted_at IS NULL AND id NOT IN (SELECT card_id FROM journal_entries)
                ORDER BY updated_at DESC LIMIT ? OFFSET ?`
             )
@@ -254,13 +258,15 @@ export function createServices(db: DB, onChange: (scope: DbChangeScope) => void 
         if (input.tagIds?.length) api.setCardTags(row.id, input.tagIds)
       })
       onChange('cards')
-      return toCard({ ...row, deletedAt: null })
+      return toCard({ ...row, color: null, icon: null, deletedAt: null })
     },
 
     updateCard(input) {
       const existing = requireCard(input.id)
       const patch: Partial<typeof s.cards.$inferInsert> = { updatedAt: now() }
       if (input.title !== undefined) patch.title = input.title
+      if (input.color !== undefined) patch.color = input.color
+      if (input.icon !== undefined) patch.icon = input.icon
       if (input.content !== undefined) {
         patch.content = JSON.stringify(input.content)
         patch.contentText = docToText(input.content)
@@ -359,7 +365,7 @@ export function createServices(db: DB, onChange: (scope: DbChangeScope) => void 
         : ensureStatusProperty(tagId)
       const rows = sql
         .prepare(
-          `SELECT c.id, c.title, c.content_text AS contentText, c.updated_at AS updatedAt, v.value, v.position
+          `SELECT c.id, c.title, c.content_text AS contentText, c.color, c.icon, c.updated_at AS updatedAt, v.value, v.position
            FROM cards c JOIN card_tags ct ON ct.card_id = c.id AND ct.tag_id = ?
            LEFT JOIN card_property_values v ON v.card_id = c.id AND v.property_id = ?
            WHERE c.deleted_at IS NULL
@@ -435,7 +441,7 @@ export function createServices(db: DB, onChange: (scope: DbChangeScope) => void 
       const cardIds = objects.filter((o) => o.kind === 'card' && o.refId).map((o) => o.refId!)
       const cardRows = cardIds.length
         ? db
-            .select({ id: s.cards.id, title: s.cards.title, contentText: s.cards.contentText, updatedAt: s.cards.updatedAt })
+            .select({ id: s.cards.id, title: s.cards.title, contentText: s.cards.contentText, color: s.cards.color, icon: s.cards.icon, updatedAt: s.cards.updatedAt })
             .from(s.cards)
             .where(inArray(s.cards.id, cardIds))
             .all()
@@ -571,7 +577,7 @@ export function createServices(db: DB, onChange: (scope: DbChangeScope) => void 
       if (!q) {
         return summarize(
           sql
-            .prepare(`SELECT id, title, content_text AS contentText, updated_at AS updatedAt FROM cards WHERE deleted_at IS NULL AND NOT (content_text = '' AND id IN (SELECT card_id FROM journal_entries)) ORDER BY updated_at DESC LIMIT ?`)
+            .prepare(`SELECT id, title, content_text AS contentText, color, icon, updated_at AS updatedAt FROM cards WHERE deleted_at IS NULL AND NOT (content_text = '' AND id IN (SELECT card_id FROM journal_entries)) ORDER BY updated_at DESC LIMIT ?`)
             .all(limit) as CardSummaryRow[]
         ).map((c): SearchHit => ({ id: c.id, title: c.title, snippet: c.excerpt.slice(0, 120), kind: 'card' }))
       }
@@ -618,6 +624,8 @@ interface CardSummaryRow {
   id: string
   title: string
   contentText: string
+  color?: string | null
+  icon?: string | null
   updatedAt: number
 }
 interface RawCard {
@@ -625,6 +633,8 @@ interface RawCard {
   title: string
   content: string
   content_text: string
+  color: string | null
+  icon: string | null
   created_at: number
   updated_at: number
   deleted_at: number | null
@@ -634,6 +644,8 @@ const fromRaw = (r: RawCard): typeof s.cards.$inferSelect => ({
   title: r.title,
   content: r.content,
   contentText: r.content_text,
+  color: r.color,
+  icon: r.icon,
   createdAt: r.created_at,
   updatedAt: r.updated_at,
   deletedAt: r.deleted_at

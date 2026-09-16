@@ -1,4 +1,5 @@
 import { ArrowRight, BookOpen, CalendarDays, LayoutDashboard, Plus } from '@/components/icons'
+import { CardIcon } from '@/components/CardIcon'
 import { motion } from 'motion/react'
 import { Button } from '@/components/ui/button'
 import { useAppDispatch } from '@/store'
@@ -69,7 +70,7 @@ export function HomeView() {
             <div className="divide-y rounded-xl border bg-card">
               {cards.map((c) => (
                 <button key={c.id} onClick={() => dispatch(openCard(c.id))} className="flex w-full items-center gap-3 px-4 py-2.5 text-left transition first:rounded-t-xl last:rounded-b-xl hover:bg-accent">
-                  <BookOpen className="size-4 text-muted-foreground" />
+                  {c.icon ? <CardIcon icon={c.icon} className="size-4 text-[14px]" /> : <BookOpen className="size-4 text-muted-foreground" />}
                   <span className="truncate text-sm font-medium">{c.title || 'Untitled'}</span>
                   <span className="truncate text-xs text-muted-foreground">{c.excerpt.slice(0, 80)}</span>
                   <span className="ml-auto shrink-0 text-xs text-muted-foreground">{new Date(c.updatedAt).toLocaleDateString()}</span>
