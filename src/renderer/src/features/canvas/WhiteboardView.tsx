@@ -237,6 +237,56 @@ function Canvas({ detail }: { detail: WhiteboardDetail }) {
     return () => window.removeEventListener('keydown', onKey)
   }, [applyOp])
 
+  // copy / paste / duplicate selected objects (cards are referenced, not cloned)
+  const clipboard = useRef<{ objects: ObjectNode['data']['object'][] } | null>(null)
+  const pasteObjects = useCallback(
+    async (objects: ObjectNode['data']['object'][], offset: { x: number; y: number }) => {
+      const created = []
+      for (const o of objects) {
+        const res = await addObject({
+          whiteboardId: boardId,
+          kind: o.kind,
+          refId: o.refId,
+          x: o.x + offset.x,
+          y: o.y + offset.y,
+          width: o.width,
+          height: o.height,
+          color: o.color,
+          data: o.data
+        })
+        if ('data' in res && res.data) created.push(res.data)
+      }
+      if (created.length) history.current.push({ type: 'add', objects: created, connections: [] })
+    },
+    [addObject, boardId]
+  )
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const el = e.target as HTMLElement
+      if (!e.metaKey || el.isContentEditable || /INPUT|TEXTAREA|SELECT/.test(el.tagName)) return
+      const selected = rf.getNodes().filter((n) => n.selected).map((n) => ({ ...n.data.object, x: n.position.x, y: n.position.y }))
+      const key = e.key.toLowerCase()
+      if (key === 'c' && selected.length) clipboard.current = { objects: selected }
+      else if (key === 'd' && selected.length) {
+        e.preventDefault()
+        void pasteObjects(selected, { x: 40, y: 40 })
+      } else if (key === 'v' && clipboard.current) {
+        e.preventDefault()
+        const objs = clipboard.current.objects
+        const c = center()
+        const minX = Math.min(...objs.map((o) => o.x))
+        const minY = Math.min(...objs.map((o) => o.y))
+        void pasteObjects(objs, { x: c.x - minX - 100, y: c.y - minY - 100 })
+      } else if (key === 'a') {
+        e.preventDefault()
+        setNodes((ns) => ns.map((n) => ({ ...n, selected: true })))
+      }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [rf, pasteObjects, center])
+
   // keyboard shortcuts for tools
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
