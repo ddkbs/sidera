@@ -18,5 +18,11 @@ Headless stdio mode: `CanvasCL --mcp-stdio`. Tools: `search_cards`, `get_card`, 
 `list_cards`, `list_tags`, `tag_card`, `create_property`, `set_card_property`, `list_whiteboards`, `get_whiteboard`, `create_whiteboard`, `add_card_to_whiteboard`,
 `add_section`, `connect_objects`, `get_kanban`, `move_kanban_item`, `get_journal`, `append_to_journal`.
 
+## In-app assistant
+Press **⌘J** (or *Ask AI*) for a chat panel powered by Claude (`claude-opus-5`, adaptive thinking, server-side refusal fallback). It uses **the same tools as the MCP server** via an in-process MCP client, so everything an external agent can do, the built-in assistant can do too. Bring your own Anthropic API key — it's stored encrypted with the macOS Keychain (`safeStorage`), or read from `ANTHROPIC_API_KEY`.
+
+## Data ownership
+⌘K → *Export all cards as Markdown* writes one `.md` file per card (front matter with id/tags) plus a `journal/` folder. *Import Markdown files* does the reverse.
+
 ## License
 MIT

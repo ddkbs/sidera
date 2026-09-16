@@ -8,14 +8,15 @@ import { LibraryView } from '@/features/library/LibraryView'
 import { CommandPalette } from '@/features/palette/CommandPalette'
 import { McpDialog } from '@/features/mcp/McpDialog'
 import { ShortcutsDialog } from '@/features/help/ShortcutsDialog'
-import { useAppDispatch, useAppSelector } from '@/store'
-import { back, setPaletteOpen, toggleSidebar } from '@/store/ui'
+import { store, useAppDispatch, useAppSelector } from '@/store'
+import { back, setChatOpen, setPaletteOpen, toggleSidebar } from '@/store/ui'
+import { ChatPanel } from '@/features/chat/ChatPanel'
 import { Sidebar } from './Sidebar'
 import { TopBar } from './TopBar'
 
 export function AppShell() {
   const dispatch = useAppDispatch()
-  const { sidebarOpen, view, openCardId } = useAppSelector((s) => s.ui)
+  const { sidebarOpen, view, openCardId, chatOpen } = useAppSelector((s) => s.ui)
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -26,6 +27,9 @@ export function AppShell() {
       } else if (e.key === '\\') {
         e.preventDefault()
         dispatch(toggleSidebar())
+      } else if (e.key === 'j') {
+        e.preventDefault()
+        dispatch(setChatOpen(!store.getState().ui.chatOpen))
       } else if (e.key === '[') {
         e.preventDefault()
         dispatch(back())
@@ -59,8 +63,9 @@ export function AppShell() {
             {view.type === 'library' && <LibraryView />}
             {view.type === 'journal' && <JournalView />}
             {view.type === 'home' && <HomeView />}
+            <AnimatePresence>{openCardId && <CardPanel key={openCardId} cardId={openCardId} />}</AnimatePresence>
           </div>
-          <AnimatePresence>{openCardId && <CardPanel key={openCardId} cardId={openCardId} />}</AnimatePresence>
+          <AnimatePresence initial={false}>{chatOpen && <ChatPanel key="chat" />}</AnimatePresence>
         </div>
       </main>
       <CommandPalette />

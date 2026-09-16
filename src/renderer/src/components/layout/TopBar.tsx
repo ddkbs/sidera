@@ -1,15 +1,15 @@
-import { BookOpen, CalendarDays, ChevronRight, Home, LayoutDashboard, Moon, PanelLeft, Sun } from 'lucide-react'
+import { BookOpen, CalendarDays, ChevronRight, Home, LayoutDashboard, Moon, PanelLeft, Sparkles, Sun } from 'lucide-react'
 import { Fragment, useEffect, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { cn } from '@/lib/utils'
 import { useAppDispatch, useAppSelector } from '@/store'
 import { useGetWhiteboardQuery, useListTagsQuery, useUpdateWhiteboardMutation } from '@/store/api'
-import { navigate, toggleSidebar, toggleTheme } from '@/store/ui'
+import { navigate, setChatOpen, toggleSidebar, toggleTheme } from '@/store/ui'
 
 export function TopBar() {
   const dispatch = useAppDispatch()
-  const { sidebarOpen, view, theme } = useAppSelector((s) => s.ui)
+  const { sidebarOpen, view, theme, chatOpen } = useAppSelector((s) => s.ui)
 
   return (
     <header className={cn('drag-region flex h-12 shrink-0 items-center gap-1 border-b px-2', !sidebarOpen && 'pl-20')}>
@@ -29,6 +29,14 @@ export function TopBar() {
         {view.type === 'home' && <Crumb icon={<Home className="size-3.5" />} current>Home</Crumb>}
       </nav>
       <div className="flex-1" />
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <Button variant={chatOpen ? 'secondary' : 'ghost'} size="sm" className="no-drag h-8 gap-1.5" onClick={() => dispatch(setChatOpen(!chatOpen))}>
+            <Sparkles className="size-4" /> Ask AI
+          </Button>
+        </TooltipTrigger>
+        <TooltipContent>Assistant ⌘J</TooltipContent>
+      </Tooltip>
       <Button variant="ghost" size="icon" className="no-drag size-8" onClick={() => dispatch(toggleTheme())} aria-label="Toggle theme">
         {theme === 'dark' ? <Sun className="size-4" /> : <Moon className="size-4" />}
       </Button>

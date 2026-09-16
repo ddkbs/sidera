@@ -9,6 +9,7 @@ const GROUPS: { title: string; items: [string, string][] }[] = [
       ['⌘K', 'Search & commands'],
       ['⌘\\', 'Toggle sidebar'],
       ['⌘[', 'Go back'],
+      ['⌘J', 'AI assistant'],
       ['⌘/', 'Keyboard shortcuts'],
       ['Esc', 'Close card panel']
     ]

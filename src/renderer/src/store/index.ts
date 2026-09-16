@@ -9,9 +9,9 @@ export const store = configureStore({
 })
 
 store.subscribe(() => {
-  const { sidebarOpen, view, theme } = store.getState().ui
+  const { sidebarOpen, view, theme, chatOpen } = store.getState().ui
   try {
-    localStorage.setItem('canvascl.ui', JSON.stringify({ sidebarOpen, view, theme }))
+    localStorage.setItem('canvascl.ui', JSON.stringify({ sidebarOpen, view, theme, chatOpen }))
   } catch {
     /* ignore */
   }

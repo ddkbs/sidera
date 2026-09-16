@@ -24,6 +24,7 @@ Navigate by writing `localStorage['canvascl.ui'] = {sidebarOpen, theme, view}` t
 - `src/main/services/index.ts` — ALL business logic, synchronous, used by IPC **and** MCP. Call `onChange(scope)` after mutations.
 - `src/main/ipc.ts` — generic: every `API_METHODS` entry → `ipcMain.handle('api:<name>')`.
 - `src/main/mcp/` — MCP server (Streamable HTTP on 127.0.0.1:3845 while app runs; `--mcp-stdio` headless mode).
+- `src/main/ai/chat.ts` — in-app Claude chat: manual streaming tool loop; tools = in-process MCP client over our own server (never duplicate tool definitions).
 - `src/preload/` — exposes `window.api: CanvasApi` + `window.events`.
 - `src/renderer/src/` — React. `store/` (RTK + RTK Query `api.ts` wrapping window.api), `features/<canvas|library|kanban|journal|palette|card>`, `components/ui` (shadcn), `components/layout`.
 

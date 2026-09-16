@@ -1,9 +1,11 @@
 import { mkdirSync } from 'node:fs'
 import { copyFile, mkdir, readFile, stat, writeFile } from 'node:fs/promises'
 import { basename, dirname, extname, join } from 'node:path'
-import { app, BrowserWindow, dialog, net, protocol, shell } from 'electron'
+import { app, BrowserWindow, dialog, ipcMain, net, protocol, safeStorage, shell } from 'electron'
 import { nanoid } from 'nanoid'
-import { DB_CHANGED, MCP_ACTIVITY, type DbChangeScope } from '@shared/api'
+import { CHAT_EVENT, DB_CHANGED, MCP_ACTIVITY, type DbChangeScope } from '@shared/api'
+import { existsSync, readFileSync, rmSync, writeFileSync as writeFileSyncFs } from 'node:fs'
+import { ChatAgent } from './ai/chat'
 import { openDatabase } from './db/client'
 import { registerIpc } from './ipc'
 import { startHttpMcp, startStdioMcp } from './mcp/server'
@@ -109,9 +111,31 @@ async function bootstrap(): Promise<void> {
     }
   })
 
-  const mcp = await startHttpMcp(services, app.getVersion(), (tool, args) =>
+  const reportActivity = (tool: string, args: Record<string, unknown>): void => {
     win?.webContents.send(MCP_ACTIVITY, { tool, args: JSON.stringify(args).slice(0, 200), at: Date.now() })
-  )
+  }
+  const keyFile = join(dataDir, 'anthropic-key.bin')
+  const getApiKey = (): string | null => {
+    if (process.env.ANTHROPIC_API_KEY) return process.env.ANTHROPIC_API_KEY
+    if (!existsSync(keyFile) || !safeStorage.isEncryptionAvailable()) return null
+    try {
+      return safeStorage.decryptString(readFileSync(keyFile))
+    } catch {
+      return null
+    }
+  }
+  const chat = new ChatAgent(services, app.getVersion(), getApiKey, reportActivity)
+  ipcMain.handle('chat:send', (_e, text: string) => chat.send(text, (ev) => win?.webContents.send(CHAT_EVENT, ev)))
+  ipcMain.handle('chat:stop', () => chat.stop())
+  ipcMain.handle('chat:reset', () => chat.reset())
+  ipcMain.handle('chat:hasKey', () => !!getApiKey())
+  ipcMain.handle('chat:setKey', (_e, key: string | null) => {
+    if (!key) return void (existsSync(keyFile) && rmSync(keyFile))
+    if (!safeStorage.isEncryptionAvailable()) throw new Error('Keychain encryption unavailable')
+    writeFileSyncFs(keyFile, safeStorage.encryptString(key.trim()))
+  })
+
+  const mcp = await startHttpMcp(services, app.getVersion(), reportActivity)
   mcpUrl = mcp?.url ?? null
 
   // Detect writes from other processes (e.g. `--mcp-stdio` instances) and refresh the UI

@@ -1,5 +1,5 @@
 import { contextBridge, ipcRenderer, webUtils } from 'electron'
-import { API_METHODS, DB_CHANGED, MCP_ACTIVITY, type CanvasApi, type DbChangeScope, type McpActivity } from '@shared/api'
+import { API_METHODS, CHAT_EVENT, DB_CHANGED, MCP_ACTIVITY, type ChatBridge, type ChatEvent, type CanvasApi, type DbChangeScope, type McpActivity } from '@shared/api'
 
 const api = Object.fromEntries(
   API_METHODS.map((name) => [name, (...args: unknown[]) => ipcRenderer.invoke(`api:${name}`, ...args)])
@@ -18,7 +18,21 @@ const events = {
   }
 }
 
+const chat: ChatBridge = {
+  send: (text) => ipcRenderer.invoke('chat:send', text),
+  stop: () => ipcRenderer.invoke('chat:stop'),
+  reset: () => ipcRenderer.invoke('chat:reset'),
+  hasKey: () => ipcRenderer.invoke('chat:hasKey'),
+  setKey: (key) => ipcRenderer.invoke('chat:setKey', key),
+  onEvent(cb) {
+    const listener = (_: unknown, e: ChatEvent): void => cb(e)
+    ipcRenderer.on(CHAT_EVENT, listener)
+    return () => ipcRenderer.removeListener(CHAT_EVENT, listener)
+  }
+}
+
 contextBridge.exposeInMainWorld('api', api)
+contextBridge.exposeInMainWorld('chat', chat)
 contextBridge.exposeInMainWorld('events', events)
 contextBridge.exposeInMainWorld('platform', process.platform)
 contextBridge.exposeInMainWorld('files', { pathFor: (f: File) => webUtils.getPathForFile(f) })

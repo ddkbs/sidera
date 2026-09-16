@@ -119,3 +119,22 @@ export interface McpActivity {
   args: string
   at: number
 }
+
+/** Streaming events from the in-app chat agent. */
+export type ChatEvent =
+  | { type: 'text'; delta: string }
+  | { type: 'tool'; name: string }
+  | { type: 'error'; message: string }
+  | { type: 'done' }
+
+export const CHAT_EVENT = 'chat:event'
+
+/** Chat bridge (separate from CanvasApi because it streams). */
+export interface ChatBridge {
+  send(text: string): Promise<void>
+  stop(): Promise<void>
+  reset(): Promise<void>
+  hasKey(): Promise<boolean>
+  setKey(key: string | null): Promise<void>
+  onEvent(cb: (e: ChatEvent) => void): () => void
+}

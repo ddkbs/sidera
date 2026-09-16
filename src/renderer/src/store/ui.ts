@@ -16,6 +16,7 @@ export interface UiState {
   tool: CanvasTool
   openCardId: string | null
   paletteOpen: boolean
+  chatOpen: boolean
   mcpDialogOpen: boolean
   theme: 'light' | 'dark'
   activity: McpActivity[]
@@ -36,6 +37,7 @@ const initialState: UiState = {
   tool: 'select',
   openCardId: null,
   paletteOpen: false,
+  chatOpen: stored.chatOpen ?? false,
   mcpDialogOpen: false,
   activity: [],
   theme: stored.theme ?? (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')
@@ -60,10 +62,11 @@ export const ui = createSlice({
     setTool: (s, a: PayloadAction<CanvasTool>) => void (s.tool = a.payload),
     openCard: (s, a: PayloadAction<string | null>) => void (s.openCardId = a.payload),
     setPaletteOpen: (s, a: PayloadAction<boolean>) => void (s.paletteOpen = a.payload),
+    setChatOpen: (s, a: PayloadAction<boolean>) => void (s.chatOpen = a.payload),
     setMcpDialogOpen: (s, a: PayloadAction<boolean>) => void (s.mcpDialogOpen = a.payload),
     toggleTheme: (s) => void (s.theme = s.theme === 'dark' ? 'light' : 'dark'),
     pushActivity: (s, a: PayloadAction<McpActivity>) => void (s.activity = [a.payload, ...s.activity].slice(0, 30))
   }
 })
 
-export const { toggleSidebar, navigate, back, setTool, openCard, setPaletteOpen, setMcpDialogOpen, toggleTheme, pushActivity } = ui.actions
+export const { toggleSidebar, navigate, back, setTool, openCard, setPaletteOpen, setChatOpen, setMcpDialogOpen, toggleTheme, pushActivity } = ui.actions
