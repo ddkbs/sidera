@@ -2,11 +2,12 @@ import Anthropic from '@anthropic-ai/sdk'
 import { Client } from '@modelcontextprotocol/sdk/client/index.js'
 import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js'
 import type { ChatEvent } from '@shared/api'
+import { resolveBaseUrl, type AiProviderId } from '@shared/ai'
 import { todayISO } from '@shared/util'
 import type { Services } from '../services'
 import { createMcpServer, type ToolCallListener } from '../mcp/tools'
+import { OpenAiCompatibleAgent, type OaToolDef } from './openaiCompatible'
 
-const MODEL = 'claude-opus-5'
 const MAX_TURNS = 20
 
 const SYSTEM = `You are the assistant built into CanvasCL, a local-first visual knowledge base (cards, whiteboards, tags with table/kanban views, daily journal).
@@ -15,30 +16,46 @@ Keep answers concise and use Markdown.`
 
 type Emit = (event: ChatEvent) => void
 
+/** What the caller (main/index.ts) resolves from AppSettings + the key store on every send. */
+export interface ActiveAiConfig {
+  provider: AiProviderId
+  model: string
+  baseUrl?: string
+  apiKey: string | null
+}
+
 /**
  * In-app chat agent. Uses the exact same tool surface as the external MCP server
- * by connecting an MCP client to an in-process server instance.
+ * by connecting an MCP client to an in-process server instance. Routes to the
+ * Anthropic SDK loop for `provider: 'anthropic'`, and to the OpenAI-compatible
+ * loop (openai/gemini/mistral/xai/openrouter/ollama/custom) otherwise.
  */
 export class ChatAgent {
   private messages: Anthropic.Beta.BetaMessageParam[] = []
   private tools: Anthropic.Beta.BetaTool[] | null = null
+  private oaTools: OaToolDef[] | null = null
   private mcp: Client | null = null
   private abort: AbortController | null = null
+  private oa: OpenAiCompatibleAgent | null = null
+  private lastProvider: AiProviderId | null = null
+  private lastModel: string | null = null
 
   constructor(
     private api: Services,
     private version: string,
-    private getApiKey: () => string | null,
+    private getConfig: () => ActiveAiConfig,
     private onCall?: ToolCallListener
   ) {}
 
   reset(): void {
     this.abort?.abort()
     this.messages = []
+    this.oa?.reset()
   }
 
   stop(): void {
     this.abort?.abort()
+    this.oa?.stop()
   }
 
   private async connect(): Promise<void> {
@@ -55,17 +72,39 @@ export class ChatAgent {
       // Inputs stream as generated; the MCP server validates them with zod before running.
       eager_input_streaming: true
     }))
+    this.oaTools = tools.map((t) => ({ name: t.name, description: t.description ?? '', inputSchema: t.inputSchema as Record<string, unknown> }))
     this.mcp = client
   }
 
   async send(text: string, emit: Emit): Promise<void> {
-    const apiKey = this.getApiKey()
-    if (!apiKey) {
-      emit({ type: 'error', message: 'Add your Anthropic API key in the chat settings first.' })
+    const cfg = this.getConfig()
+    // Switching provider or model starts a fresh conversation — histories aren't
+    // cross-compatible between providers/models.
+    if ((this.lastProvider && this.lastProvider !== cfg.provider) || (this.lastModel && this.lastModel !== cfg.model)) this.reset()
+    this.lastProvider = cfg.provider
+    this.lastModel = cfg.model
+
+    if (!cfg.apiKey && cfg.provider !== 'ollama') {
+      emit({ type: 'error', message: `Add your ${cfg.provider === 'anthropic' ? 'Anthropic' : cfg.provider} API key in Settings first.` })
       return
     }
     await this.connect()
-    const client = new Anthropic({ apiKey })
+
+    if (cfg.provider === 'anthropic') {
+      return this.sendAnthropic(cfg, text, emit)
+    }
+    this.oa ??= new OpenAiCompatibleAgent(this.oaTools!, async (name, args) => {
+      this.onCall?.(name, args)
+      const res = await this.mcp!.callTool({ name, arguments: args })
+      const content = (res.content as { type: string; text?: string }[]).map((c) => (c.type === 'text' ? (c.text ?? '') : '')).join('\n')
+      return { content, isError: res.isError === true }
+    })
+    const baseUrl = resolveBaseUrl(cfg.provider, cfg.baseUrl)
+    return this.oa.send({ apiKey: cfg.apiKey, baseUrl, model: cfg.model, provider: cfg.provider, system: `${SYSTEM}\nToday is ${todayISO()}.` }, text, emit)
+  }
+
+  private async sendAnthropic(cfg: ActiveAiConfig, text: string, emit: Emit): Promise<void> {
+    const client = new Anthropic({ apiKey: cfg.apiKey! })
     this.abort = new AbortController()
     this.messages.push({ role: 'user', content: text })
     let jsonRetries = 0
@@ -74,7 +113,7 @@ export class ChatAgent {
       for (let turn = 0; turn < MAX_TURNS; turn++) {
         const stream = client.beta.messages.stream(
           {
-            model: MODEL,
+            model: cfg.model,
             max_tokens: 64000,
             betas: ['server-side-fallback-2026-07-01'],
             fallbacks: 'default',

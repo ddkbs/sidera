@@ -1,5 +1,6 @@
 import { contextBridge, ipcRenderer, webUtils } from 'electron'
 import { SETTINGS_CHANGED, type AppSettings } from '@shared/settings'
+import type { AiProviderId } from '@shared/ai'
 import { API_METHODS, CHAT_EVENT, type AppBridge, DB_CHANGED, MCP_ACTIVITY, type ChatBridge, type ChatEvent, type CanvasApi, type DbChangeScope, type McpActivity } from '@shared/api'
 
 const api = Object.fromEntries(
@@ -25,6 +26,9 @@ const chat: ChatBridge = {
   reset: () => ipcRenderer.invoke('chat:reset'),
   hasKey: () => ipcRenderer.invoke('chat:hasKey'),
   setKey: (key) => ipcRenderer.invoke('chat:setKey', key),
+  getProviderStatus: () => ipcRenderer.invoke('chat:getProviderStatus'),
+  setProviderKey: (provider: AiProviderId, key) => ipcRenderer.invoke('chat:setProviderKey', provider, key),
+  listModels: (provider: AiProviderId, baseUrl?: string) => ipcRenderer.invoke('chat:listModels', provider, baseUrl),
   onEvent(cb) {
     const listener = (_: unknown, e: ChatEvent): void => cb(e)
     ipcRenderer.on(CHAT_EVENT, listener)

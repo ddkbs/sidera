@@ -1,3 +1,4 @@
+import type { AiProviderId } from './ai'
 import type { AppSettings, SettingsPatch } from './settings'
 import type {
   Card,
@@ -149,13 +150,27 @@ export type ChatEvent =
 
 export const CHAT_EVENT = 'chat:event'
 
+/** Per-provider connection status ("Connected" / "Add key" in Settings). */
+export interface ProviderStatus {
+  provider: AiProviderId
+  hasKey: boolean
+}
+
 /** Chat bridge (separate from CanvasApi because it streams). */
 export interface ChatBridge {
   send(text: string): Promise<void>
   stop(): Promise<void>
   reset(): Promise<void>
+  /** Whether the currently active provider (AppSettings.ai.provider) has a usable key. */
   hasKey(): Promise<boolean>
+  /** Set/clear the key for the currently active provider. */
   setKey(key: string | null): Promise<void>
+  /** Connection status for every provider. */
+  getProviderStatus(): Promise<ProviderStatus[]>
+  /** Set/clear the key for a specific provider. */
+  setProviderKey(provider: AiProviderId, key: string | null): Promise<void>
+  /** Fetch the live model list for a provider ("Load models"). baseUrl override for ollama/custom. */
+  listModels(provider: AiProviderId, baseUrl?: string): Promise<string[]>
   onEvent(cb: (e: ChatEvent) => void): () => void
 }
 

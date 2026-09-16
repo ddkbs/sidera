@@ -1,3 +1,5 @@
+import type { AiProviderId } from './ai'
+
 export type ThemePref = 'light' | 'dark' | 'system'
 export type FontPref = 'jost' | 'futura' | 'geist' | 'system'
 
@@ -15,6 +17,8 @@ export interface AppSettings {
   quickCapture: { enabled: boolean; accelerator: string }
   /** whether the first-launch guided tour has been finished or skipped */
   tourCompleted: boolean
+  /** Active AI provider + model for the in-app "Ask AI" assistant. */
+  ai: { provider: AiProviderId; model: string; baseUrl?: string }
 }
 
 export const DEFAULT_SETTINGS: AppSettings = {
@@ -27,7 +31,8 @@ export const DEFAULT_SETTINGS: AppSettings = {
   mcp: { httpEnabled: true, port: 3845 },
   shortcuts: {},
   quickCapture: { enabled: true, accelerator: 'Ctrl+Alt+Space' },
-  tourCompleted: false
+  tourCompleted: false,
+  ai: { provider: 'anthropic', model: 'claude-opus-5' }
 }
 
 type DeepPartial<T> = { [K in keyof T]?: T[K] extends object ? (T[K] extends unknown[] ? T[K] : DeepPartial<T[K]>) : T[K] }
