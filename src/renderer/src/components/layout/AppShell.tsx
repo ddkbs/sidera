@@ -7,6 +7,7 @@ import { JournalView } from '@/features/journal/JournalView'
 import { LibraryView } from '@/features/library/LibraryView'
 import { CommandPalette } from '@/features/palette/CommandPalette'
 import { McpDialog } from '@/features/mcp/McpDialog'
+import { ShortcutsDialog } from '@/features/help/ShortcutsDialog'
 import { useAppDispatch, useAppSelector } from '@/store'
 import { back, setPaletteOpen, toggleSidebar } from '@/store/ui'
 import { Sidebar } from './Sidebar'
@@ -64,6 +65,7 @@ export function AppShell() {
       </main>
       <CommandPalette />
       <McpDialog />
+      <ShortcutsDialog />
     </div>
   )
 }
