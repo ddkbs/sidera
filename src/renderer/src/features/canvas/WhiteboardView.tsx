@@ -15,7 +15,7 @@ import {
   type Viewport
 } from '@xyflow/react'
 import dagre from 'dagre'
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { toast } from 'sonner'
 import type { ObjectKind, ObjectPatch, WhiteboardDetail } from '@shared/types'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -42,6 +42,9 @@ import { CanvasToolbar, TOOLS, type OverflowAction } from './CanvasToolbar'
 import { edgeTypes } from './FloatingEdge'
 import { NodeMenu, type NodeMenuAction } from './NodeMenu'
 import { nodeTypes } from './nodes'
+import { EDIT_SKETCH_EVENT } from './nodes/SketchNode'
+
+const SketchEditor = lazy(() => import('./SketchEditor'))
 import { persist, type ConnectionEdge, type ObjectNode } from './types'
 import { ZoomControls } from './ZoomControls'
 import './canvas.css'
@@ -121,6 +124,12 @@ function Canvas({ detail }: { detail: WhiteboardDetail }) {
   const [deleteCard] = useDeleteCardMutation()
   const [viewing, setViewing] = useState<{ refId: string; name: string; mime: string } | null>(null)
   const [edgeEdit, setEdgeEdit] = useState<{ id: string; x: number; y: number; label: string } | null>(null)
+  const [sketchId, setSketchId] = useState<string | null>(null)
+  useEffect(() => {
+    const onEdit = (e: Event) => setSketchId((e as CustomEvent<string>).detail)
+    window.addEventListener(EDIT_SKETCH_EVENT, onEdit)
+    return () => window.removeEventListener(EDIT_SKETCH_EVENT, onEdit)
+  }, [])
   const [menu, setMenu] = useState<{ node: ObjectNode; x: number; y: number } | null>(null)
 
   const onMenuAction = useCallback(
@@ -413,6 +422,11 @@ function Canvas({ detail }: { detail: WhiteboardDetail }) {
     async (a: OverflowAction) => {
       const c = center()
       if (a === 'fit') return void rf.fitView({ duration: 300, padding: 0.15 })
+      if (a === 'sketch') {
+        const o = await place('sketch', { x: c.x - 190, y: c.y - 140 }, { data: {} })
+        if (o) setSketchId(o.id)
+        return
+      }
       if (a === 'mindmap') return void (await place('mindmap', { x: c.x - 240, y: c.y - 160 }, { data: {} }))
       if (a === 'mermaid') {
         const o = await place('mermaid', { x: c.x - 210, y: c.y - 150 }, { data: {} })
@@ -568,6 +582,21 @@ function Canvas({ detail }: { detail: WhiteboardDetail }) {
         />
       )}
       <FindOnBoard />
+      {sketchId && (
+        <Suspense fallback={null}>
+          <SketchEditor
+            initial={(nodes.find((n) => n.id === sketchId)?.data.object.data ?? {}) as { elements?: unknown[]; files?: Record<string, unknown> }}
+            onClose={() => setSketchId(null)}
+            onSave={async (data) => {
+              const id = sketchId
+              setSketchId(null)
+              await window.api.updateObjects([{ id, data }])
+              setNodes((ns) => ns.map((n) => (n.id === id ? { ...n, data: { ...n.data, object: { ...n.data.object, data } } } : n)))
+              dispatch(api.util.invalidateTags([{ type: 'Whiteboard', id: boardId }]))
+            }}
+          />
+        </Suspense>
+      )}
       <FileViewer
         file={viewing}
         onClose={() => setViewing(null)}

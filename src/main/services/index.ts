@@ -41,7 +41,8 @@ const DEFAULT_SIZES: Record<string, [number, number]> = {
   whiteboard: [260, 140],
   file: [320, 400],
   mindmap: [480, 320],
-  mermaid: [420, 300]
+  mermaid: [420, 300],
+  sketch: [380, 280]
 }
 
 const json = <T>(v: string | null | undefined, fallback: T): T => {

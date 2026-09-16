@@ -1,10 +1,10 @@
 import { useReactFlow } from '@xyflow/react'
-import { BoxSelect, FileText, LayoutDashboard, Network, Type, Workflow, File } from 'lucide-react'
+import { BoxSelect, FileText, LayoutDashboard, Network, PenTool, Type, Workflow, File } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { CommandDialog, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command'
 import type { ObjectNode } from './types'
 
-const ICONS = { card: FileText, text: Type, section: BoxSelect, whiteboard: LayoutDashboard, file: File, mindmap: Network, mermaid: Workflow }
+const ICONS = { card: FileText, text: Type, section: BoxSelect, whiteboard: LayoutDashboard, file: File, mindmap: Network, mermaid: Workflow, sketch: PenTool }
 
 const label = (n: ObjectNode): string => {
   const o = n.data.object

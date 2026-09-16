@@ -7,6 +7,7 @@ import {
   Maximize,
   MousePointer2,
   Network,
+  PenTool,
   Search,
   SquarePlus,
   Type,
@@ -31,7 +32,7 @@ export const TOOLS: { id: CanvasTool; label: string; icon: ReactNode; key: strin
   { id: 'search', label: 'Add existing card', icon: <Search />, key: 'F' }
 ]
 
-export type OverflowAction = 'whiteboard' | 'mindmap' | 'mermaid' | 'autolayout' | 'fit'
+export type OverflowAction = 'whiteboard' | 'mindmap' | 'mermaid' | 'sketch' | 'autolayout' | 'fit'
 
 interface Props {
   tool: CanvasTool
@@ -88,6 +89,9 @@ export function CanvasToolbar({ tool, onTool, onAction }: Props) {
           </DropdownMenuItem>
           <DropdownMenuItem onClick={() => onAction('mindmap')}>
             <Network /> Mindmap
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={() => onAction('sketch')}>
+            <PenTool /> Freehand sketch
           </DropdownMenuItem>
           <DropdownMenuItem onClick={() => onAction('mermaid')}>
             <Workflow /> Mermaid diagram

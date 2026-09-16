@@ -8,3 +8,4 @@ dist
 *.db-shm
 .env
 *.tsbuildinfo
+src/renderer/public/excalidraw
