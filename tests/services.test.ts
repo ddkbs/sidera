@@ -61,8 +61,12 @@ describe('whiteboards', () => {
     expect(detail.cards[card.id].title).toBe('Idea')
     expect(detail.connections).toHaveLength(1)
     expect(api.getWhiteboard(root.id)!.children.map((c) => c.id)).toEqual([child.id])
+    const snapshot = api.getWhiteboard(child.id)!
     api.removeObjects([o1.id])
     expect(api.getWhiteboard(child.id)!.connections).toHaveLength(0)
+    api.restoreObjects(snapshot.objects.filter((o) => o.id === o1.id), snapshot.connections)
+    expect(api.getWhiteboard(child.id)!.connections).toHaveLength(1)
+    api.removeObjects([o1.id])
     expect(api.getCard(card.id)!.whiteboards).toHaveLength(0)
   })
 })

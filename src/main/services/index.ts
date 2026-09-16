@@ -495,6 +495,18 @@ export function createServices(db: DB, onChange: (scope: DbChangeScope) => void 
       onChange('whiteboards')
     },
 
+    restoreObjects(objects, conns) {
+      tx(() => {
+        for (const o of objects)
+          db.insert(s.whiteboardObjects).values({ ...o, data: JSON.stringify(o.data) }).onConflictDoNothing().run()
+        for (const c of conns) {
+          const ok = sql.prepare('SELECT COUNT(*) AS n FROM whiteboard_objects WHERE id IN (?, ?)').get(c.sourceId, c.targetId) as { n: number }
+          if (ok.n === 2) db.insert(s.connections).values({ ...c, data: JSON.stringify(c.data) }).onConflictDoNothing().run()
+        }
+      })
+      onChange('whiteboards')
+    },
+
     addConnection({ whiteboardId, sourceId, targetId, label = '' }) {
       const row = { id: nanoid(), whiteboardId, sourceId, targetId, label, data: '{}' }
       db.insert(s.connections).values(row).run()

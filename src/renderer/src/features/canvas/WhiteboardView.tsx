@@ -22,6 +22,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { cn } from '@/lib/utils'
 import { useAppDispatch, useAppSelector } from '@/store'
 import {
+  api,
   useAddConnectionMutation,
   useAddObjectMutation,
   useCreateCardMutation,
@@ -35,6 +36,7 @@ import { navigate, openCard, setTool, type CanvasTool } from '@/store/ui'
 import { AddCardDialog } from './AddCardDialog'
 import { CARD_MIME, CardDrawer } from './CardDrawer'
 import { FileViewer } from './FileViewer'
+import { History, invert, type HistoryOp } from './history'
 import { CanvasToolbar, TOOLS, type OverflowAction } from './CanvasToolbar'
 import { edgeTypes } from './FloatingEdge'
 import { NodeMenu, type NodeMenuAction } from './NodeMenu'
@@ -105,6 +107,9 @@ function Canvas({ detail }: { detail: WhiteboardDetail }) {
   const connectFrom = useRef<string | null>(null)
   const sectionDrag = useRef<{ start: { x: number; y: number }; children: Map<string, { x: number; y: number }> } | null>(null)
   const wrapper = useRef<HTMLDivElement>(null)
+  const history = useRef(new History())
+  const dragBefore = useRef<ObjectPatch[]>([])
+  const resizeBefore = useRef(new Map<string, ObjectPatch>())
 
   const [addObject] = useAddObjectMutation()
   const [removeObjects] = useRemoveObjectsMutation()
@@ -154,6 +159,7 @@ function Canvas({ detail }: { detail: WhiteboardDetail }) {
     async (kind: ObjectKind, pos: { x: number; y: number }, extra: { refId?: string; data?: Record<string, unknown>; color?: string; width?: number; height?: number } = {}) => {
       const res = await addObject({ whiteboardId: boardId, kind, x: pos.x, y: pos.y, ...extra })
       if ('error' in res) toast.error('Could not add to whiteboard')
+      if ('data' in res && res.data) history.current.push({ type: 'add', objects: [res.data], connections: [] })
       return 'data' in res ? res.data : undefined
     },
     [addObject, boardId]
@@ -190,6 +196,47 @@ function Canvas({ detail }: { detail: WhiteboardDetail }) {
     [dispatch, center, place]
   )
 
+  const applyOp = useCallback(
+    async (op: HistoryOp) => {
+      if (op.type === 'patch') {
+        persist(op.after)
+        const byId = new Map(op.after.map((p) => [p.id, p]))
+        setNodes((ns) =>
+          ns.map((n) => {
+            const p = byId.get(n.id)
+            if (!p) return n
+            return {
+              ...n,
+              position: { x: p.x ?? n.position.x, y: p.y ?? n.position.y },
+              width: p.width ?? n.width,
+              height: p.height ?? n.height,
+              data: { ...n.data, object: { ...n.data.object, ...p, data: n.data.object.data } }
+            }
+          })
+        )
+      } else if (op.type === 'add') {
+        await window.api.restoreObjects(op.objects, op.connections)
+      } else {
+        await window.api.removeObjects(op.objects.map((o) => o.id))
+        await window.api.removeConnections(op.connections.map((c) => c.id))
+      }
+      dispatch(api.util.invalidateTags([{ type: 'Whiteboard', id: boardId }, 'Card']))
+    },
+    [dispatch, boardId]
+  )
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const el = e.target as HTMLElement
+      if (!e.metaKey || e.key.toLowerCase() !== 'z' || el.isContentEditable || /INPUT|TEXTAREA|SELECT/.test(el.tagName)) return
+      e.preventDefault()
+      const op = e.shiftKey ? history.current.redo() : history.current.undo()
+      if (op) void applyOp(e.shiftKey ? op : invert(op))
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [applyOp])
+
   // keyboard shortcuts for tools
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -208,17 +255,27 @@ function Canvas({ detail }: { detail: WhiteboardDetail }) {
     setNodes((ns) => applyNodeChanges(changes, ns))
     const patches: ObjectPatch[] = []
     for (const c of changes) {
-      if (c.type === 'dimensions' && c.resizing === false && c.dimensions) {
-        const n = rf.getNode(c.id)
+      if (c.type !== 'dimensions' || !c.dimensions) continue
+      const n = rf.getNode(c.id)
+      if (c.resizing && n && !resizeBefore.current.has(c.id))
+        resizeBefore.current.set(c.id, { id: c.id, x: n.position.x, y: n.position.y, width: n.width ?? n.measured?.width, height: n.height ?? n.measured?.height })
+      if (c.resizing === false) {
         patches.push({ id: c.id, width: c.dimensions.width, height: c.dimensions.height, ...(n ? { x: n.position.x, y: n.position.y } : {}) })
       }
+    }
+    if (patches.length) {
+      const before = patches.map((p) => resizeBefore.current.get(p.id)).filter((p): p is ObjectPatch => !!p)
+      if (before.length === patches.length) history.current.push({ type: 'patch', before, after: patches })
+      patches.forEach((p) => resizeBefore.current.delete(p.id))
     }
     persist(patches)
   }, [rf])
 
   const onEdgesChange = useCallback((changes: EdgeChange<ConnectionEdge>[]) => setEdges((es) => applyEdgeChanges(changes, es)), [])
 
-  const onNodeDragStart: OnNodeDrag<ObjectNode> = useCallback((_e, node) => {
+  const onNodeDragStart: OnNodeDrag<ObjectNode> = useCallback((_e, node, dragged) => {
+    dragBefore.current = dragged.map((n) => ({ id: n.id, x: n.position.x, y: n.position.y }))
+    sectionDrag.current = null
     if (node.type !== 'section') return
     const w = node.measured?.width ?? node.width ?? 0
     const h = node.measured?.height ?? node.height ?? 0
@@ -231,6 +288,7 @@ function Canvas({ detail }: { detail: WhiteboardDetail }) {
         children.set(n.id, { ...n.position })
     }
     sectionDrag.current = { start: { ...node.position }, children }
+    children.forEach((p, id) => dragBefore.current.push({ id, x: p.x, y: p.y }))
   }, [rf])
 
   const onNodeDrag: OnNodeDrag<ObjectNode> = useCallback((_e, node) => {
@@ -249,6 +307,7 @@ function Canvas({ detail }: { detail: WhiteboardDetail }) {
     sectionDrag.current?.children.forEach((_p, id) => moved.add(id))
     sectionDrag.current = null
     const patches = rf.getNodes().filter((n) => moved.has(n.id)).map((n) => ({ id: n.id, x: n.position.x, y: n.position.y }))
+    history.current.push({ type: 'patch', before: dragBefore.current, after: patches })
     persist(patches)
   }, [rf])
 
@@ -256,7 +315,8 @@ function Canvas({ detail }: { detail: WhiteboardDetail }) {
     async (source: string, target: string) => {
       if (source === target) return
       if (edges.some((e) => e.source === source && e.target === target)) return
-      await addConnection({ whiteboardId: boardId, sourceId: source, targetId: target })
+      const res = await addConnection({ whiteboardId: boardId, sourceId: source, targetId: target })
+      if ('data' in res && res.data) history.current.push({ type: 'add', objects: [], connections: [res.data] })
     },
     [addConnection, boardId, edges]
   )
@@ -386,8 +446,14 @@ function Canvas({ detail }: { detail: WhiteboardDetail }) {
         onNodeDragStart={onNodeDragStart}
         onNodeDrag={onNodeDrag}
         onNodeDragStop={onNodeDragStop}
-        onNodesDelete={(ns) => void removeObjects({ whiteboardId: boardId, ids: ns.map((n) => n.id) })}
-        onEdgesDelete={(es) => void removeConnections({ whiteboardId: boardId, ids: es.map((e) => e.id) })}
+        onDelete={({ nodes: ns, edges: es }) => {
+          const objects = ns.map((n) => n.data.object)
+          const connections = detail.connections.filter((c) => es.some((e) => e.id === c.id))
+          if (objects.length || connections.length) history.current.push({ type: 'remove', objects, connections })
+          if (objects.length) void removeObjects({ whiteboardId: boardId, ids: objects.map((o) => o.id) })
+          const loose = connections.filter((c) => !objects.some((o) => o.id === c.sourceId || o.id === c.targetId))
+          if (loose.length) void removeConnections({ whiteboardId: boardId, ids: loose.map((c) => c.id) })
+        }}
         onConnect={onConnect}
         onPaneClick={onPaneClick}
         onNodeClick={onNodeClick}

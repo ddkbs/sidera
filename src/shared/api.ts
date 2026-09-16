@@ -67,6 +67,8 @@ export interface CanvasApi {
   }): Promise<WhiteboardObject>
   updateObjects(patches: ObjectPatch[]): Promise<void>
   removeObjects(ids: ID[]): Promise<void>
+  /** Re-insert previously removed objects/connections with their original ids (undo). */
+  restoreObjects(objects: WhiteboardObject[], connections: Connection[]): Promise<void>
   addConnection(input: { whiteboardId: ID; sourceId: ID; targetId: ID; label?: string }): Promise<Connection>
   updateConnection(input: { id: ID; label?: string; data?: Record<string, unknown> }): Promise<void>
   removeConnections(ids: ID[]): Promise<void>
@@ -94,7 +96,7 @@ export const API_METHODS: ApiMethod[] = [
   'listProperties', 'createProperty', 'updateProperty', 'setPropertyValue',
   'getKanban', 'moveKanbanItem',
   'listWhiteboards', 'getWhiteboard', 'createWhiteboard', 'updateWhiteboard', 'deleteWhiteboard',
-  'addObject', 'updateObjects', 'removeObjects', 'addConnection', 'updateConnection', 'removeConnections',
+  'addObject', 'updateObjects', 'removeObjects', 'restoreObjects', 'addConnection', 'updateConnection', 'removeConnections',
   'getJournal', 'listJournal',
   'search',
   'importFiles', 'getFileUrl',

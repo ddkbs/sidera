@@ -139,7 +139,29 @@ async function devShot(w: BrowserWindow): Promise<void> {
   await new Promise((r) => setTimeout(r, 1500))
   const steps = process.env.CANVASCL_SCRIPT ? (await readFile(process.env.CANVASCL_SCRIPT, 'utf8')).split('\n---\n') : ['']
   for (const [i, step] of steps.entries()) {
-    if (step.trim()) {
+    const cmd = step.trim().match(/^@(click|dblclick|key|type)\s+(.*)$/)
+    if (cmd) {
+      w.focus()
+      w.webContents.focus()
+      const [, kind, rest] = cmd
+      if (kind === 'click' || kind === 'dblclick') {
+        const [x, y] = rest.split(/\s+/).map(Number)
+        const clickCount = kind === 'dblclick' ? 2 : 1
+        w.webContents.sendInputEvent({ type: 'mouseMove', x, y })
+        for (let c = 1; c <= clickCount; c++) {
+          w.webContents.sendInputEvent({ type: 'mouseDown', x, y, button: 'left', clickCount: c })
+          w.webContents.sendInputEvent({ type: 'mouseUp', x, y, button: 'left', clickCount: c })
+        }
+      } else if (kind === 'key') {
+        const parts = rest.split('+')
+        const keyCode = parts.pop()!
+        const modifiers = parts as ('meta' | 'shift' | 'alt' | 'control')[]
+        w.webContents.sendInputEvent({ type: 'keyDown', keyCode, modifiers })
+        w.webContents.sendInputEvent({ type: 'keyUp', keyCode, modifiers })
+      } else {
+        for (const ch of rest) w.webContents.sendInputEvent({ type: 'char', keyCode: ch })
+      }
+    } else if (step.trim()) {
       try {
         const out = await w.webContents.executeJavaScript(step)
         if (out !== undefined) console.log(`[shot] step ${i}:`, JSON.stringify(out))
