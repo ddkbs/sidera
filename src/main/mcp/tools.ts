@@ -1,6 +1,6 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { z } from 'zod'
-import { docToMarkdown, markdownToDoc } from '@shared/doc'
+import { docToMarkdown, linkWikiRefs, markdownToDoc } from '@shared/doc'
 import { todayISO } from '@shared/util'
 import type { Services } from '../services'
 
@@ -12,13 +12,20 @@ const ok = (value: unknown) => ({
 export type ToolCallListener = (tool: string, args: Record<string, unknown>) => void
 
 export function createMcpServer(api: Services, version: string, onCall?: ToolCallListener): McpServer {
+  /** Markdown → doc with [[Title]] resolved to card links (creates backlinks). */
+  const toDoc = (markdown: string) =>
+    linkWikiRefs(markdownToDoc(markdown), (title) => {
+      const hit = api.search(title, 10).find((h) => h.kind === 'card' && h.title.toLowerCase() === title.toLowerCase())
+      return hit?.id ?? null
+    })
+
   const server = new McpServer(
     { name: 'canvascl', version },
     {
       instructions:
         'CanvasCL is a visual knowledge base. Cards hold Markdown-like notes, whiteboards arrange cards spatially, ' +
         'tags group cards and power kanban boards, and the journal has one card per day. ' +
-        'Search before creating to avoid duplicate cards. Mention other cards with [[Title]] in text.'
+        'Search before creating to avoid duplicate cards. Link other cards by writing [[Exact card title]] in Markdown — it becomes a real link with a backlink.'
     }
   )
 
@@ -65,7 +72,7 @@ export function createMcpServer(api: Services, version: string, onCall?: ToolCal
     },
     async ({ title, markdown, tags }) => {
       const tagIds = (tags ?? []).map((name) => api.createTag({ name }).id)
-      const card = api.createCard({ title, markdown, tagIds })
+      const card = api.createCard({ title, content: toDoc(markdown), tagIds })
       return ok({ id: card.id, title: card.title })
     }
   )
@@ -86,7 +93,7 @@ export function createMcpServer(api: Services, version: string, onCall?: ToolCal
       if (!card) return { ...ok(`Card ${card_id} not found`), isError: true }
       let content
       if (markdown !== undefined) {
-        const next = markdownToDoc(markdown)
+        const next = toDoc(markdown)
         content = mode === 'replace' ? next : { ...card.content, content: [...(card.content.content ?? []), ...(next.content ?? [])] }
       }
       const updated = api.updateCard({ id: card_id, title, content })
@@ -337,7 +344,7 @@ export function createMcpServer(api: Services, version: string, onCall?: ToolCal
     },
     async ({ markdown, date }) => {
       const day = api.getJournal(date ?? todayISO())
-      const next = markdownToDoc(markdown)
+      const next = toDoc(markdown)
       api.updateCard({ id: day.card.id, content: { ...day.card.content, content: [...(day.card.content.content ?? []), ...(next.content ?? [])] } })
       return ok({ card_id: day.card.id })
     }

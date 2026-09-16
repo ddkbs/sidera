@@ -138,3 +138,28 @@ export function docToMarkdown(doc: DocJSON | null | undefined): string {
   }
   return (doc.content ?? []).map((n) => block(n)).join('\n\n')
 }
+
+/** Replace `[[Title]]` in text nodes with card mention nodes when `resolve(title)` finds a card id. */
+export function linkWikiRefs(doc: DocJSON, resolve: (title: string) => string | null): DocJSON {
+  const walk = (n: DocJSON): DocJSON => {
+    if (!n.content) return n
+    const content: DocJSON[] = []
+    for (const child of n.content) {
+      if (child.type !== 'text' || !child.text?.includes('[[')) {
+        content.push(walk(child))
+        continue
+      }
+      let last = 0
+      for (const m of child.text.matchAll(/\[\[([^\]]+)\]\]/g)) {
+        const id = resolve(m[1].trim())
+        if (!id) continue
+        if (m.index! > last) content.push({ ...child, text: child.text.slice(last, m.index) })
+        content.push({ type: MENTION_NODE, attrs: { id, label: m[1].trim() } })
+        last = m.index! + m[0].length
+      }
+      if (last < child.text.length) content.push({ ...child, text: child.text.slice(last) })
+    }
+    return { ...n, content }
+  }
+  return walk(doc)
+}

@@ -13,7 +13,11 @@ export function startHttpMcp(api: Services, version: string, onCall?: ToolCallLi
       res.writeHead(404).end()
       return
     }
-    // DNS-rebinding guard: only accept local origins
+    // DNS-rebinding guard: only accept local hosts and origins
+    if (!/^(localhost|127\.0\.0\.1)(:\d+)?$/.test(req.headers.host ?? '')) {
+      res.writeHead(403).end('Forbidden host')
+      return
+    }
     const origin = req.headers.origin
     if (origin && !/^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin)) {
       res.writeHead(403).end('Forbidden origin')
