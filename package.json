@@ -15,7 +15,8 @@
     "rebuild:node": "npm rebuild better-sqlite3",
     "dist": "electron-vite build && electron-builder --mac",
     "db:generate": "drizzle-kit generate",
-    "mcp": "electron . --mcp-stdio"
+    "mcp": "electron . --mcp-stdio",
+    "icon": "electron scripts/make-icon.cjs"
   },
   "devDependencies": {
     "@dnd-kit/core": "^6.3.1",
@@ -81,7 +82,8 @@
       "category": "public.app-category.productivity",
       "target": [
         "dmg"
-      ]
+      ],
+      "icon": "build/icon.png"
     },
     "files": [
       "out/**/*",
