@@ -84,3 +84,23 @@ describe('journal', () => {
     expect(api.listCards()).toHaveLength(0)
   })
 })
+
+describe('markdown export/import', () => {
+  it('round-trips cards with tags', async () => {
+    const { exportCards, importCards } = await import('../src/main/services/markdown')
+    const tag = api.createTag({ name: 'Ideas' })
+    api.createCard({ title: 'A/B test', markdown: '- one\n- two', tagIds: [tag.id] })
+    api.getJournal('2026-01-01')
+    const files = exportCards(api)
+    expect(files).toHaveLength(1)
+    expect(files[0].name).toBe('A-B test.md')
+    expect(files[0].content).toContain('tags: ["Ideas"]')
+    const fresh = createServices(openDatabase(':memory:'))
+    expect(importCards(fresh, files)).toBe(1)
+    const [card] = fresh.listCards()
+    expect(card.title).toBe('A/B test')
+    expect(card.tags.map((t) => t.name)).toEqual(['Ideas'])
+    expect(importCards(fresh, [{ name: 'x.md', content: '# Heading title\nBody' }])).toBe(1)
+    expect(fresh.search('Heading')[0].title).toBe('Heading title')
+  })
+})

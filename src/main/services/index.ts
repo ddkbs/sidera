@@ -23,7 +23,7 @@ import { between, now, TAG_COLORS } from '@shared/util'
 import type { DB } from '../db/client'
 import * as s from '../db/schema'
 
-type Electronish = 'importFiles' | 'getFileUrl' | 'getMcpInfo'
+type Electronish = 'importFiles' | 'getFileUrl' | 'getMcpInfo' | 'exportMarkdown' | 'importMarkdown'
 export type ServiceMethods = {
   [K in Exclude<keyof CanvasApi, Electronish>]: (
     ...args: Parameters<CanvasApi[K]>

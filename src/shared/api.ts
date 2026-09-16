@@ -84,6 +84,10 @@ export interface CanvasApi {
   importFiles(paths?: string[]): Promise<FileRecord[]>
   getFileUrl(id: ID): Promise<string | null>
 
+  // markdown export / import (opens native folder / file pickers)
+  exportMarkdown(): Promise<{ count: number; dir: string } | null>
+  importMarkdown(): Promise<{ count: number }>
+
   // meta
   getMcpInfo(): Promise<{ running: boolean; url: string | null; stdioCommand: string }>
 }
@@ -100,6 +104,7 @@ export const API_METHODS: ApiMethod[] = [
   'getJournal', 'listJournal',
   'search',
   'importFiles', 'getFileUrl',
+  'exportMarkdown', 'importMarkdown',
   'getMcpInfo'
 ]
 

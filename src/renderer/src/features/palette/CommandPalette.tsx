@@ -1,4 +1,6 @@
-import { BookOpen, CalendarDays, FileText, Home, LayoutDashboard, Moon, PanelLeft, Plus, Sparkles } from 'lucide-react'
+import { BookOpen, CalendarDays, Download, FileText, Home, LayoutDashboard, Moon, PanelLeft, Plus, Sparkles, Upload } from 'lucide-react'
+import { toast } from 'sonner'
+import { api } from '@/store/api'
 import { useEffect, useState } from 'react'
 import { CommandDialog, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList, CommandSeparator, CommandShortcut } from '@/components/ui/command'
 import { useAppDispatch, useAppSelector } from '@/store'
@@ -87,6 +89,27 @@ export function CommandPalette() {
               </CommandItem>
               <CommandItem value="theme" onSelect={run(() => dispatch(toggleTheme()))}>
                 <Moon /> Toggle dark mode
+              </CommandItem>
+              <CommandItem
+                value="export"
+                onSelect={run(async () => {
+                  const r = await window.api.exportMarkdown()
+                  if (r) toast.success(`Exported ${r.count} files`, { description: r.dir })
+                })}
+              >
+                <Download /> Export all cards as Markdown
+              </CommandItem>
+              <CommandItem
+                value="import"
+                onSelect={run(async () => {
+                  const r = await window.api.importMarkdown()
+                  if (r.count) {
+                    dispatch(api.util.invalidateTags(['CardList', 'Tag']))
+                    toast.success(`Imported ${r.count} cards`)
+                  }
+                })}
+              >
+                <Upload /> Import Markdown files
               </CommandItem>
               <CommandItem value="mcp" onSelect={run(() => dispatch(setMcpDialogOpen(true)))}>
                 <Sparkles /> Connect AI via MCP

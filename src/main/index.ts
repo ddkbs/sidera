@@ -1,6 +1,6 @@
 import { mkdirSync } from 'node:fs'
-import { copyFile, stat } from 'node:fs/promises'
-import { basename, extname, join } from 'node:path'
+import { copyFile, mkdir, readFile, stat, writeFile } from 'node:fs/promises'
+import { basename, dirname, extname, join } from 'node:path'
 import { app, BrowserWindow, dialog, net, protocol, shell } from 'electron'
 import { nanoid } from 'nanoid'
 import { DB_CHANGED, MCP_ACTIVITY, type DbChangeScope } from '@shared/api'
@@ -8,6 +8,7 @@ import { openDatabase } from './db/client'
 import { registerIpc } from './ipc'
 import { startHttpMcp, startStdioMcp } from './mcp/server'
 import { createServices } from './services'
+import { exportCards, importCards } from './services/markdown'
 
 const STDIO = process.argv.includes('--mcp-stdio')
 const dataDir = process.env.CANVASCL_DATA_DIR ?? join(app.getPath('userData'), 'data')
@@ -79,6 +80,28 @@ async function bootstrap(): Promise<void> {
     },
     async getFileUrl(id) {
       return services.getFile(id) ? `canvascl-file://${id}/` : null
+    },
+    async exportMarkdown() {
+      const res = await dialog.showOpenDialog(win!, { title: 'Export cards as Markdown', properties: ['openDirectory', 'createDirectory'] })
+      if (res.canceled || !res.filePaths[0]) return null
+      const dir = join(res.filePaths[0], `CanvasCL export ${new Date().toISOString().slice(0, 10)}`)
+      const files = exportCards(services)
+      for (const f of files) {
+        const target = join(dir, f.name)
+        await mkdir(dirname(target), { recursive: true })
+        await writeFile(target, f.content, 'utf8')
+      }
+      return { count: files.length, dir }
+    },
+    async importMarkdown() {
+      const res = await dialog.showOpenDialog(win!, {
+        title: 'Import Markdown files',
+        properties: ['openFile', 'multiSelections'],
+        filters: [{ name: 'Markdown', extensions: ['md', 'markdown', 'txt'] }]
+      })
+      if (res.canceled) return { count: 0 }
+      const files = await Promise.all(res.filePaths.map(async (p) => ({ name: basename(p), content: await readFile(p, 'utf8') })))
+      return { count: importCards(services, files) }
     },
     async getMcpInfo() {
       return { running: !!mcpUrl, url: mcpUrl, stdioCommand: `"${process.execPath}" --mcp-stdio` }
