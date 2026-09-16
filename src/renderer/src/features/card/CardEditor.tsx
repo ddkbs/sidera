@@ -31,7 +31,7 @@ export function CardEditor({ content, onChange, placeholder = "Write, type '/' f
 
   const editor = useEditor({
     extensions: [
-      StarterKit.configure({ link: false, heading: { levels: [1, 2, 3] } }),
+      StarterKit.configure({ link: false, heading: { levels: [1, 2, 3, 4] } }),
       Placeholder.configure({ placeholder }),
       Link.configure({ openOnClick: false, autolink: true }),
       TaskList,

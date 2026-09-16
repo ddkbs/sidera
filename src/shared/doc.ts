@@ -73,7 +73,7 @@ export function markdownToDoc(md: string): DocJSON {
       continue
     }
     const h = line.match(/^(#{1,6})\s+(.*)$/)
-    if (h) { content.push({ type: 'heading', attrs: { level: Math.min(h[1].length, 3) }, content: inline(h[2]) }); i++; continue }
+    if (h) { content.push({ type: 'heading', attrs: { level: Math.min(h[1].length, 4) }, content: inline(h[2]) }); i++; continue }
     if (/^(-{3,}|\*{3,})$/.test(line.trim())) { content.push({ type: 'horizontalRule' }); i++; continue }
     if (line.startsWith('>')) {
       const body: DocJSON[] = []
