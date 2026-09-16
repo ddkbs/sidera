@@ -2,6 +2,7 @@ import { and, desc, eq, inArray, isNull } from 'drizzle-orm'
 import { nanoid } from 'nanoid'
 import type { CanvasApi, DbChangeScope } from '@shared/api'
 import { docToText, emptyDoc, extractMentions, markdownToDoc } from '@shared/doc'
+import { collectTasks, setTaskChecked as applyTaskChecked } from '@shared/tasks'
 import type {
   Card,
   CardDetail,
@@ -15,6 +16,7 @@ import type {
   SelectOption,
   Tag,
   TagProperty,
+  Task,
   Whiteboard,
   WhiteboardDetail,
   WhiteboardObject
@@ -562,6 +564,42 @@ export function createServices(db: DB, onChange: (scope: DbChangeScope) => void 
         .prepare(`SELECT j.date, c.* FROM journal_entries j JOIN cards c ON c.id = j.card_id ORDER BY j.date DESC LIMIT ?`)
         .all(limit) as (RawCard & { date: string })[]
       return rows.map((r): JournalDay => ({ date: r.date, card: toCard(fromRaw(r)) }))
+    },
+
+    // ---------- tasks ----------
+    listTasks(opts = {}) {
+      const status = opts.status ?? 'all'
+      const rows = sql
+        .prepare(
+          `SELECT c.id, c.title, c.content, c.updated_at AS updatedAt, j.date AS journalDate
+           FROM cards c LEFT JOIN journal_entries j ON j.card_id = c.id
+           WHERE c.deleted_at IS NULL AND c.content LIKE '%taskItem%'`
+        )
+        .all() as { id: string; title: string; content: string; updatedAt: number; journalDate: string | null }[]
+      const out: Task[] = []
+      for (const r of rows) {
+        const doc = json<DocJSON>(r.content, emptyDoc())
+        for (const t of collectTasks(doc)) {
+          if (status === 'open' && t.checked) continue
+          if (status === 'done' && !t.checked) continue
+          out.push({
+            cardId: r.id,
+            cardTitle: r.title,
+            isJournal: !!r.journalDate,
+            journalDate: r.journalDate,
+            index: t.index,
+            text: t.text,
+            checked: t.checked,
+            updatedAt: r.updatedAt
+          })
+        }
+      }
+      return out.sort((a, b) => b.updatedAt - a.updatedAt)
+    },
+
+    setTaskChecked(cardId, index, checked) {
+      const card = requireCard(cardId)
+      api.updateCard({ id: cardId, content: applyTaskChecked(card.content, index, checked) })
     },
 
     // ---------- search ----------

@@ -16,6 +16,7 @@ import type {
   SelectOption,
   Tag,
   TagProperty,
+  Task,
   Whiteboard,
   WhiteboardDetail,
   WhiteboardObject
@@ -78,6 +79,10 @@ export interface CanvasApi {
   getJournal(date: string): Promise<JournalDay>
   listJournal(limit?: number): Promise<JournalDay[]>
 
+  // tasks
+  listTasks(opts?: { status?: 'open' | 'done' | 'all' }): Promise<Task[]>
+  setTaskChecked(cardId: ID, index: number, checked: boolean): Promise<void>
+
   // search
   search(query: string, limit?: number): Promise<SearchHit[]>
 
@@ -103,6 +108,7 @@ export const API_METHODS: ApiMethod[] = [
   'listWhiteboards', 'getWhiteboard', 'createWhiteboard', 'updateWhiteboard', 'deleteWhiteboard',
   'addObject', 'updateObjects', 'removeObjects', 'restoreObjects', 'addConnection', 'updateConnection', 'removeConnections',
   'getJournal', 'listJournal',
+  'listTasks', 'setTaskChecked',
   'search',
   'importFiles', 'getFileUrl',
   'exportMarkdown', 'importMarkdown',

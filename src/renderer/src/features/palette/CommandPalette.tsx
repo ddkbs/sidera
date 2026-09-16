@@ -1,4 +1,4 @@
-import { BookOpen, CalendarDays, Download, FileText, Home, LayoutDashboard, Moon, PanelLeft, Plus, Sparkles, Upload } from '@/components/icons'
+import { BookOpen, CalendarDays, Download, FileText, Home, LayoutDashboard, ListChecks, Moon, PanelLeft, Plus, Sparkles, Upload } from '@/components/icons'
 import { toast } from 'sonner'
 import { api } from '@/store/api'
 import { updateSettings } from '@/store/settings'
@@ -82,6 +82,9 @@ export function CommandPalette() {
               </CommandItem>
               <CommandItem value="journal" onSelect={run(() => dispatch(navigate({ type: 'journal' })))}>
                 <CalendarDays /> Open today's journal
+              </CommandItem>
+              <CommandItem value="tasks" onSelect={run(() => dispatch(navigate({ type: 'tasks' })))}>
+                <ListChecks /> Open tasks
               </CommandItem>
               <CommandItem value="library" onSelect={run(() => dispatch(navigate({ type: 'library', tagId: null, mode: 'table' })))}>
                 <BookOpen /> Open card library

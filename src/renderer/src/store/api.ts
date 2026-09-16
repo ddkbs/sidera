@@ -14,7 +14,7 @@ const call = async <K extends keyof Api>(name: K, ...args: Arg<K>): Promise<{ da
   }
 }
 
-export const TAGS = ['Card', 'CardList', 'Tag', 'Whiteboard', 'Journal', 'Kanban'] as const
+export const TAGS = ['Card', 'CardList', 'Tag', 'Whiteboard', 'Journal', 'Kanban', 'Task'] as const
 
 export const api = createApi({
   reducerPath: 'data',
@@ -136,6 +136,16 @@ export const api = createApi({
       providesTags: [{ type: 'Journal', id: 'LIST' }]
     }),
 
+    // tasks
+    listTasks: b.query<Res<'listTasks'>, Arg<'listTasks'>[0] | void>({
+      queryFn: (opts) => call('listTasks', opts ?? undefined),
+      providesTags: ['Task']
+    }),
+    setTaskChecked: b.mutation<void, { cardId: string; index: number; checked: boolean }>({
+      queryFn: ({ cardId, index, checked }) => call('setTaskChecked', cardId, index, checked),
+      invalidatesTags: (_r, _e, { cardId }) => ['Task', 'CardList', { type: 'Card' as const, id: cardId }, { type: 'Journal' as const }]
+    }),
+
     // search & meta
     search: b.query<Res<'search'>, string>({
       queryFn: (q) => call('search', q, 30),
@@ -148,10 +158,10 @@ export const api = createApi({
 
 /** Map main-process change scopes (e.g. MCP writes) to cache invalidation. */
 export const scopeTags: Record<DbChangeScope, (typeof TAGS)[number][]> = {
-  cards: ['Card', 'CardList', 'Kanban', 'Whiteboard'],
+  cards: ['Card', 'CardList', 'Kanban', 'Whiteboard', 'Task'],
   tags: ['Tag', 'Kanban', 'Card'],
   whiteboards: ['Whiteboard'],
-  journal: ['Journal'],
+  journal: ['Journal', 'Task'],
   all: [...TAGS]
 }
 
@@ -183,6 +193,8 @@ export const {
   useRemoveConnectionsMutation,
   useGetJournalQuery,
   useListJournalQuery,
+  useListTasksQuery,
+  useSetTaskCheckedMutation,
   useSearchQuery,
   useGetMcpInfoQuery
 } = api

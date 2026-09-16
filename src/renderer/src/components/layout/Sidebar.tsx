@@ -1,4 +1,4 @@
-import { BookOpen, CalendarDays, ChevronRight, Hash, Home, LayoutDashboard, PanelLeft, Plus, Search } from '@/components/icons'
+import { BookOpen, CalendarDays, ChevronRight, Hash, Home, LayoutDashboard, ListChecks, PanelLeft, Plus, Search } from '@/components/icons'
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { Orb } from '@/components/Orb'
 import { BoardMenu } from './BoardMenu'
@@ -77,6 +77,9 @@ export function Sidebar() {
           </NavItem>
           <NavItem icon={<CalendarDays className="size-4" />} active={view.type === 'journal'} onClick={(e) => go({ type: 'journal' }, e)}>
             Journal
+          </NavItem>
+          <NavItem icon={<ListChecks className="size-4" />} active={view.type === 'tasks'} onClick={(e) => go({ type: 'tasks' }, e)}>
+            Tasks
           </NavItem>
           <NavItem
             icon={<BookOpen className="size-4" />}

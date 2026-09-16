@@ -1,4 +1,4 @@
-import { BookOpen, CalendarDays, ChevronLeft, ChevronRight, Hash, Home, LayoutDashboard, PanelLeft, Plus, X } from '@/components/icons'
+import { BookOpen, CalendarDays, ChevronLeft, ChevronRight, Hash, Home, LayoutDashboard, ListChecks, PanelLeft, Plus, X } from '@/components/icons'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { formatBinding, useBinding } from '@/lib/shortcuts'
 import { cn } from '@/lib/utils'
@@ -19,6 +19,8 @@ export function useViewLabel(view: View): { title: string; Icon: typeof Home } {
     }
     case 'journal':
       return { title: 'Journal', Icon: CalendarDays }
+    case 'tasks':
+      return { title: 'Tasks', Icon: ListChecks }
     default:
       return { title: 'Home', Icon: Home }
   }
