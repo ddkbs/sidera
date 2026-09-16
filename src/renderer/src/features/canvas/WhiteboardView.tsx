@@ -120,6 +120,7 @@ function Canvas({ detail }: { detail: WhiteboardDetail }) {
   const [createWhiteboard] = useCreateWhiteboardMutation()
   const [deleteCard] = useDeleteCardMutation()
   const [viewing, setViewing] = useState<{ refId: string; name: string; mime: string } | null>(null)
+  const [edgeEdit, setEdgeEdit] = useState<{ id: string; x: number; y: number; label: string } | null>(null)
   const [menu, setMenu] = useState<{ node: ObjectNode; x: number; y: number } | null>(null)
 
   const onMenuAction = useCallback(
@@ -512,6 +513,10 @@ function Canvas({ detail }: { detail: WhiteboardDetail }) {
           const o = node.data.object
           if (node.type === 'file' && o.refId) setViewing({ refId: o.refId, name: String(o.data.name ?? 'File'), mime: String(o.data.mime ?? '') })
         }}
+        onEdgeDoubleClick={(e, edge) => {
+          const r = wrapper.current!.getBoundingClientRect()
+          setEdgeEdit({ id: edge.id, x: e.clientX - r.left, y: e.clientY - r.top, label: edge.data?.label ?? '' })
+        }}
         onNodeContextMenu={(e, node) => {
           e.preventDefault()
           setMenu({ node, x: e.clientX, y: e.clientY })
@@ -541,6 +546,26 @@ function Canvas({ detail }: { detail: WhiteboardDetail }) {
       <CanvasToolbar tool={tool} onTool={(t) => void changeTool(t)} onAction={(a) => void onAction(a)} />
       <ZoomControls />
       <CardDrawer onBoard={cardIds} />
+      {edgeEdit && (
+        <input
+          autoFocus
+          value={edgeEdit.label}
+          placeholder="Label"
+          onChange={(e) => setEdgeEdit({ ...edgeEdit, label: e.target.value })}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') e.currentTarget.blur()
+            if (e.key === 'Escape') setEdgeEdit(null)
+          }}
+          onBlur={async () => {
+            const { id, label } = edgeEdit
+            setEdgeEdit(null)
+            await window.api.updateConnection({ id, label: label.trim() })
+            setEdges((es) => es.map((x) => (x.id === id ? { ...x, label: label.trim() || undefined, data: { label: label.trim() } } : x)))
+          }}
+          style={{ left: edgeEdit.x, top: edgeEdit.y }}
+          className="absolute z-20 h-8 w-44 -translate-x-1/2 -translate-y-1/2 rounded-md border bg-background px-2 text-sm shadow-lg outline-none focus:ring-2 focus:ring-brand/40"
+        />
+      )}
       <FindOnBoard />
       <FileViewer file={viewing} onClose={() => setViewing(null)} />
       <NodeMenu menu={menu} onClose={() => setMenu(null)} onAction={(a, n) => void onMenuAction(a, n)} />
