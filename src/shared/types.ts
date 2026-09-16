@@ -62,7 +62,7 @@ export interface Whiteboard {
   updatedAt: number
 }
 
-export type ObjectKind = 'card' | 'text' | 'section' | 'whiteboard' | 'file' | 'mindmap' | 'mermaid' | 'sketch'
+export type ObjectKind = 'card' | 'text' | 'section' | 'whiteboard' | 'file' | 'mindmap' | 'mermaid' | 'sketch' | 'link'
 
 export interface WhiteboardObject {
   id: ID
@@ -144,4 +144,15 @@ export interface FileRecord {
 
 export type ObjectPatch = Partial<Pick<WhiteboardObject, 'x' | 'y' | 'width' | 'height' | 'z' | 'color' | 'data'>> & {
   id: ID
+}
+
+/** og:* / meta data fetched for a `link` whiteboard object. */
+export interface LinkPreviewData {
+  url: string
+  title?: string
+  description?: string
+  image?: string
+  siteName?: string
+  favicon?: string
+  fetchedAt: number
 }

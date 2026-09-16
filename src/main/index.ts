@@ -5,6 +5,7 @@ import { basename, dirname, extname, join } from 'node:path'
 import { app, BrowserWindow, dialog, ipcMain, net, protocol, safeStorage, shell } from 'electron'
 import { nanoid } from 'nanoid'
 import { CHAT_EVENT, DB_CHANGED, MCP_ACTIVITY, type DbChangeScope } from '@shared/api'
+import { withSourceHeader } from '@shared/html'
 import { SETTINGS_CHANGED, type SettingsPatch } from '@shared/settings'
 import { SettingsStore } from './settings'
 import { addToClaudeCode, addToClaudeDesktop, isInClaudeCode, isInClaudeDesktop, stdioLaunchSpec } from './integrations'
@@ -16,6 +17,7 @@ import { startHttpMcp, startStdioMcp } from './mcp/server'
 import { createServices } from './services'
 import { exportCards, importCards } from './services/markdown'
 import { seedWelcome } from './services/seed'
+import { fetchLinkPreview, fetchPageForClip } from './web'
 
 const STDIO = process.argv.includes('--mcp-stdio')
 // One stable data folder for dev and packaged builds: ~/Library/Application Support/CanvasCL
@@ -98,6 +100,13 @@ async function bootstrap(): Promise<void> {
     },
     async getFileUrl(id) {
       return services.getFile(id) ? `canvascl-file://files/${encodeURIComponent(id)}` : null
+    },
+    async fetchLinkPreview(url) {
+      return fetchLinkPreview(url)
+    },
+    async clipUrl(input) {
+      const { title, markdown } = await fetchPageForClip(input.url)
+      return services.createCard({ title, markdown: withSourceHeader(input.url, markdown), tagIds: input.tagIds })
     },
     async exportMarkdown() {
       const res = await dialog.showOpenDialog(win!, { title: 'Export cards as Markdown', properties: ['openDirectory', 'createDirectory'] })

@@ -23,7 +23,7 @@ import { between, now, TAG_COLORS } from '@shared/util'
 import type { DB } from '../db/client'
 import * as s from '../db/schema'
 
-type Electronish = 'importFiles' | 'getFileUrl' | 'getMcpInfo' | 'exportMarkdown' | 'importMarkdown'
+type Electronish = 'importFiles' | 'getFileUrl' | 'getMcpInfo' | 'exportMarkdown' | 'importMarkdown' | 'fetchLinkPreview' | 'clipUrl'
 export type ServiceMethods = {
   [K in Exclude<keyof CanvasApi, Electronish>]: (
     ...args: Parameters<CanvasApi[K]>
@@ -42,7 +42,8 @@ const DEFAULT_SIZES: Record<string, [number, number]> = {
   file: [320, 400],
   mindmap: [480, 320],
   mermaid: [420, 300],
-  sketch: [380, 280]
+  sketch: [380, 280],
+  link: [320, 200]
 }
 
 const json = <T>(v: string | null | undefined, fallback: T): T => {

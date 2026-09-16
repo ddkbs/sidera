@@ -9,6 +9,7 @@ import type {
   ID,
   JournalDay,
   KanbanBoard,
+  LinkPreviewData,
   ObjectKind,
   ObjectPatch,
   PropertyType,
@@ -85,6 +86,10 @@ export interface CanvasApi {
   importFiles(paths?: string[]): Promise<FileRecord[]>
   getFileUrl(id: ID): Promise<string | null>
 
+  // web links
+  fetchLinkPreview(url: string): Promise<LinkPreviewData>
+  clipUrl(input: { url: string; tagIds?: ID[] }): Promise<Card>
+
   // markdown export / import (opens native folder / file pickers)
   exportMarkdown(): Promise<{ count: number; dir: string } | null>
   importMarkdown(): Promise<{ count: number }>
@@ -105,6 +110,7 @@ export const API_METHODS: ApiMethod[] = [
   'getJournal', 'listJournal',
   'search',
   'importFiles', 'getFileUrl',
+  'fetchLinkPreview', 'clipUrl',
   'exportMarkdown', 'importMarkdown',
   'getMcpInfo'
 ]
