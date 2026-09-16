@@ -561,6 +561,7 @@ function Canvas({ detail }: { detail: WhiteboardDetail }) {
             setEdgeEdit(null)
             await window.api.updateConnection({ id, label: label.trim() })
             setEdges((es) => es.map((x) => (x.id === id ? { ...x, label: label.trim() || undefined, data: { label: label.trim() } } : x)))
+            dispatch(api.util.invalidateTags([{ type: 'Whiteboard', id: boardId }]))
           }}
           style={{ left: edgeEdit.x, top: edgeEdit.y }}
           className="absolute z-20 h-8 w-44 -translate-x-1/2 -translate-y-1/2 rounded-md border bg-background px-2 text-sm shadow-lg outline-none focus:ring-2 focus:ring-brand/40"
