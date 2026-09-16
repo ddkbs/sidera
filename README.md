@@ -12,7 +12,8 @@ A free, open-source, local-first visual knowledge base — whiteboards, a card l
 - **Journal** — one card per day.
 - **Search** — SQLite FTS5 across cards and whiteboards (⌘K).
 - **MCP-first** — local MCP server (HTTP + stdio) with 19 tools, live activity feed, and a built-in Claude assistant that uses the same tools.
-- **Local-first** — a single SQLite file in your user data folder; Markdown export/import.
+- **Tabs & settings** — open several whiteboards in tabs (⌘T, ⌘-click); settings for theme, font (Jost/Futura/Geist/SF), editor, MCP and fully rebindable shortcuts (⌘,).
+- **Local-first** — everything lives in `~/Library/Application Support/CanvasCL/data/` (SQLite database + imported files); Markdown export/import.
 
 ## Stack
 Electron · electron-vite · React · TypeScript · Tailwind v4 · shadcn/ui · Redux Toolkit · Tiptap · SQLite (better-sqlite3 + Drizzle, FTS5) · React Flow · dnd-kit · cmdk · Motion · MCP SDK
@@ -25,7 +26,7 @@ npm test && npm run typecheck
 ```
 
 ## MCP
-While the app runs, an MCP server listens on `http://127.0.0.1:3845/mcp` (Streamable HTTP).
+Easiest: **Settings → MCP & Claude → Connect everything** (adds CanvasCL to Claude Desktop and Claude Code). While the app runs, an MCP server listens on `http://127.0.0.1:3845/mcp` (Streamable HTTP).
 Headless stdio mode: `CanvasCL --mcp-stdio`. Tools: `search_cards`, `get_card`, `create_card`, `update_card`,
 `list_cards`, `list_tags`, `tag_card`, `create_property`, `set_card_property`, `list_whiteboards`, `get_whiteboard`, `create_whiteboard`, `add_card_to_whiteboard`,
 `add_section`, `connect_objects`, `get_kanban`, `move_kanban_item`, `get_journal`, `append_to_journal`.
