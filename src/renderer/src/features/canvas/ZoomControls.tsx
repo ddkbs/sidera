@@ -1,5 +1,5 @@
 import { MiniMap, useReactFlow, useViewport } from '@xyflow/react'
-import { Map as MapIcon, Maximize, Minus, Plus } from 'lucide-react'
+import { Map as MapIcon, Maximize, Minus, Plus } from '@/components/icons'
 import { useState } from 'react'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { cn } from '@/lib/utils'

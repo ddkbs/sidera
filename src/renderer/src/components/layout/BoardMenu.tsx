@@ -1,4 +1,4 @@
-import { LayoutDashboard, Pencil, Trash2 } from 'lucide-react'
+import { LayoutDashboard, Pencil, Trash2 } from '@/components/icons'
 import { useState, type ReactElement } from 'react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'

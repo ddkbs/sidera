@@ -1,4 +1,4 @@
-import { Expand, Trash2 } from 'lucide-react'
+import { Expand, Trash2 } from '@/components/icons'
 import type { ReactNode } from 'react'
 import { toast } from 'sonner'
 import { ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuSeparator, ContextMenuTrigger } from '@/components/ui/context-menu'

@@ -1,4 +1,4 @@
-import { GripVertical, Library, X } from 'lucide-react'
+import { GripVertical, Library, X } from '@/components/icons'
 import { AnimatePresence, motion } from 'motion/react'
 import { useState } from 'react'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'

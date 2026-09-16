@@ -1,7 +1,7 @@
 import Mention from '@tiptap/extension-mention'
 import { ReactRenderer } from '@tiptap/react'
 import type { SuggestionKeyDownProps, SuggestionProps } from '@tiptap/suggestion'
-import { FileText, Plus } from 'lucide-react'
+import { FileText, Plus } from '@/components/icons'
 import { forwardRef, useEffect, useImperativeHandle, useState } from 'react'
 import { MENTION_NODE } from '@shared/doc'
 import { cn } from '@/lib/utils'

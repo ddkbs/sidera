@@ -1,5 +1,5 @@
 import type { NodeProps } from '@xyflow/react'
-import { LayoutDashboard } from 'lucide-react'
+import { LayoutDashboard } from '@/components/icons'
 import { memo } from 'react'
 import { cn } from '@/lib/utils'
 import { store } from '@/store'

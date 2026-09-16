@@ -1,4 +1,4 @@
-import { ArrowUpRight, Link2, LayoutDashboard, MoreHorizontal, Trash2, X } from 'lucide-react'
+import { ArrowUpRight, Link2, LayoutDashboard, MoreHorizontal, Trash2, X } from '@/components/icons'
 import { DropdownMenuSeparator, DropdownMenuSub, DropdownMenuSubContent, DropdownMenuSubTrigger } from '@/components/ui/dropdown-menu'
 import { motion } from 'motion/react'
 import { useEffect, useState } from 'react'

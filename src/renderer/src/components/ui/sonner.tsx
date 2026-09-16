@@ -1,10 +1,5 @@
-import {
-  CircleCheckIcon,
-  InfoIcon,
-  Loader2Icon,
-  OctagonXIcon,
-  TriangleAlertIcon,
-} from "lucide-react"
+import { CircleCheck as CircleCheckIcon, CircleInfo as InfoIcon, CircleX as OctagonXIcon, TriangleAlert as TriangleAlertIcon } from "@/components/icons"
+import { Loader2Icon } from "lucide-react"
 import { Toaster as Sonner, type ToasterProps } from "sonner"
 
 const Toaster = ({ theme = "system", ...props }: ToasterProps) => {

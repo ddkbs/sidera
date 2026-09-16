@@ -1,4 +1,4 @@
-import { BookOpen, CalendarDays, ChevronRight, Home, LayoutDashboard, Moon, PanelLeft, Sparkles, Sun } from 'lucide-react'
+import { AskAI, BookOpen, CalendarDays, ChevronRight, Home, LayoutDashboard, Moon, PanelLeft, Sun } from '@/components/icons'
 import { Fragment, useEffect, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
@@ -32,7 +32,7 @@ export function TopBar() {
       <Tooltip>
         <TooltipTrigger asChild>
           <Button variant={chatOpen ? 'secondary' : 'ghost'} size="sm" className="no-drag h-8 gap-1.5" onClick={() => dispatch(setChatOpen(!chatOpen))}>
-            <Sparkles className="size-4" /> Ask AI
+            <AskAI className="size-4" /> Ask AI
           </Button>
         </TooltipTrigger>
         <TooltipContent>Assistant ⌘J</TooltipContent>

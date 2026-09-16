@@ -1,4 +1,4 @@
-import { BookOpen, CalendarDays, Download, FileText, Home, LayoutDashboard, Moon, PanelLeft, Plus, Sparkles, Upload } from 'lucide-react'
+import { BookOpen, CalendarDays, Download, FileText, Home, LayoutDashboard, Moon, PanelLeft, Plus, Sparkles, Upload } from '@/components/icons'
 import { toast } from 'sonner'
 import { api } from '@/store/api'
 import { useEffect, useState } from 'react'

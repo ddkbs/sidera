@@ -1,4 +1,4 @@
-import { ArrowUp, KeyRound, RotateCcw, Square, Wrench, X } from 'lucide-react'
+import { ArrowUp, KeyRound, RotateCcw, Square, Wrench, X } from '@/components/icons'
 import { motion } from 'motion/react'
 import { useEffect, useRef, useState } from 'react'
 import Markdown from 'react-markdown'

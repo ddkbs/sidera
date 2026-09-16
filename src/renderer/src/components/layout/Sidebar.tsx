@@ -1,4 +1,4 @@
-import { BookOpen, CalendarDays, ChevronRight, Hash, Home, LayoutDashboard, Plus, Search } from 'lucide-react'
+import { BookOpen, CalendarDays, ChevronRight, Hash, Home, LayoutDashboard, Plus, Search } from '@/components/icons'
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { Orb } from '@/components/Orb'
 import { BoardMenu } from './BoardMenu'

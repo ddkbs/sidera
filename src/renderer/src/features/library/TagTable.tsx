@@ -1,5 +1,5 @@
 import { useVirtualizer } from '@tanstack/react-virtual'
-import { Calendar, CheckSquare, CircleDot, Hash as HashIcon, Plus, Type } from 'lucide-react'
+import { Calendar, CheckSquare, CircleDot, Hash as HashIcon, Plus, Type } from '@/components/icons'
 import { nanoid } from 'nanoid'
 import { useRef, useState } from 'react'
 import { Button } from '@/components/ui/button'

@@ -1,5 +1,5 @@
 import type { NodeProps } from '@xyflow/react'
-import { Expand, FileText } from 'lucide-react'
+import { Expand, FileText } from '@/components/icons'
 import { memo, useEffect, useRef, useState } from 'react'
 import { cn } from '@/lib/utils'
 import { useAppDispatch, useAppSelector } from '@/store'

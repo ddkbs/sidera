@@ -1,5 +1,5 @@
 import type { NodeProps } from '@xyflow/react'
-import { FileText } from 'lucide-react'
+import { FileText } from '@/components/icons'
 import { memo, useEffect, useState } from 'react'
 import { Document, Page, pdfjs } from 'react-pdf'
 import { cn } from '@/lib/utils'

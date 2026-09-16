@@ -1,5 +1,5 @@
 import { useReactFlow } from '@xyflow/react'
-import { BoxSelect, FileText, LayoutDashboard, Network, PenTool, Type, Workflow, File } from 'lucide-react'
+import { BoxSelect, FileText, LayoutDashboard, Network, PenTool, Type, Workflow, File } from '@/components/icons'
 import { useEffect, useState } from 'react'
 import { CommandDialog, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command'
 import type { ObjectNode } from './types'

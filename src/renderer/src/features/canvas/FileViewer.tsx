@@ -1,4 +1,4 @@
-import { Quote } from 'lucide-react'
+import { Quote } from '@/components/icons'
 import { useEffect, useRef, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Document, Page } from 'react-pdf'

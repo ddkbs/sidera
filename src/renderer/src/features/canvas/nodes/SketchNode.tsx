@@ -1,5 +1,5 @@
 import type { NodeProps } from '@xyflow/react'
-import { PenTool } from 'lucide-react'
+import { PenTool } from '@/components/icons'
 import { memo } from 'react'
 import { cn } from '@/lib/utils'
 import type { ObjectNode } from '../types'

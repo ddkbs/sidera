@@ -1,5 +1,5 @@
 import { useVirtualizer } from '@tanstack/react-virtual'
-import { Columns3, List, Plus, Table2 } from 'lucide-react'
+import { Columns3, List, Plus, Table2 } from '@/components/icons'
 import { useRef, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'

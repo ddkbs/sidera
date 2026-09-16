@@ -39,5 +39,5 @@ Navigate by writing `localStorage['canvascl.ui'] = {sidebarOpen, theme, view}` t
 - IDs: nanoid. Timestamps: ms epoch. JSON columns stored as TEXT.
 - Card content = Tiptap JSON; mentions are node `cardMention {id,label}` → backlinks table.
 - Ordering uses fractional `position` (`between()` in shared/util).
-- UI: Tailwind v4 tokens in `index.css` (tweakcn-style CSS vars), Geist font, Lucide icons, Motion for animation, Sonner toasts. Clean Notion/ElevenLabs look — no Apple-native chrome.
+- UI: Tailwind v4 tokens in `index.css` (tweakcn-style CSS vars), icons ONLY via `@/components/icons` (Obra Icons; add new mappings there), Motion for animation, Sonner toasts. Clean Notion/ElevenLabs look — no Apple-native chrome.
 - Canvas: @xyflow/react. Node types in `features/canvas/nodes/`. Positions persisted debounced via `updateObjects`.

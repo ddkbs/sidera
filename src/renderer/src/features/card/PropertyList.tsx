@@ -1,4 +1,4 @@
-import { CircleDot } from 'lucide-react'
+import { CircleDot } from '@/components/icons'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { color } from '@/lib/colors'
 import { useSetPropertyValueMutation } from '@/store/api'

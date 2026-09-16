@@ -13,7 +13,7 @@ import {
   Type,
   Upload,
   Workflow
-} from 'lucide-react'
+} from '@/components/icons'
 import { motion } from 'motion/react'
 import type { ReactNode } from 'react'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuShortcut, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'

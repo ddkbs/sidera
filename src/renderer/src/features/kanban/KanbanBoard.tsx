@@ -12,7 +12,7 @@ import {
 } from '@dnd-kit/core'
 import { SortableContext, arrayMove, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-import { Plus } from 'lucide-react'
+import { Plus } from '@/components/icons'
 import { useEffect, useState } from 'react'
 import { color } from '@/lib/colors'
 import { cn } from '@/lib/utils'

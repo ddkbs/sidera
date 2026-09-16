@@ -1,4 +1,4 @@
-import { ArrowRight, BookOpen, CalendarDays, LayoutDashboard, Plus } from 'lucide-react'
+import { ArrowRight, BookOpen, CalendarDays, LayoutDashboard, Plus } from '@/components/icons'
 import { motion } from 'motion/react'
 import { Button } from '@/components/ui/button'
 import { useAppDispatch } from '@/store'

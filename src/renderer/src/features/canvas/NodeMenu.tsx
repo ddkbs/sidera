@@ -1,4 +1,4 @@
-import { ArrowDownToLine, ArrowUpToLine, Expand, LayoutDashboard, Trash2, X } from 'lucide-react'
+import { ArrowDownToLine, ArrowUpToLine, Expand, LayoutDashboard, Trash2, X } from '@/components/icons'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import type { ObjectNode } from './types'
 

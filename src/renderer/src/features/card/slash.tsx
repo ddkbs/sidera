@@ -1,7 +1,7 @@
 import { Extension, ReactRenderer, type Editor, type Range } from '@tiptap/react'
 import Suggestion, { type SuggestionKeyDownProps, type SuggestionProps } from '@tiptap/suggestion'
 import { PluginKey } from '@tiptap/pm/state'
-import { Code, Heading1, Heading2, Heading3, List, ListChecks, ListOrdered, Minus, Quote, Text, type LucideIcon } from 'lucide-react'
+import { Code, Heading1, Heading2, Heading3, List, ListChecks, ListOrdered, Minus, Quote, Text, type AppIcon as LucideIcon } from '@/components/icons'
 import { forwardRef, useEffect, useImperativeHandle, useState } from 'react'
 import { cn } from '@/lib/utils'
 
