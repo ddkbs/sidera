@@ -3,7 +3,7 @@ import { memo, useEffect, useRef, useState } from 'react'
 import { cn } from '@/lib/utils'
 import { ChartEditor } from '@/features/charts/ChartEditor'
 import { ChartView } from '@/features/charts/ChartView'
-import { normalizeChart, type ChartData } from '@/features/charts/model'
+import { normalizeChart, type ChartData } from '@shared/charts'
 import { persist, type ObjectNode } from '../types'
 import { Handles, Resizer } from './NodeChrome'
 import { useEditMode } from './useEditMode'
@@ -36,6 +36,13 @@ export const ChartNode = memo(function ChartNode({ id, data, selected }: NodePro
     const EDITOR_W = 500
     setSide(window.innerWidth - r.right > EDITOR_W ? Position.Right : r.left > EDITOR_W ? Position.Left : Position.Bottom)
   }, [editing, root])
+
+  // adopt changes made elsewhere (e.g. an AI agent via MCP) unless the user is editing
+  const external = JSON.stringify(data.object.data)
+  useEffect(() => {
+    if (!editing && external !== JSON.stringify(latest.current)) setChart(normalizeChart(JSON.parse(external) as Partial<ChartData>))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [external])
 
   const moveItem = (row: number, x: number, y: number) => {
     const rows = latest.current.rows.map((r, i) => (i === row ? [r[0], String(x), String(y)] : r))

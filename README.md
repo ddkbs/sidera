@@ -29,7 +29,7 @@ npm test && npm run typecheck
 Easiest: **Settings → MCP & Claude → Connect everything** (adds CanvasCL to Claude Desktop and Claude Code). While the app runs, an MCP server listens on `http://127.0.0.1:3845/mcp` (Streamable HTTP).
 Headless stdio mode: `CanvasCL --mcp-stdio`. Tools: `search_cards`, `get_card`, `create_card`, `update_card`, `clip_url`,
 `list_cards`, `list_tags`, `tag_card`, `create_property`, `set_card_property`, `list_whiteboards`, `get_whiteboard`, `create_whiteboard`, `add_card_to_whiteboard`,
-`add_section`, `organize_board`, `connect_objects`, `get_kanban`, `move_kanban_item`, `get_journal`, `append_to_journal`, `list_tasks`, `complete_task`. Also exposes an
+`add_section`, `organize_board`, `add_chart`, `update_chart`, `add_mindmap`, `add_flowchart`, `update_diagram`, `connect_objects`, `get_kanban`, `move_kanban_item`, `get_journal`, `append_to_journal`, `list_tasks`, `complete_task`. Also exposes an
 `organize-board` prompt that guides an agent through grouping a whiteboard's objects and calling `organize_board`.
 
 ## In-app assistant

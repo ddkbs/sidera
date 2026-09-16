@@ -2,7 +2,7 @@ import { useRef } from 'react'
 import { Plus, X } from '@/components/icons'
 import { Switch } from '@/components/ui/switch'
 import { cn } from '@/lib/utils'
-import { CHART_DEFS, changeType, compatibleTypes, parseClipboardTable, seriesNames, vennRows, type ChartData, type ChartOptions, type ChartType } from './model'
+import { CHART_DEFS, changeType, compatibleTypes, parseClipboardTable, seriesNames, vennRows, type ChartData, type ChartOptions, type ChartType } from '@shared/charts'
 import { SCHEMES, colorAt } from './palette'
 
 interface Props {

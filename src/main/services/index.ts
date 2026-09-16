@@ -35,6 +35,9 @@ export type ServiceMethods = {
 export type Services = ServiceMethods & {
   registerFile(input: Omit<FileRecord, 'id' | 'createdAt'>): FileRecord
   getFile(id: string): FileRecord | null
+  getObject(id: string): WhiteboardObject | null
+  /** Tell the UI that data changed outside of the renderer (e.g. MCP edits of object data). */
+  notify(scope: DbChangeScope): void
 }
 
 const DEFAULT_SIZES: Record<string, [number, number]> = {
@@ -707,6 +710,13 @@ export function createServices(db: DB, onChange: (scope: DbChangeScope) => void 
     },
     getFile(id) {
       return db.select().from(s.files).where(eq(s.files.id, id)).get() ?? null
+    },
+    notify(scope) {
+      onChange(scope)
+    },
+    getObject(id) {
+      const row = db.select().from(s.whiteboardObjects).where(eq(s.whiteboardObjects.id, id)).get()
+      return row ? toObject(row) : null
     }
   }
 

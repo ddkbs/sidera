@@ -3,6 +3,7 @@ import { z } from 'zod'
 import { docToMarkdown, linkWikiRefs, markdownToDoc } from '@shared/doc'
 import { withSourceHeader } from '@shared/html'
 import { todayISO } from '@shared/util'
+import { CHART_DEFS, defaultChart, SHAPE_COLUMNS, vennRows, type ChartData, type ChartOptions, type ChartType } from '@shared/charts'
 import type { Services } from '../services'
 import { fetchPageForClip } from '../web'
 
@@ -348,6 +349,144 @@ export function createMcpServer(api: Services, version: string, onCall?: ToolCal
         }
       ]
     })
+  )
+
+  // ---------- charts & diagrams ----------
+  const chartTypes = Object.keys(CHART_DEFS) as [ChartType, ...ChartType[]]
+  const shapeDocs = chartTypes
+    .map((type) => {
+      const def = CHART_DEFS[type]
+      const cols = def.fixedColumns ? def.fixedColumns.join(' | ') : 'Label | Series 1 | Series 2 | … (you name the series columns)'
+      return `- ${type} (${def.label}): columns ${cols}`
+    })
+    .join('\n')
+  const cell = z.union([z.string(), z.number(), z.null()])
+  const optionsSchema = z
+    .object({
+      legend: z.boolean().optional(),
+      stacked: z.boolean().optional(),
+      smooth: z.boolean().optional(),
+      lineSeries: z.array(z.number().int().min(0)).optional().describe('combo: 0-based indexes of value columns drawn as lines'),
+      xAxis: z.tuple([z.string(), z.string()]).optional().describe('matrix: [low label, high label]'),
+      yAxis: z.tuple([z.string(), z.string()]).optional().describe('matrix: [low label, high label]'),
+      quadrants: z.tuple([z.string(), z.string(), z.string(), z.string()]).optional().describe('matrix: [top-left, top-right, bottom-left, bottom-right]'),
+      sets: z.union([z.literal(2), z.literal(3)]).optional().describe('venn: number of sets'),
+      scheme: z.enum(['blue', 'green', 'orange', 'purple']).optional().describe('heatmap colour')
+    })
+    .partial()
+
+  /** Build a valid chart table from agent input (fixed shapes keep their columns; cells become strings). */
+  const buildChart = (base: ChartData, input: { chart_type?: ChartType; title?: string; columns?: string[]; rows?: (string | number | null)[][]; options?: ChartOptions }): ChartData => {
+    const type = input.chart_type ?? base.chartType
+    const typeChanged = type !== base.chartType
+    const start = typeChanged && CHART_DEFS[type].shape !== CHART_DEFS[base.chartType].shape ? defaultChart(type) : { ...base, chartType: type }
+    const fixed = CHART_DEFS[type].fixedColumns ?? SHAPE_COLUMNS[CHART_DEFS[type].shape]
+    const columns = fixed ?? input.columns ?? start.columns
+    let rows = input.rows ? input.rows.map((r) => columns.map((_, i) => (r[i] == null ? '' : String(r[i])))) : start.rows.map((r) => columns.map((_, i) => r[i] ?? ''))
+    const options = { ...start.options, ...(input.options ?? {}) }
+    if (type === 'venn') rows = vennRows(options.sets ?? 3, rows)
+    return { chartType: type, title: input.title ?? start.title, columns, rows, options }
+  }
+
+  server.registerTool(
+    'add_chart',
+    {
+      description:
+        'Add a chart or structured diagram to a whiteboard. Every chart is a small table: `columns` (header) + `rows` (cells). ' +
+        'Omit columns/rows to start from an example. Numbers may be given as numbers or strings. Table shapes per type:\n' +
+        shapeDocs +
+        '\nNotes: timeline dates use YYYY-MM-DD; matrix X/Y are 0–100; venn regions are A, B, C, A∩B, A∩C, B∩C, A∩B∩C (A/B/C rows hold the set names); sankey rows are flows From → To with a value.',
+      inputSchema: {
+        whiteboard_id: z.string(),
+        chart_type: z.enum(chartTypes),
+        title: z.string().optional(),
+        columns: z.array(z.string()).optional().describe('only for series charts (column, bar, line, area, combo, radar, heatmap)'),
+        rows: z.array(z.array(cell)).optional(),
+        options: optionsSchema.optional(),
+        x: z.number().optional(),
+        y: z.number().optional(),
+        width: z.number().optional(),
+        height: z.number().optional()
+      }
+    },
+    async ({ whiteboard_id, chart_type, title, columns, rows, options, x, y, width, height }) => {
+      if (!api.getWhiteboard(whiteboard_id)) return { ...ok(`Whiteboard ${whiteboard_id} not found`), isError: true }
+      const chart = buildChart(defaultChart(chart_type), { chart_type, title, columns, rows, options })
+      const pos = x !== undefined && y !== undefined ? { x, y } : freeSpot(api, whiteboard_id)
+      const obj = api.addObject({ whiteboardId: whiteboard_id, kind: 'chart', ...pos, width, height, data: chart as unknown as Record<string, unknown> })
+      return ok({ object_id: obj.id, chart_type: chart.chartType, columns: chart.columns, rows: chart.rows.length })
+    }
+  )
+
+  server.registerTool(
+    'update_chart',
+    {
+      description:
+        'Change an existing chart (object id from get_whiteboard / add_chart): title, chart_type, columns, rows (replaces the whole table) and/or options (merged). ' +
+        'Switching between types with the same table shape keeps the data (e.g. column ↔ line ↔ area ↔ combo ↔ radar ↔ heatmap, pie ↔ donut, scatter ↔ bubble).',
+      inputSchema: {
+        object_id: z.string(),
+        chart_type: z.enum(chartTypes).optional(),
+        title: z.string().optional(),
+        columns: z.array(z.string()).optional(),
+        rows: z.array(z.array(cell)).optional(),
+        options: optionsSchema.optional()
+      }
+    },
+    async ({ object_id, chart_type, title, columns, rows, options }) => {
+      const obj = api.getObject(object_id)
+      if (!obj || obj.kind !== 'chart') return { ...ok(`Chart ${object_id} not found`), isError: true }
+      const current = obj.data as unknown as ChartData
+      const base: ChartData = current.columns && current.rows ? { ...current, options: current.options ?? {} } : defaultChart(current.chartType ?? 'column')
+      const chart = buildChart(base, { chart_type, title, columns, rows, options })
+      api.updateObjects([{ id: object_id, data: chart as unknown as Record<string, unknown> }])
+      api.notify('whiteboards')
+      return ok({ object_id, chart_type: chart.chartType, rows: chart.rows.length })
+    }
+  )
+
+  server.registerTool(
+    'add_mindmap',
+    {
+      description:
+        'Add a mindmap to a whiteboard from an indented outline. First line = central topic, children indented by two spaces with "- ", e.g. "Launch\\n  - Marketing\\n    - Blog post\\n  - Product".',
+      inputSchema: { whiteboard_id: z.string(), outline: z.string(), x: z.number().optional(), y: z.number().optional(), width: z.number().optional(), height: z.number().optional() }
+    },
+    async ({ whiteboard_id, outline, x, y, width, height }) => {
+      if (!api.getWhiteboard(whiteboard_id)) return { ...ok(`Whiteboard ${whiteboard_id} not found`), isError: true }
+      const pos = x !== undefined && y !== undefined ? { x, y } : freeSpot(api, whiteboard_id)
+      const obj = api.addObject({ whiteboardId: whiteboard_id, kind: 'mindmap', ...pos, width, height, data: { source: outline.trim() } })
+      return ok({ object_id: obj.id })
+    }
+  )
+
+  server.registerTool(
+    'add_flowchart',
+    {
+      description: 'Add a Mermaid diagram (flowchart, sequence, gantt, …) to a whiteboard. Pass valid Mermaid source, e.g. "graph TD\\n  A[Idea] --> B[Plan]".',
+      inputSchema: { whiteboard_id: z.string(), mermaid: z.string(), x: z.number().optional(), y: z.number().optional(), width: z.number().optional(), height: z.number().optional() }
+    },
+    async ({ whiteboard_id, mermaid, x, y, width, height }) => {
+      if (!api.getWhiteboard(whiteboard_id)) return { ...ok(`Whiteboard ${whiteboard_id} not found`), isError: true }
+      const pos = x !== undefined && y !== undefined ? { x, y } : freeSpot(api, whiteboard_id)
+      const obj = api.addObject({ whiteboardId: whiteboard_id, kind: 'mermaid', ...pos, width, height, data: { source: mermaid.trim() } })
+      return ok({ object_id: obj.id })
+    }
+  )
+
+  server.registerTool(
+    'update_diagram',
+    {
+      description: 'Replace the source of an existing mindmap (indented outline) or Mermaid diagram (object id from get_whiteboard).',
+      inputSchema: { object_id: z.string(), source: z.string() }
+    },
+    async ({ object_id, source }) => {
+      const obj = api.getObject(object_id)
+      if (!obj || (obj.kind !== 'mindmap' && obj.kind !== 'mermaid')) return { ...ok(`Mindmap or Mermaid diagram ${object_id} not found`), isError: true }
+      api.updateObjects([{ id: object_id, data: { ...obj.data, source: source.trim() } }])
+      api.notify('whiteboards')
+      return ok({ object_id, kind: obj.kind })
+    }
   )
 
   server.registerTool(

@@ -115,6 +115,51 @@ describe('mcp', () => {
   })
 })
 
+describe('mcp charts & diagrams', () => {
+  it('adds and updates charts with agent-provided tables', async () => {
+    const { api, call } = await connect()
+    const wb = await call('create_whiteboard', { name: 'KPIs' })
+    const added = await call('add_chart', {
+      whiteboard_id: wb.id,
+      chart_type: 'column',
+      title: 'Signups',
+      columns: ['Month', 'Web', 'iOS'],
+      rows: [['Jan', 120, 40], ['Feb', 150, null]]
+    })
+    expect(added).toMatchObject({ chart_type: 'column', columns: ['Month', 'Web', 'iOS'], rows: 2 })
+    let obj = api.getObject(added.object_id)!
+    expect(obj.kind).toBe('chart')
+    expect(obj.data).toMatchObject({ title: 'Signups', rows: [['Jan', '120', '40'], ['Feb', '150', '']] })
+
+    // same table shape → data is kept when switching type, options merge
+    await call('update_chart', { object_id: added.object_id, chart_type: 'line', options: { smooth: true } })
+    obj = api.getObject(added.object_id)!
+    expect(obj.data).toMatchObject({ chartType: 'line', rows: [['Jan', '120', '40'], ['Feb', '150', '']] })
+    expect((obj.data as { options: { smooth: boolean } }).options.smooth).toBe(true)
+
+    // fixed-shape types ignore custom columns; venn rows are normalised to regions
+    const venn = await call('add_chart', { whiteboard_id: wb.id, chart_type: 'venn', rows: [['A', 'Design'], ['B', 'Code']], options: { sets: 2 } })
+    expect(api.getObject(venn.object_id)!.data).toMatchObject({ columns: ['Region', 'Text'], rows: [['A', 'Design'], ['B', 'Code'], ['A∩B', '']] })
+
+    const missing = await call('update_chart', { object_id: 'nope', title: 'x' })
+    expect(String(missing)).toContain('not found')
+  })
+
+  it('adds and edits mindmaps and flowcharts', async () => {
+    const { api, call } = await connect()
+    const wb = await call('create_whiteboard', { name: 'Plan' })
+    const mm = await call('add_mindmap', { whiteboard_id: wb.id, outline: 'Launch\n  - Marketing\n  - Product' })
+    const fc = await call('add_flowchart', { whiteboard_id: wb.id, mermaid: 'graph TD\n  A --> B' })
+    await call('update_diagram', { object_id: mm.object_id, source: 'Launch\n  - Sales' })
+    expect(api.getObject(mm.object_id)).toMatchObject({ kind: 'mindmap', data: { source: 'Launch\n  - Sales' } })
+    expect(api.getObject(fc.object_id)).toMatchObject({ kind: 'mermaid', data: { source: 'graph TD\n  A --> B' } })
+    const board = api.getWhiteboard(wb.id)!
+    // auto-placed side by side, not overlapping
+    const [a, b] = board.objects
+    expect(b.x).toBeGreaterThanOrEqual(a.x + a.width)
+  })
+})
+
 describe('mcp http transport', () => {
   it('serves tools over stateless streamable HTTP', async () => {
     const { startHttpMcp } = await import('../src/main/mcp/server')

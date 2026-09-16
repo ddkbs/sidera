@@ -29,6 +29,13 @@ export const MindmapNode = memo(function MindmapNode({ id, data, selected, width
     persist([{ id, data: { ...data.object.data, source: serializeTree(t) } }])
   }, !!data.autoEdit)
 
+  // adopt outline changes made elsewhere (e.g. MCP) while not editing
+  const externalSource = String(data.object.data.source ?? DEFAULT)
+  useEffect(() => {
+    if (!editing && externalSource !== serializeTree(latest.current)) setTree(parseTree(externalSource))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [externalSource])
+
   const layout = useMemo(() => layoutTree(tree), [tree])
   const scale = Math.min((width - PAD * 2) / Math.max(1, layout.width), (height - PAD * 2) / Math.max(1, layout.height), 1.6)
   const ox = (width - layout.width * scale) / 2

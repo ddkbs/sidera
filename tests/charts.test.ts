@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { CHART_DEFS, changeType, compatibleTypes, defaultChart, parseClipboardTable, sankeyData, seriesRows, vennRows, type ChartType } from '../src/renderer/src/features/charts/model'
+import { CHART_DEFS, changeType, compatibleTypes, defaultChart, parseClipboardTable, sankeyData, seriesRows, vennRows, type ChartType } from '../src/shared/charts'
 
 describe('chart model', () => {
   it('provides sensible defaults for every type', () => {

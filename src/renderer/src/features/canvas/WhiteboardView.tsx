@@ -55,7 +55,7 @@ const SketchEditor = lazy(() => import('./SketchEditor'))
 import { persist, type ConnectionEdge, type ObjectNode } from './types'
 import { ZoomControls } from './ZoomControls'
 import { useCommands } from '@/lib/shortcuts'
-import { defaultChart, type ChartType } from '@/features/charts/model'
+import { defaultChart, type ChartType } from '@shared/charts'
 import './canvas.css'
 
 export function WhiteboardView({ id }: { id: string }) {

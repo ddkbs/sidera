@@ -87,7 +87,14 @@ export const MermaidNode = memo(function MermaidNode({ id, data, selected }: Nod
     }
   }
 
+  const externalSource = String(data.object.data.source ?? DEFAULT)
   const { editing, setEditing, root } = useEditMode(selected, () => persist([{ id, data: { ...data.object.data, source: latest.current } }]), !!data.autoEdit)
+
+  // adopt source changes made elsewhere (e.g. MCP) while not editing
+  useEffect(() => {
+    if (!editing && !labelEdit && externalSource !== latest.current) setSource(externalSource)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [externalSource])
 
   useEffect(() => {
     if (editing) {

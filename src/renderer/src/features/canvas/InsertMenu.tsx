@@ -23,7 +23,7 @@ import {
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { cn } from '@/lib/utils'
-import type { ChartType } from '@/features/charts/model'
+import type { ChartType } from '@shared/charts'
 import type { OverflowAction } from './CanvasToolbar'
 
 interface Item {

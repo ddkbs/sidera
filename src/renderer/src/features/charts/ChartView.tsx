@@ -27,7 +27,7 @@ import {
   ZAxis
 } from 'recharts'
 import { cn } from '@/lib/utils'
-import { CHART_DEFS, VENN_REGIONS, num, sankeyData, seriesNames, seriesRows, type ChartData } from './model'
+import { CHART_DEFS, VENN_REGIONS, num, sankeyData, seriesNames, seriesRows, type ChartData } from '@shared/charts'
 import { SCHEMES, colorAt } from './palette'
 
 const axis = { stroke: 'var(--border)', tick: { fill: 'var(--muted-foreground)', fontSize: 11 }, tickLine: false }

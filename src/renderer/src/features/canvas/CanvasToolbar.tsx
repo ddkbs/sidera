@@ -21,7 +21,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
 import { Kbd } from '@/components/ui/kbd'
 import { formatBinding, useBinding } from '@/lib/shortcuts'
 import type { CanvasTool } from '@/store/ui'
-import type { ChartType } from '@/features/charts/model'
+import type { ChartType } from '@shared/charts'
 import { InsertMenu } from './InsertMenu'
 
 export const TOOLS: { id: CanvasTool; label: string; icon: ReactNode }[] = [
