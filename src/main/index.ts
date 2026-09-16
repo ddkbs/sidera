@@ -37,6 +37,7 @@ const MIME: Record<string, string> = {
 
 if (STDIO) {
   app.dock?.hide()
+  process.stdin.on('end', () => app.quit())
   app.whenReady().then(() => startStdioMcp(services, app.getVersion()))
 } else {
   protocol.registerSchemesAsPrivileged([{ scheme: 'canvascl-file', privileges: { standard: true, secure: true, supportFetchAPI: true, stream: true } }])
@@ -88,6 +89,16 @@ async function bootstrap(): Promise<void> {
     win?.webContents.send(MCP_ACTIVITY, { tool, args: JSON.stringify(args).slice(0, 200), at: Date.now() })
   )
   mcpUrl = mcp?.url ?? null
+
+  // Detect writes from other processes (e.g. `--mcp-stdio` instances) and refresh the UI
+  let dataVersion = db.$client.pragma('data_version', { simple: true })
+  setInterval(() => {
+    const v = db.$client.pragma('data_version', { simple: true })
+    if (v !== dataVersion) {
+      dataVersion = v
+      emit('all')
+    }
+  }, 1500)
 
   createWindow()
   app.on('activate', () => BrowserWindow.getAllWindows().length === 0 && createWindow())
