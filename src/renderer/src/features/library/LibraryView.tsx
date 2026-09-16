@@ -6,6 +6,7 @@ import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { TagBadge } from '@/features/card/TagBadge'
 import { KanbanBoard } from '@/features/kanban/KanbanBoard'
+import { CardRowMenu } from './CardRowMenu'
 import { TagTable } from './TagTable'
 import { useAppDispatch, useAppSelector } from '@/store'
 import { useCreateCardMutation, useListCardsQuery, useListTagsQuery } from '@/store/api'
@@ -94,7 +95,7 @@ function CardCollection({ tagId, mode, filter }: { tagId: string | null; mode: '
             const c = rows[item.index]
             return (
               <div key={c.id} className="absolute inset-x-0" style={{ transform: `translateY(${item.start}px)`, height: item.size }}>
-                {mode === 'table' ? <TableRow card={c} onOpen={() => dispatch(openCard(c.id))} /> : <ListRow card={c} onOpen={() => dispatch(openCard(c.id))} />}
+                <CardRowMenu cardId={c.id}>{mode === 'table' ? <TableRow card={c} onOpen={() => dispatch(openCard(c.id))} /> : <ListRow card={c} onOpen={() => dispatch(openCard(c.id))} />}</CardRowMenu>
               </div>
             )
           })}

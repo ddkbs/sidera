@@ -1,5 +1,5 @@
 import { Pencil, Trash2 } from 'lucide-react'
-import { useState, type ReactElement } from 'react'
+import { useState, type ReactNode } from 'react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuLabel, ContextMenuSeparator, ContextMenuTrigger } from '@/components/ui/context-menu'
@@ -13,7 +13,7 @@ import { navigate } from '@/store/ui'
 import type { Tag } from '@shared/types'
 
 /** Right-click menu for a tag: color, rename, delete. */
-export function TagMenu({ tag, children }: { tag: Tag; children: ReactElement }) {
+export function TagMenu({ tag, children }: { tag: Tag; children: ReactNode }) {
   const dispatch = useAppDispatch()
   const view = useAppSelector((s) => s.ui.view)
   const [update] = useUpdateTagMutation()
@@ -24,7 +24,9 @@ export function TagMenu({ tag, children }: { tag: Tag; children: ReactElement })
   return (
     <>
       <ContextMenu>
-        <ContextMenuTrigger asChild>{children}</ContextMenuTrigger>
+        <ContextMenuTrigger asChild>
+          <div className="flex flex-col">{children}</div>
+        </ContextMenuTrigger>
         <ContextMenuContent className="w-52">
           <ContextMenuLabel className="text-xs text-muted-foreground">Color</ContextMenuLabel>
           <div className="flex flex-wrap gap-1.5 px-2 pb-2">

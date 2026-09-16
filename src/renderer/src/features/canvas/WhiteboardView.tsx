@@ -36,6 +36,7 @@ import { navigate, openCard, setTool, type CanvasTool } from '@/store/ui'
 import { AddCardDialog } from './AddCardDialog'
 import { CARD_MIME, CardDrawer } from './CardDrawer'
 import { FileViewer } from './FileViewer'
+import { FindOnBoard } from './FindOnBoard'
 import { History, invert, type HistoryOp } from './history'
 import { CanvasToolbar, TOOLS, type OverflowAction } from './CanvasToolbar'
 import { edgeTypes } from './FloatingEdge'
@@ -540,6 +541,7 @@ function Canvas({ detail }: { detail: WhiteboardDetail }) {
       <CanvasToolbar tool={tool} onTool={(t) => void changeTool(t)} onAction={(a) => void onAction(a)} />
       <ZoomControls />
       <CardDrawer onBoard={cardIds} />
+      <FindOnBoard />
       <FileViewer file={viewing} onClose={() => setViewing(null)} />
       <NodeMenu menu={menu} onClose={() => setMenu(null)} onAction={(a, n) => void onMenuAction(a, n)} />
       {nodes.length === 0 && (

@@ -1,4 +1,5 @@
 import { ArrowUpRight, Link2, LayoutDashboard, MoreHorizontal, Trash2, X } from 'lucide-react'
+import { DropdownMenuSeparator, DropdownMenuSub, DropdownMenuSubContent, DropdownMenuSubTrigger } from '@/components/ui/dropdown-menu'
 import { motion } from 'motion/react'
 import { useEffect, useState } from 'react'
 import { toast } from 'sonner'
@@ -7,7 +8,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useAppDispatch } from '@/store'
-import { useDeleteCardMutation, useGetCardQuery, useUpdateCardMutation } from '@/store/api'
+import { useAddObjectMutation, useDeleteCardMutation, useGetCardQuery, useListWhiteboardsQuery, useUpdateCardMutation } from '@/store/api'
 import { navigate, openCard } from '@/store/ui'
 import { CardEditor } from './CardEditor'
 import { PropertyList } from './PropertyList'
@@ -18,6 +19,8 @@ export function CardPanel({ cardId }: { cardId: string }) {
   const { data: card, isLoading } = useGetCardQuery(cardId)
   const [update] = useUpdateCardMutation()
   const [remove] = useDeleteCardMutation()
+  const [addObject] = useAddObjectMutation()
+  const { data: boards = [] } = useListWhiteboardsQuery()
   const [title, setTitle] = useState('')
 
   useEffect(() => {
@@ -60,6 +63,30 @@ export function CardPanel({ cardId }: { cardId: string }) {
             >
               <Link2 /> Copy card id
             </DropdownMenuItem>
+            <DropdownMenuSub>
+              <DropdownMenuSubTrigger>
+                <LayoutDashboard /> Add to whiteboard
+              </DropdownMenuSubTrigger>
+              <DropdownMenuSubContent className="max-h-72 overflow-y-auto">
+                {boards.length === 0 && <DropdownMenuItem disabled>No whiteboards</DropdownMenuItem>}
+                {boards.map((b) => (
+                  <DropdownMenuItem
+                    key={b.id}
+                    onClick={async () => {
+                      const detail = await window.api.getWhiteboard(b.id)
+                      const objs = detail?.objects ?? []
+                      const x = objs.length ? Math.max(...objs.map((o) => o.x + o.width)) + 60 : 0
+                      const y = objs.length ? Math.min(...objs.map((o) => o.y)) : 0
+                      await addObject({ whiteboardId: b.id, kind: 'card', refId: cardId, x, y })
+                      toast.success(`Added to ${b.name}`, { action: { label: 'Open', onClick: () => dispatch(navigate({ type: 'whiteboard', id: b.id })) } })
+                    }}
+                  >
+                    {b.name}
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuSubContent>
+            </DropdownMenuSub>
+            <DropdownMenuSeparator />
             <DropdownMenuItem
               variant="destructive"
               onClick={async () => {
