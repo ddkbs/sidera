@@ -18,6 +18,10 @@ import dagre from 'dagre'
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { toast } from 'sonner'
 import type { ObjectKind, ObjectPatch, WhiteboardDetail } from '@shared/types'
+import { firstUrl } from '@shared/util'
+import { Button } from '@/components/ui/button'
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { Input } from '@/components/ui/input'
 import { Skeleton } from '@/components/ui/skeleton'
 import { cn } from '@/lib/utils'
 import { useAppDispatch, useAppSelector } from '@/store'
@@ -25,6 +29,7 @@ import {
   api,
   useAddConnectionMutation,
   useAddObjectMutation,
+  useClipUrlMutation,
   useCreateCardMutation,
   useCreateWhiteboardMutation,
   useDeleteCardMutation,
@@ -42,6 +47,7 @@ import { CanvasToolbar, TOOLS, type OverflowAction } from './CanvasToolbar'
 import { edgeTypes } from './FloatingEdge'
 import { NodeMenu, type NodeMenuAction } from './NodeMenu'
 import { nodeTypes } from './nodes'
+import { SAVE_LINK_DONE_EVENT, SAVE_LINK_EVENT } from './nodes/LinkNode'
 import { EDIT_SKETCH_EVENT } from './nodes/SketchNode'
 
 const SketchEditor = lazy(() => import('./SketchEditor'))
@@ -124,14 +130,18 @@ function Canvas({ detail }: { detail: WhiteboardDetail }) {
   const [createCard] = useCreateCardMutation()
   const [createWhiteboard] = useCreateWhiteboardMutation()
   const [deleteCard] = useDeleteCardMutation()
+  const [clipUrl] = useClipUrlMutation()
   const [viewing, setViewing] = useState<{ refId: string; name: string; mime: string } | null>(null)
   const [edgeEdit, setEdgeEdit] = useState<{ id: string; x: number; y: number; label: string } | null>(null)
   const [sketchId, setSketchId] = useState<string | null>(null)
+  const [linkDialog, setLinkDialog] = useState(false)
+  const [linkUrl, setLinkUrl] = useState('')
   useEffect(() => {
     const onEdit = (e: Event) => setSketchId((e as CustomEvent<string>).detail)
     window.addEventListener(EDIT_SKETCH_EVENT, onEdit)
     return () => window.removeEventListener(EDIT_SKETCH_EVENT, onEdit)
   }, [])
+
   const [menu, setMenu] = useState<{ node: ObjectNode; x: number; y: number } | null>(null)
 
   const onMenuAction = useCallback(
@@ -177,6 +187,34 @@ function Canvas({ detail }: { detail: WhiteboardDetail }) {
     },
     [addObject, boardId]
   )
+
+  // "Save as card" on a link node: clip the page to a card and connect it to the link node.
+  useEffect(() => {
+    const onSaveLink = (e: Event) => {
+      const { nodeId, url } = (e as CustomEvent<{ nodeId: string; url: string }>).detail
+      void (async () => {
+        try {
+          const res = await clipUrl({ url })
+          if (!('data' in res) || !res.data) throw new Error('Clip failed')
+          const linkNode = rf.getNode(nodeId)
+          const x = (linkNode?.position.x ?? center().x) + (linkNode?.width ?? 320) + 60
+          const y = linkNode?.position.y ?? center().y
+          const o = await place('card', { x, y }, { refId: res.data.id, width: 300, height: 200 })
+          if (o) {
+            const conn = await addConnection({ whiteboardId: boardId, sourceId: nodeId, targetId: o.id })
+            if ('data' in conn && conn.data) history.current.push({ type: 'add', objects: [], connections: [conn.data] })
+          }
+          toast.success('Saved as card')
+        } catch {
+          toast.error('Could not save page as a card')
+        } finally {
+          window.dispatchEvent(new CustomEvent(SAVE_LINK_DONE_EVENT, { detail: { nodeId } }))
+        }
+      })()
+    }
+    window.addEventListener(SAVE_LINK_EVENT, onSaveLink)
+    return () => window.removeEventListener(SAVE_LINK_EVENT, onSaveLink)
+  }, [clipUrl, rf, place, addConnection, boardId, center])
 
   const newCardAt = useCallback(
     async (pos: { x: number; y: number }, title = '') => {
@@ -283,12 +321,27 @@ function Canvas({ detail }: { detail: WhiteboardDetail }) {
       if (selected.length) void pasteObjects(selected, { x: 40, y: 40 })
     },
     'canvas.paste': () => {
-      if (!clipboard.current) return false
-      const objs = clipboard.current.objects
-      const c = center()
-      const minX = Math.min(...objs.map((o) => o.x))
-      const minY = Math.min(...objs.map((o) => o.y))
-      void pasteObjects(objs, { x: c.x - minX - 100, y: c.y - minY - 100 })
+      if (clipboard.current) {
+        const objs = clipboard.current.objects
+        const c = center()
+        const minX = Math.min(...objs.map((o) => o.x))
+        const minY = Math.min(...objs.map((o) => o.y))
+        void pasteObjects(objs, { x: c.x - minX - 100, y: c.y - minY - 100 })
+        return
+      }
+      // Nothing copied on the canvas — if the system clipboard holds a URL, drop a link card in.
+      void (async () => {
+        let text = ''
+        try {
+          text = await navigator.clipboard.readText()
+        } catch {
+          return
+        }
+        const url = firstUrl(text)
+        if (!url) return
+        const c = center()
+        await place('link', { x: c.x - 160, y: c.y - 100 }, { data: { url } })
+      })()
     },
     'canvas.selectAll': () => setNodes((ns) => ns.map((n) => ({ ...n, selected: true }))),
     'canvas.fit': () => void rf.fitView({ duration: 300, padding: 0.15 }),
@@ -427,6 +480,11 @@ function Canvas({ detail }: { detail: WhiteboardDetail }) {
         if (o) autoEdit.current = o.id
         return
       }
+      if (a === 'link') {
+        setLinkUrl('')
+        setLinkDialog(true)
+        return
+      }
       if (a === 'whiteboard') {
         const res = await createWhiteboard({ name: 'Untitled whiteboard', parentId: boardId })
         if ('data' in res && res.data) await place('whiteboard', { x: c.x - 130, y: c.y - 70 }, { refId: res.data.id })
@@ -474,7 +532,7 @@ function Canvas({ detail }: { detail: WhiteboardDetail }) {
       ref={wrapper}
       className={cn('canvas-root relative h-full w-full bg-canvas', `tool-${tool}`)}
       onDragOver={(e) => {
-        if (e.dataTransfer.types.includes(CARD_MIME) || e.dataTransfer.types.includes('Files')) {
+        if (e.dataTransfer.types.includes(CARD_MIME) || e.dataTransfer.types.includes('Files') || e.dataTransfer.types.includes('text/uri-list')) {
           e.preventDefault()
           e.dataTransfer.dropEffect = 'copy'
         }
@@ -486,6 +544,14 @@ function Canvas({ detail }: { detail: WhiteboardDetail }) {
           e.preventDefault()
           await place('card', { x: pos.x - 160, y: pos.y - 30 }, { refId: cardId })
           return
+        }
+        if (!e.dataTransfer.files.length) {
+          const url = firstUrl(e.dataTransfer.getData('text/uri-list') || e.dataTransfer.getData('text/plain'))
+          if (url) {
+            e.preventDefault()
+            await place('link', { x: pos.x - 160, y: pos.y - 100 }, { data: { url } })
+            return
+          }
         }
         const paths = [...e.dataTransfer.files].map((f) => window.files.pathFor(f)).filter(Boolean)
         if (!paths.length) return
@@ -637,6 +703,28 @@ function Canvas({ detail }: { detail: WhiteboardDetail }) {
           await newCardAt(center(), title)
         }}
       />
+      <Dialog open={linkDialog} onOpenChange={setLinkDialog}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Add link</DialogTitle>
+          </DialogHeader>
+          <form
+            onSubmit={async (e) => {
+              e.preventDefault()
+              const raw = linkUrl.trim()
+              if (!raw) return
+              const url = /^https?:\/\//i.test(raw) ? raw : `https://${raw}`
+              setLinkDialog(false)
+              await place('link', { x: center().x - 160, y: center().y - 100 }, { data: { url } })
+            }}
+          >
+            <Input autoFocus placeholder="https://example.com" value={linkUrl} onChange={(e) => setLinkUrl(e.target.value)} />
+            <DialogFooter className="mt-4">
+              <Button type="submit">Add</Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

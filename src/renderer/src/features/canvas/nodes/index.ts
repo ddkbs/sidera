@@ -4,6 +4,7 @@ import { ErrorBoundary } from '@/components/ErrorBoundary'
 import type { ObjectNode } from '../types'
 import { CardNode } from './CardNode'
 import { FileNode } from './FileNode'
+import { LinkNode } from './LinkNode'
 import { MermaidNode } from './MermaidNode'
 import { MindmapNode } from './MindmapNode'
 import { SectionNode } from './SectionNode'
@@ -27,6 +28,7 @@ export const nodeTypes: NodeTypes = {
   section: safe(SectionNode),
   whiteboard: safe(WhiteboardNode),
   file: safe(FileNode),
+  link: safe(LinkNode),
   mindmap: safe(MindmapNode),
   mermaid: safe(MermaidNode),
   sketch: safe(SketchNode)

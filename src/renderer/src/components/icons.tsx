@@ -13,6 +13,7 @@ import {
   IconArticle,
   IconPresentation,
   IconBookOpen,
+  IconBookmark,
   IconCalendarDates,
   IconCards,
   IconChatAi,
@@ -37,6 +38,7 @@ import {
   IconDownload,
   IconExpand,
   IconFullscreen,
+  IconGlobe,
   IconHashtag,
   IconHome,
   IconKanban,
@@ -124,6 +126,8 @@ export const Ellipsis = IconOptionsHorizontal
 export const Expand = IconExpand
 export const File = IconDocument
 export const FileText = IconArticle
+export const Bookmark = IconBookmark
+export const Globe = IconGlobe
 export const GitBranch = IconLayout
 export const GripVertical = IconOptionsVertical
 export const Hash = IconHashtag
