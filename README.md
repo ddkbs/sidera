@@ -29,7 +29,8 @@ npm test && npm run typecheck
 Easiest: **Settings → MCP & Claude → Connect everything** (adds CanvasCL to Claude Desktop and Claude Code). While the app runs, an MCP server listens on `http://127.0.0.1:3845/mcp` (Streamable HTTP).
 Headless stdio mode: `CanvasCL --mcp-stdio`. Tools: `search_cards`, `get_card`, `create_card`, `update_card`,
 `list_cards`, `list_tags`, `tag_card`, `create_property`, `set_card_property`, `list_whiteboards`, `get_whiteboard`, `create_whiteboard`, `add_card_to_whiteboard`,
-`add_section`, `connect_objects`, `get_kanban`, `move_kanban_item`, `get_journal`, `append_to_journal`, `list_tasks`, `complete_task`.
+`add_section`, `organize_board`, `connect_objects`, `get_kanban`, `move_kanban_item`, `get_journal`, `append_to_journal`, `list_tasks`, `complete_task`. Also exposes an
+`organize-board` prompt that guides an agent through grouping a whiteboard's objects and calling `organize_board`.
 
 ## In-app assistant
 Press **⌘J** (or *Ask AI*) for a chat panel powered by Claude (`claude-opus-5`, adaptive thinking, server-side refusal fallback). It uses **the same tools as the MCP server** via an in-process MCP client, so everything an external agent can do, the built-in assistant can do too. Bring your own Anthropic API key — it's stored encrypted with the macOS Keychain (`safeStorage`), or read from `ANTHROPIC_API_KEY`.

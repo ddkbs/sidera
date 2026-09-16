@@ -13,6 +13,8 @@ export interface AppSettings {
   shortcuts: Record<string, string>
   /** System-wide shortcut that opens the quick-capture window, even while the app is backgrounded. */
   quickCapture: { enabled: boolean; accelerator: string }
+  /** whether the first-launch guided tour has been finished or skipped */
+  tourCompleted: boolean
 }
 
 export const DEFAULT_SETTINGS: AppSettings = {
@@ -24,7 +26,8 @@ export const DEFAULT_SETTINGS: AppSettings = {
   canvas: { showMinimap: true, snapToGrid: false },
   mcp: { httpEnabled: true, port: 3845 },
   shortcuts: {},
-  quickCapture: { enabled: true, accelerator: 'Ctrl+Alt+Space' }
+  quickCapture: { enabled: true, accelerator: 'Ctrl+Alt+Space' },
+  tourCompleted: false
 }
 
 type DeepPartial<T> = { [K in keyof T]?: T[K] extends object ? (T[K] extends unknown[] ? T[K] : DeepPartial<T[K]>) : T[K] }

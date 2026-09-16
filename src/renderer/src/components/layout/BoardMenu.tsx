@@ -1,4 +1,4 @@
-import { LayoutDashboard, Pencil, Plus, Trash2 } from '@/components/icons'
+import { LayoutDashboard, Pencil, Plus, Sparkles, Trash2 } from '@/components/icons'
 import { useState, type ReactElement } from 'react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
@@ -7,8 +7,19 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Input } from '@/components/ui/input'
 import { useAppDispatch, useAppSelector } from '@/store'
 import { useCreateWhiteboardMutation, useDeleteWhiteboardMutation, useUpdateWhiteboardMutation } from '@/store/api'
-import { navigate, openTab } from '@/store/ui'
+import { navigate, openTab, queueChatMessage } from '@/store/ui'
 import type { Whiteboard } from '@shared/types'
+
+async function organizeWithAi(dispatch: ReturnType<typeof useAppDispatch>, board: Whiteboard): Promise<void> {
+  const hasKey = await window.chat.hasKey()
+  if (!hasKey) {
+    toast('Add an Anthropic API key to organize with the built-in assistant', {
+      description: 'Or ask Claude Desktop/Code to do it via the "organize-board" MCP prompt.'
+    })
+    return
+  }
+  dispatch(queueChatMessage(`Organize the whiteboard "${board.name}" (id ${board.id}) into meaningful sections.`))
+}
 
 export function BoardMenu({ board, children }: { board: Whiteboard; children: ReactElement }) {
   const dispatch = useAppDispatch()
@@ -29,6 +40,9 @@ export function BoardMenu({ board, children }: { board: Whiteboard; children: Re
           </ContextMenuItem>
           <ContextMenuItem onSelect={() => (setName(board.name), setDialog('rename'))}>
             <Pencil /> Rename
+          </ContextMenuItem>
+          <ContextMenuItem onSelect={() => void organizeWithAi(dispatch, board)}>
+            <Sparkles /> Organize with AI
           </ContextMenuItem>
           <ContextMenuItem
             onSelect={async () => {

@@ -32,7 +32,7 @@ import {
   useRemoveConnectionsMutation,
   useRemoveObjectsMutation
 } from '@/store/api'
-import { navigate, openCard, setTool, type CanvasTool } from '@/store/ui'
+import { navigate, openCard, queueChatMessage, setTool, type CanvasTool } from '@/store/ui'
 import { AddCardDialog } from './AddCardDialog'
 import { CARD_MIME, CardDrawer } from './CardDrawer'
 import { FileViewer } from './FileViewer'
@@ -439,6 +439,17 @@ function Canvas({ detail }: { detail: WhiteboardDetail }) {
         if ('data' in res && res.data) await place('whiteboard', { x: c.x - 130, y: c.y - 70 }, { refId: res.data.id })
         return
       }
+      if (a === 'organize') {
+        const hasKey = await window.chat.hasKey()
+        if (!hasKey) {
+          toast('Add an Anthropic API key to organize with the built-in assistant', {
+            description: 'Or ask Claude Desktop/Code to do it via the "organize-board" MCP prompt.'
+          })
+          return
+        }
+        dispatch(queueChatMessage(`Organize the whiteboard "${detail.whiteboard.name}" (id ${boardId}) into meaningful sections.`))
+        return
+      }
       if (a === 'autolayout') {
         const g = new dagre.graphlib.Graph()
         g.setGraph({ rankdir: 'LR', nodesep: 40, ranksep: 80 })
@@ -461,7 +472,7 @@ function Canvas({ detail }: { detail: WhiteboardDetail }) {
         setTimeout(() => rf.fitView({ duration: 400, padding: 0.15 }), 50)
       }
     },
-    [center, rf, place, createWhiteboard, boardId, edges, nodes]
+    [center, rf, place, createWhiteboard, boardId, edges, nodes, dispatch, detail.whiteboard.name]
   )
 
   const viewportTimer = useRef<ReturnType<typeof setTimeout>>(undefined)

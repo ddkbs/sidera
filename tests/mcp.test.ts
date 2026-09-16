@@ -82,6 +82,37 @@ describe('mcp', () => {
     expect((await call('list_tasks', { status: 'open' })).map((t: { text: string }) => t.text)).toEqual(['two'])
     expect((await call('list_tasks', { status: 'done' })).map((t: { text: string }) => t.text)).toEqual(['one'])
   })
+
+  it('organizes a whiteboard into sections via the organize_board tool', async () => {
+    const { api, call } = await connect()
+    const wb = await call('create_whiteboard', { name: 'Board' })
+    const cardA = await call('create_card', { title: 'A' })
+    const cardB = await call('create_card', { title: 'B' })
+    const cardC = await call('create_card', { title: 'C' })
+    const objA = await call('add_card_to_whiteboard', { card_id: cardA.id, whiteboard_id: wb.id, x: 0, y: 0 })
+    const objB = await call('add_card_to_whiteboard', { card_id: cardB.id, whiteboard_id: wb.id, x: 400, y: 0 })
+    await call('add_card_to_whiteboard', { card_id: cardC.id, whiteboard_id: wb.id, x: 800, y: 0 })
+
+    const result = await call('organize_board', {
+      whiteboard_id: wb.id,
+      groups: [{ title: 'Topic', color: 'blue', object_ids: [objA.object_id, objB.object_id] }]
+    })
+    expect(result.sections).toHaveLength(1)
+    expect(result.sections[0]).toMatchObject({ title: 'Topic', objectCount: 2 })
+    expect(result.unsorted).toBe(1)
+
+    const board = api.getWhiteboard(wb.id)!
+    expect(board.objects.filter((o) => o.kind === 'section')).toHaveLength(1)
+  })
+
+  it('lists the organize-board prompt', async () => {
+    const { client } = await connect()
+    const prompts = (await client.listPrompts()).prompts.map((p) => p.name)
+    expect(prompts).toContain('organize-board')
+    const res = await client.getPrompt({ name: 'organize-board', arguments: { whiteboard: 'Roadmap' } })
+    expect(res.messages[0].content).toMatchObject({ type: 'text' })
+    expect((res.messages[0].content as { text: string }).text).toContain('organize_board')
+  })
 })
 
 describe('mcp http transport', () => {

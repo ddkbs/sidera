@@ -11,6 +11,7 @@ import { store, useAppDispatch, useAppSelector } from '@/store'
 import { back, closeTab, cycleTab, forward, navigate, openSettings, openTab, setChatOpen, setPaletteOpen, toggleSidebar } from '@/store/ui'
 import { useCommands } from '@/lib/shortcuts'
 import { SettingsDialog } from '@/features/settings/SettingsDialog'
+import { Tour } from '@/features/onboarding/Tour'
 import { TabBar } from './TabBar'
 import { ChatPanel } from '@/features/chat/ChatPanel'
 import { ErrorBoundary } from '@/components/ErrorBoundary'
@@ -73,6 +74,7 @@ export function AppShell() {
       <CommandPalette />
       <ShortcutsDialog />
       <SettingsDialog />
+      <Tour />
     </div>
   )
 }

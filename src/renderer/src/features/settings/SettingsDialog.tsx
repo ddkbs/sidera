@@ -118,6 +118,17 @@ function General() {
         <Switch checked={s.restoreLastView} onCheckedChange={(v) => dispatch(updateSettings({ restoreLastView: v }))} />
       </Row>
       <QuickCaptureRow />
+      <Row title="Onboarding tour" description="Replay the guided tour of the sidebar, tabs, canvas and AI features.">
+        <Button
+          variant="outline"
+          onClick={() => {
+            dispatch(setSettingsOpen(false))
+            void dispatch(updateSettings({ tourCompleted: false }))
+          }}
+        >
+          Restart tour
+        </Button>
+      </Row>
     </div>
   )
 }
@@ -225,7 +236,7 @@ function EditorCanvas() {
 
 const TOOL_NAMES = [
   'search_cards', 'list_cards', 'get_card', 'create_card', 'update_card', 'list_tags', 'tag_card', 'create_property', 'set_card_property',
-  'list_whiteboards', 'get_whiteboard', 'create_whiteboard', 'add_card_to_whiteboard', 'add_section', 'connect_objects',
+  'list_whiteboards', 'get_whiteboard', 'create_whiteboard', 'add_card_to_whiteboard', 'add_section', 'organize_board', 'connect_objects',
   'get_kanban', 'move_kanban_item', 'get_journal', 'append_to_journal', 'list_tasks', 'complete_task'
 ]
 

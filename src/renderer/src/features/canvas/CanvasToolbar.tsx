@@ -32,7 +32,7 @@ export const TOOLS: { id: CanvasTool; label: string; icon: ReactNode }[] = [
   { id: 'search', label: 'Add existing card', icon: <Search /> }
 ]
 
-export type OverflowAction = 'whiteboard' | 'mindmap' | 'mermaid' | 'sketch' | 'autolayout' | 'fit' | `chart:${ChartType}`
+export type OverflowAction = 'whiteboard' | 'mindmap' | 'mermaid' | 'sketch' | 'autolayout' | 'fit' | 'organize' | `chart:${ChartType}`
 
 interface Props {
   tool: CanvasTool
@@ -44,6 +44,7 @@ interface Props {
 export function CanvasToolbar({ tool, onTool, onAction }: Props) {
   return (
     <motion.div
+      data-tour="canvas-toolbar"
       initial={{ opacity: 0, x: -8 }}
       animate={{ opacity: 1, x: 0 }}
       transition={{ type: 'spring', stiffness: 400, damping: 30 }}

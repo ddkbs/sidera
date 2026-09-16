@@ -62,6 +62,7 @@ export function Sidebar() {
       </div>
       <div className="px-2 pb-2">
         <button
+          data-tour="sidebar-search"
           onClick={() => dispatch(setPaletteOpen(true))}
           className="no-drag flex h-8 w-full items-center gap-2 rounded-md border border-sidebar-border bg-background px-2.5 text-sm text-muted-foreground shadow-xs transition hover:text-foreground"
         >
@@ -71,7 +72,7 @@ export function Sidebar() {
         </button>
       </div>
       <ScrollArea className="min-h-0 flex-1">
-        <nav className="flex flex-col gap-0.5 px-2 text-sm">
+        <nav data-tour="sidebar-nav" className="flex flex-col gap-0.5 px-2 text-sm">
           <NavItem icon={<Home className="size-4" />} active={view.type === 'home'} onClick={(e) => go({ type: 'home' }, e)}>
             Home
           </NavItem>

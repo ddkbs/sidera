@@ -24,6 +24,7 @@ import type {
 import { between, now, TAG_COLORS } from '@shared/util'
 import type { DB } from '../db/client'
 import * as s from '../db/schema'
+import { layoutGroups } from './organize'
 
 type Electronish = 'importFiles' | 'getFileUrl' | 'getMcpInfo' | 'exportMarkdown' | 'importMarkdown'
 export type ServiceMethods = {
@@ -547,6 +548,59 @@ export function createServices(db: DB, onChange: (scope: DbChangeScope) => void 
       if (!ids.length) return
       db.delete(s.connections).where(inArray(s.connections.id, ids)).run()
       onChange('whiteboards')
+    },
+
+    organizeBoard({ whiteboardId, groups, removeExistingSections = true }) {
+      const wb = api.getWhiteboard(whiteboardId)
+      if (!wb) throw new Error(`Whiteboard not found: ${whiteboardId}`)
+      const result = tx(() => {
+        if (removeExistingSections) {
+          const sectionIds = wb.objects.filter((o) => o.kind === 'section').map((o) => o.id)
+          if (sectionIds.length) db.delete(s.whiteboardObjects).where(inArray(s.whiteboardObjects.id, sectionIds)).run()
+        }
+        const pool = new Map(wb.objects.filter((o) => o.kind !== 'section').map((o) => [o.id, o]))
+        const used = new Set<string>()
+        const groupSized = groups.map((g, i) => {
+          const objects = g.objectIds.map((id) => pool.get(id)).filter((o): o is WhiteboardObject => !!o)
+          objects.forEach((o) => used.add(o.id))
+          return {
+            title: g.title,
+            color: g.color ?? TAG_COLORS[(i + 1) % TAG_COLORS.length],
+            objects: objects.map((o) => ({ id: o.id, width: o.width, height: o.height }))
+          }
+        })
+        const unsortedObjects = [...pool.values()].filter((o) => !used.has(o.id)).map((o) => ({ id: o.id, width: o.width, height: o.height }))
+        const layout = layoutGroups(groupSized, unsortedObjects)
+
+        const move = (id: string, x: number, y: number) => db.update(s.whiteboardObjects).set({ x, y }).where(eq(s.whiteboardObjects.id, id)).run()
+        for (const sec of layout.sections) for (const o of sec.objects) move(o.id, o.x, o.y)
+        for (const o of layout.unsorted) move(o.id, o.x, o.y)
+
+        let z = (sql.prepare('SELECT COALESCE(MIN(z), 0) - 1 AS z FROM whiteboard_objects WHERE whiteboard_id = ?').get(whiteboardId) as { z: number }).z
+        const sections = layout.sections.map((sec) => {
+          const id = nanoid()
+          db.insert(s.whiteboardObjects)
+            .values({
+              id,
+              whiteboardId,
+              kind: 'section',
+              refId: null,
+              x: sec.x,
+              y: sec.y,
+              width: sec.width,
+              height: sec.height,
+              z: z--,
+              color: sec.color,
+              data: JSON.stringify({ title: sec.title })
+            })
+            .run()
+          return { id, title: sec.title, objectCount: sec.objects.length }
+        })
+        db.update(s.whiteboards).set({ updatedAt: now() }).where(eq(s.whiteboards.id, whiteboardId)).run()
+        return { sections, unsorted: layout.unsorted.length }
+      })
+      onChange('whiteboards')
+      return result
     },
 
     // ---------- journal ----------

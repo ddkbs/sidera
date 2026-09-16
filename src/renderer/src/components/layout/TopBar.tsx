@@ -27,7 +27,7 @@ export function TopBar() {
       <div className="flex-1" />
       <Tooltip>
         <TooltipTrigger asChild>
-          <Button variant={chatOpen ? 'secondary' : 'ghost'} size="sm" className="h-8 gap-1.5" onClick={() => dispatch(setChatOpen(!chatOpen))}>
+          <Button data-tour="ask-ai" variant={chatOpen ? 'secondary' : 'ghost'} size="sm" className="h-8 gap-1.5" onClick={() => dispatch(setChatOpen(!chatOpen))}>
             <AskAI className="size-4" /> Ask AI
           </Button>
         </TooltipTrigger>
@@ -44,7 +44,7 @@ export function TopBar() {
       </Button>
       <Tooltip>
         <TooltipTrigger asChild>
-          <Button variant="ghost" size="icon" className="size-8" onClick={() => dispatch(openSettings(undefined))} aria-label="Settings">
+          <Button data-tour="settings-gear" variant="ghost" size="icon" className="size-8" onClick={() => dispatch(openSettings(undefined))} aria-label="Settings">
             <Settings className="size-4" />
           </Button>
         </TooltipTrigger>

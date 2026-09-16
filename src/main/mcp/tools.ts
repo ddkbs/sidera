@@ -277,6 +277,64 @@ export function createMcpServer(api: Services, version: string, onCall?: ToolCal
   )
 
   server.registerTool(
+    'organize_board',
+    {
+      description:
+        'Reorganize a whiteboard into meaningful colored sections. Call get_whiteboard first to see every object and its id, ' +
+        'then group the objects by topic into 3-7 groups with short titles, then call this tool with those groups (object ids ' +
+        'must come from get_whiteboard). Objects left out of every group are gathered into an unsorted area below the sections. ' +
+        'By default any sections already on the board are removed first.',
+      inputSchema: {
+        whiteboard_id: z.string(),
+        groups: z
+          .array(
+            z.object({
+              title: z.string(),
+              color: z.enum(['gray', 'red', 'orange', 'yellow', 'green', 'teal', 'blue', 'purple', 'pink']).optional(),
+              object_ids: z.array(z.string()).min(1)
+            })
+          )
+          .min(1),
+        remove_existing_sections: z.boolean().default(true)
+      }
+    },
+    async ({ whiteboard_id, groups, remove_existing_sections }) => {
+      if (!api.getWhiteboard(whiteboard_id)) return { ...ok(`Whiteboard ${whiteboard_id} not found`), isError: true }
+      const result = api.organizeBoard({
+        whiteboardId: whiteboard_id,
+        groups: groups.map((g) => ({ title: g.title, color: g.color, objectIds: g.object_ids })),
+        removeExistingSections: remove_existing_sections
+      })
+      return ok(result)
+    }
+  )
+
+  server.registerPrompt(
+    'organize-board',
+    {
+      title: 'Organize a whiteboard',
+      description: 'Read a whiteboard and reorganize its objects into meaningful, titled, colored sections.',
+      argsSchema: { whiteboard: z.string().describe('Whiteboard name or id') }
+    },
+    ({ whiteboard }) => ({
+      messages: [
+        {
+          role: 'user',
+          content: {
+            type: 'text',
+            text:
+              `Organize the whiteboard "${whiteboard}". Find it with list_whiteboards if you only have a name, then call get_whiteboard to read ` +
+              'all of its objects and their ids. Group the objects by topic into 3-7 meaningful sections with short (1-3 word) titles — ' +
+              'do not leave obviously related objects out of a group. Then call organize_board with those groups, using object ids exactly ' +
+              'as returned by get_whiteboard. Finally, summarize what you did in a short list: each section title with its object count, ' +
+              'and how many objects (if any) ended up unsorted.'
+          }
+        }
+      ]
+    })
+  )
+
+  server.registerTool(
     'connect_objects',
     {
       description: 'Draw an arrow between two objects on the same whiteboard (object ids from get_whiteboard).',
