@@ -2,6 +2,18 @@
 
 A free, open-source, local-first visual knowledge base — whiteboards, a card library with backlinks & tags, kanban/table/list views, a daily journal — and **MCP-first**: every core action is exposed as an MCP tool so AI agents (Claude Desktop, Claude Code, …) can read and organize your knowledge.
 
+![CanvasCL whiteboard](docs/screenshot.png)
+
+## Features
+- **Whiteboards** — infinite canvas (React Flow) with a floating tool bar: cards, text, colored sections, arrows with labels, nested whiteboards, mindmaps, Mermaid diagrams, Excalidraw sketches, PDFs & images. Undo/redo, copy/paste, ⌘F find, minimap & zoom controls.
+- **Cards** — rich text (Tiptap) with `/` commands, `@` links and backlinks; edit inline on the canvas or in the side panel; one card can live on many whiteboards.
+- **PDF reading** — select text in a PDF and turn it into a quote card linked to the source.
+- **Tags as databases** — table view with typed properties, kanban boards (drag & drop), list view.
+- **Journal** — one card per day.
+- **Search** — SQLite FTS5 across cards and whiteboards (⌘K).
+- **MCP-first** — local MCP server (HTTP + stdio) with 19 tools, live activity feed, and a built-in Claude assistant that uses the same tools.
+- **Local-first** — a single SQLite file in your user data folder; Markdown export/import.
+
 ## Stack
 Electron · electron-vite · React · TypeScript · Tailwind v4 · shadcn/ui · Redux Toolkit · Tiptap · SQLite (better-sqlite3 + Drizzle, FTS5) · React Flow · dnd-kit · cmdk · Motion · MCP SDK
 
