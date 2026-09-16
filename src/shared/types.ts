@@ -60,7 +60,7 @@ export interface Whiteboard {
   updatedAt: number
 }
 
-export type ObjectKind = 'card' | 'text' | 'section' | 'whiteboard' | 'file' | 'mindmap'
+export type ObjectKind = 'card' | 'text' | 'section' | 'whiteboard' | 'file' | 'mindmap' | 'mermaid'
 
 export interface WhiteboardObject {
   id: ID

@@ -1,0 +1,17 @@
+.canvas-root .react-flow__node { font-family: var(--font-sans); }
+.canvas-root .react-flow__edge-path { stroke: var(--muted-foreground); stroke-width: 1.6; }
+.canvas-root .react-flow__edge.selected .react-flow__edge-path { stroke: var(--brand); stroke-width: 2.2; }
+.canvas-root .react-flow__edge-text { fill: var(--foreground); font-size: 12px; }
+.canvas-root .react-flow__edge-textbg { fill: var(--background); }
+.canvas-root .react-flow__connection-path { stroke: var(--brand); stroke-width: 2; }
+.canvas-root .react-flow__selection { background: color-mix(in oklch, var(--brand) 8%, transparent); border: 1px solid color-mix(in oklch, var(--brand) 50%, transparent); }
+.canvas-root .react-flow__minimap-svg { background: var(--popover); }
+
+.canvas-handle.react-flow__handle { width: 10px; height: 10px; background: var(--background); border: 1.5px solid var(--brand); opacity: 0; transition: opacity 120ms; }
+.canvas-root .react-flow__node:hover .canvas-handle,
+.canvas-root.tool-connector .canvas-handle { opacity: 1; }
+
+.canvas-root.tool-card .react-flow__pane,
+.canvas-root.tool-text .react-flow__pane,
+.canvas-root.tool-section .react-flow__pane { cursor: crosshair; }
+.canvas-root.tool-connector .react-flow__node { cursor: cell; }
