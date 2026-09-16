@@ -20,7 +20,7 @@ export const FileNode = memo(function FileNode({ data, selected, width }: NodePr
     <>
       <Resizer selected={selected} minWidth={140} minHeight={100} />
       <div className={cn('flex h-full w-full flex-col overflow-hidden rounded-xl border bg-card shadow-sm', selected && 'ring-2 ring-brand/70')}>
-        <div className="flex min-h-0 flex-1 items-center justify-center overflow-hidden bg-muted/40">
+        <div className={cn("flex min-h-0 flex-1 justify-center overflow-hidden bg-muted/40", mime === "application/pdf" ? "items-start" : "items-center")}>
           {url && mime.startsWith('image/') && <img src={url} alt={name} draggable={false} className="h-full w-full object-contain" />}
           {url && mime === 'application/pdf' && (
             <Document file={url} loading={<FileText className="size-8 text-muted-foreground" />} error={<FileText className="size-8 text-muted-foreground" />}>

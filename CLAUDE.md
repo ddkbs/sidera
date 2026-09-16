@@ -12,7 +12,7 @@ macOS only, local-first. Keep answers & diffs small; don't re-explore what this 
 - After adding native deps: `npx electron-builder install-app-deps`
 
 ## Visual verification (no manual clicking)
-Dev-only hook in `src/main/index.ts` (`devShot`). Steps separated by `\n---\n`; each step is renderer JS **or** `@click x y`, `@dblclick x y`, `@key meta+z`, `@type text` (CSS px). A PNG is written after every step.
+Dev-only hook in `src/main/index.ts` (`devShot`). Steps separated by `\n---\n`; each step is renderer JS **or** `@click x y`, `@dblclick x y`, `@drag x1 y1 x2 y2`, `@key meta+z`, `@type text` (CSS px). A PNG is written after every step.
 ```
 CANVASCL_DATA_DIR=<scratch>/data CANVASCL_SHOT=<scratch>/s.png CANVASCL_SCRIPT=<scratch>/steps.js CANVASCL_QUIT=1 npx electron-vite dev
 ```

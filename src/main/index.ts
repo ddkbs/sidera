@@ -1,4 +1,5 @@
 import { mkdirSync } from 'node:fs'
+import { pathToFileURL } from 'node:url'
 import { copyFile, mkdir, readFile, stat, writeFile } from 'node:fs/promises'
 import { basename, dirname, extname, join } from 'node:path'
 import { app, BrowserWindow, dialog, ipcMain, net, protocol, safeStorage, shell } from 'electron'
@@ -44,18 +45,23 @@ if (STDIO) {
   process.stdin.on('end', () => app.quit())
   app.whenReady().then(() => startStdioMcp(services, app.getVersion()))
 } else {
-  protocol.registerSchemesAsPrivileged([{ scheme: 'canvascl-file', privileges: { standard: true, secure: true, supportFetchAPI: true, stream: true } }])
+  protocol.registerSchemesAsPrivileged([{ scheme: 'canvascl-file', privileges: { standard: true, secure: true, supportFetchAPI: true, stream: true, corsEnabled: true } }])
   void bootstrap()
 }
 
 async function bootstrap(): Promise<void> {
   await app.whenReady()
 
-  protocol.handle('canvascl-file', (req) => {
-    const id = new URL(req.url).hostname
+  protocol.handle('canvascl-file', async (req) => {
+    // canvascl-file://files/<id> — ids live in the path because hostnames are lower-cased
+    const id = decodeURIComponent(new URL(req.url).pathname.replace(/^\//, ''))
     const f = services.getFile(id)
     if (!f) return new Response('Not found', { status: 404 })
-    return net.fetch('file://' + f.path)
+    const res = await net.fetch(pathToFileURL(f.path).toString())
+    const headers = new Headers(res.headers)
+    headers.set('Access-Control-Allow-Origin', '*')
+    headers.set('Content-Type', f.mime)
+    return new Response(res.body, { status: res.status, headers })
   })
 
   let mcpUrl: string | null = null
@@ -82,7 +88,7 @@ async function bootstrap(): Promise<void> {
       )
     },
     async getFileUrl(id) {
-      return services.getFile(id) ? `canvascl-file://${id}/` : null
+      return services.getFile(id) ? `canvascl-file://files/${encodeURIComponent(id)}` : null
     },
     async exportMarkdown() {
       const res = await dialog.showOpenDialog(win!, { title: 'Export cards as Markdown', properties: ['openDirectory', 'createDirectory'] })
@@ -195,11 +201,12 @@ app.on('before-quit', () => db.$client.close())
 /** Dev-only: run a script in the renderer, capture a screenshot, optionally quit. Used for automated UI checks. */
 async function devShot(w: BrowserWindow): Promise<void> {
   const { readFile, writeFile } = await import('node:fs/promises')
+  w.webContents.on('console-message', (e) => e.level !== 'info' && e.level !== 'debug' && console.log(`[renderer:${e.level}]`, e.message.slice(0, 400)))
   await new Promise((r) => w.webContents.once('did-finish-load', () => r(null)))
   await new Promise((r) => setTimeout(r, 1500))
   const steps = process.env.CANVASCL_SCRIPT ? (await readFile(process.env.CANVASCL_SCRIPT, 'utf8')).split('\n---\n') : ['']
   for (const [i, step] of steps.entries()) {
-    const cmd = step.trim().match(/^@(click|dblclick|key|type)\s+(.*)$/)
+    const cmd = step.trim().match(/^@(click|dblclick|drag|key|type)\s+(.*)$/)
     if (cmd) {
       w.focus()
       w.webContents.focus()
@@ -212,6 +219,12 @@ async function devShot(w: BrowserWindow): Promise<void> {
           w.webContents.sendInputEvent({ type: 'mouseDown', x, y, button: 'left', clickCount: c })
           w.webContents.sendInputEvent({ type: 'mouseUp', x, y, button: 'left', clickCount: c })
         }
+      } else if (kind === 'drag') {
+        const [x1, y1, x2, y2] = rest.split(/\s+/).map(Number)
+        w.webContents.sendInputEvent({ type: 'mouseDown', x: x1, y: y1, button: 'left', clickCount: 1 })
+        for (let s = 1; s <= 10; s++)
+          w.webContents.sendInputEvent({ type: 'mouseMove', x: x1 + ((x2 - x1) * s) / 10, y: y1 + ((y2 - y1) * s) / 10, button: 'left' })
+        w.webContents.sendInputEvent({ type: 'mouseUp', x: x2, y: y2, button: 'left', clickCount: 1 })
       } else if (kind === 'key') {
         const parts = rest.split('+')
         const keyCode = parts.pop()!

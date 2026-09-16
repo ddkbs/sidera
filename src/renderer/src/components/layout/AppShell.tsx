@@ -11,6 +11,7 @@ import { ShortcutsDialog } from '@/features/help/ShortcutsDialog'
 import { store, useAppDispatch, useAppSelector } from '@/store'
 import { back, setChatOpen, setPaletteOpen, toggleSidebar } from '@/store/ui'
 import { ChatPanel } from '@/features/chat/ChatPanel'
+import { ErrorBoundary } from '@/components/ErrorBoundary'
 import { Sidebar } from './Sidebar'
 import { TopBar } from './TopBar'
 
@@ -59,10 +60,12 @@ export function AppShell() {
         <TopBar />
         <div className="relative flex min-h-0 flex-1">
           <div className="relative min-w-0 flex-1">
-            {view.type === 'whiteboard' && <WhiteboardView key={view.id} id={view.id} />}
-            {view.type === 'library' && <LibraryView />}
-            {view.type === 'journal' && <JournalView />}
-            {view.type === 'home' && <HomeView />}
+            <ErrorBoundary key={JSON.stringify(view)}>
+              {view.type === 'whiteboard' && <WhiteboardView key={view.id} id={view.id} />}
+              {view.type === 'library' && <LibraryView />}
+              {view.type === 'journal' && <JournalView />}
+              {view.type === 'home' && <HomeView />}
+            </ErrorBoundary>
             <AnimatePresence>{openCardId && <CardPanel key={openCardId} cardId={openCardId} />}</AnimatePresence>
           </div>
           <AnimatePresence initial={false}>{chatOpen && <ChatPanel key="chat" />}</AnimatePresence>

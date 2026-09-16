@@ -538,7 +538,7 @@ function Canvas({ detail }: { detail: WhiteboardDetail }) {
         maxZoom={4}
         deleteKeyCode={['Backspace', 'Delete']}
         multiSelectionKeyCode="Shift"
-        proOptions={{ hideAttribution: true }}
+        attributionPosition="bottom-left"
         defaultEdgeOptions={{ type: 'floating' }}
       >
         <Background variant={BackgroundVariant.Dots} gap={22} size={1.4} color="var(--canvas-dot)" />
@@ -568,7 +568,27 @@ function Canvas({ detail }: { detail: WhiteboardDetail }) {
         />
       )}
       <FindOnBoard />
-      <FileViewer file={viewing} onClose={() => setViewing(null)} />
+      <FileViewer
+        file={viewing}
+        onClose={() => setViewing(null)}
+        onHighlight={async (text, page) => {
+          if (!viewing) return
+          const quote = text.replace(/\s+/g, ' ')
+          const title = quote.length > 60 ? quote.slice(0, 57).trimEnd() + '…' : quote
+          const res = await createCard({ title, markdown: `> ${quote}\n\nSource: *${viewing.name}*${page ? `, page ${page}` : ''}` })
+          if (!('data' in res) || !res.data) return
+          const fileNode = nodes.find((n) => n.data.object.refId === viewing.refId)
+          const siblings = nodes.filter((n) => n.type === 'card')
+          const x = fileNode ? fileNode.position.x + (fileNode.width ?? 320) + 60 : center().x
+          const y = fileNode ? fileNode.position.y + siblings.filter((n) => n.position.x >= x - 10).length * 40 : center().y
+          const o = await place('card', { x, y }, { refId: res.data.id, width: 300, height: 180 })
+          if (o && fileNode) {
+            const conn = await addConnection({ whiteboardId: boardId, sourceId: fileNode.id, targetId: o.id })
+            if ('data' in conn && conn.data) history.current.push({ type: 'add', objects: [], connections: [conn.data] })
+          }
+          toast.success('Card created from highlight')
+        }}
+      />
       <NodeMenu menu={menu} onClose={() => setMenu(null)} onAction={(a, n) => void onMenuAction(a, n)} />
       {nodes.length === 0 && (
         <div className="pointer-events-none absolute inset-0 grid place-items-center">
