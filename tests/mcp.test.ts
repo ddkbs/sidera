@@ -24,6 +24,17 @@ async function connect() {
 }
 
 describe('mcp', () => {
+  it('reports tool calls to the activity listener', async () => {
+    const api = createServices(openDatabase(':memory:'))
+    const calls: string[] = []
+    const server = createMcpServer(api, 'test', (tool) => calls.push(tool))
+    const client = new Client({ name: 'test', version: '1' })
+    const [a, b] = InMemoryTransport.createLinkedPair()
+    await Promise.all([server.connect(a), client.connect(b)])
+    await client.callTool({ name: 'list_tags', arguments: {} })
+    expect(calls).toEqual(['list_tags'])
+  })
+
   it('lists the MCP-first tool set', async () => {
     const { client } = await connect()
     const names = (await client.listTools()).tools.map((t) => t.name)

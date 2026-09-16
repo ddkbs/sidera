@@ -4,6 +4,7 @@ import { Toaster } from '@/components/ui/sonner'
 import { AppShell } from '@/components/layout/AppShell'
 import { api, scopeTags } from '@/store/api'
 import { useAppDispatch, useAppSelector } from '@/store'
+import { pushActivity } from '@/store/ui'
 
 export function App() {
   const dispatch = useAppDispatch()
@@ -21,6 +22,8 @@ export function App() {
       }),
     [dispatch]
   )
+
+  useEffect(() => window.events.onMcpActivity((a) => dispatch(pushActivity(a))), [dispatch])
 
   return (
     <TooltipProvider delayDuration={300}>

@@ -1,5 +1,5 @@
 import { contextBridge, ipcRenderer, webUtils } from 'electron'
-import { API_METHODS, DB_CHANGED, type CanvasApi, type DbChangeScope } from '@shared/api'
+import { API_METHODS, DB_CHANGED, MCP_ACTIVITY, type CanvasApi, type DbChangeScope, type McpActivity } from '@shared/api'
 
 const api = Object.fromEntries(
   API_METHODS.map((name) => [name, (...args: unknown[]) => ipcRenderer.invoke(`api:${name}`, ...args)])
@@ -10,6 +10,11 @@ const events = {
     const listener = (_: unknown, scopes: DbChangeScope[]): void => cb(scopes)
     ipcRenderer.on(DB_CHANGED, listener)
     return () => ipcRenderer.removeListener(DB_CHANGED, listener)
+  },
+  onMcpActivity(cb: (a: McpActivity) => void): () => void {
+    const listener = (_: unknown, a: McpActivity): void => cb(a)
+    ipcRenderer.on(MCP_ACTIVITY, listener)
+    return () => ipcRenderer.removeListener(MCP_ACTIVITY, listener)
   }
 }
 

@@ -104,3 +104,11 @@ export const API_METHODS: ApiMethod[] = [
 /** Event pushed from main to renderer whenever data changed outside the renderer (e.g. via MCP). */
 export const DB_CHANGED = 'db:changed'
 export type DbChangeScope = 'cards' | 'tags' | 'whiteboards' | 'journal' | 'all'
+
+/** Event pushed to the renderer for every MCP tool call. */
+export const MCP_ACTIVITY = 'mcp:activity'
+export interface McpActivity {
+  tool: string
+  args: string
+  at: number
+}

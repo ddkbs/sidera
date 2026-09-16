@@ -16,6 +16,7 @@ export function McpDialog() {
   const dispatch = useAppDispatch()
   const open = useAppSelector((s) => s.ui.mcpDialogOpen)
   const { data } = useGetMcpInfoQuery()
+  const activity = useAppSelector((s) => s.ui.activity)
   const url = data?.url ?? 'http://127.0.0.1:3845/mcp'
   const claudeCode = `claude mcp add --transport http canvascl ${url}`
   const desktop = JSON.stringify({ mcpServers: { canvascl: { command: data?.stdioCommand.split('" ')[0].replace(/^"/, '') ?? 'CanvasCL', args: ['--mcp-stdio'] } } }, null, 2)
@@ -41,6 +42,20 @@ export function McpDialog() {
           <TabsContent value="code"><Snippet text={claudeCode} /></TabsContent>
           <TabsContent value="desktop"><Snippet text={desktop} /></TabsContent>
         </Tabs>
+        {activity.length > 0 && (
+          <div>
+            <p className="mb-2 text-xs font-medium text-muted-foreground">Recent agent activity</p>
+            <div className="max-h-40 space-y-1 overflow-y-auto">
+              {activity.map((a, i) => (
+                <div key={a.at + ':' + i} className="flex items-baseline gap-2 text-xs">
+                  <span className="shrink-0 text-muted-foreground tabular-nums">{new Date(a.at).toLocaleTimeString()}</span>
+                  <code className="shrink-0 font-mono font-medium">{a.tool}</code>
+                  <span className="truncate font-mono text-muted-foreground">{a.args}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
         <div>
           <p className="mb-2 text-xs font-medium text-muted-foreground">{TOOLS.length} tools</p>
           <div className="flex flex-wrap gap-1">

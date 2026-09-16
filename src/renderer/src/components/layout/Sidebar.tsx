@@ -1,5 +1,6 @@
-import { BookOpen, CalendarDays, ChevronRight, Hash, Home, LayoutDashboard, Plus, Search, Sparkles } from 'lucide-react'
-import { useMemo, useState, type ReactNode } from 'react'
+import { BookOpen, CalendarDays, ChevronRight, Hash, Home, LayoutDashboard, Plus, Search } from 'lucide-react'
+import { useEffect, useMemo, useState, type ReactNode } from 'react'
+import { Orb } from '@/components/Orb'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Kbd } from '@/components/ui/kbd'
@@ -19,6 +20,14 @@ export function Sidebar() {
   const { data: tags = [] } = useListTagsQuery()
   const { data: mcp } = useGetMcpInfoQuery()
   const [createWhiteboard] = useCreateWhiteboardMutation()
+  const last = useAppSelector((s) => s.ui.activity[0])
+  const [agentBusy, setAgentBusy] = useState(false)
+  useEffect(() => {
+    if (!last) return
+    setAgentBusy(true)
+    const t = setTimeout(() => setAgentBusy(false), 2500)
+    return () => clearTimeout(t)
+  }, [last])
 
   const tree = useMemo(() => {
     const byParent = new Map<string | null, Whiteboard[]>()
@@ -93,9 +102,8 @@ export function Sidebar() {
           onClick={() => dispatch(setMcpDialogOpen(true))}
           className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-xs text-muted-foreground transition hover:bg-sidebar-accent hover:text-foreground"
         >
-          <span className={cn('size-2 rounded-full', mcp?.running ? 'bg-emerald-500 shadow-[0_0_8px] shadow-emerald-500/60' : 'bg-muted-foreground/40')} />
-          <Sparkles className="size-3.5" />
-          <span>MCP server {mcp?.running ? 'running' : 'offline'}</span>
+          <Orb online={!!mcp?.running} active={agentBusy} />
+          <span className="truncate">{agentBusy && last ? `Agent: ${last.tool}` : `MCP server ${mcp?.running ? 'ready' : 'offline'}`}</span>
         </button>
       </div>
     </div>

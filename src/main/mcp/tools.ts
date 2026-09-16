@@ -9,7 +9,9 @@ const ok = (value: unknown) => ({
 })
 
 /** Builds an MCP server exposing CanvasCL's knowledge base. Every tool delegates to services. */
-export function createMcpServer(api: Services, version: string): McpServer {
+export type ToolCallListener = (tool: string, args: Record<string, unknown>) => void
+
+export function createMcpServer(api: Services, version: string, onCall?: ToolCallListener): McpServer {
   const server = new McpServer(
     { name: 'canvascl', version },
     {
@@ -19,6 +21,16 @@ export function createMcpServer(api: Services, version: string): McpServer {
         'Search before creating to avoid duplicate cards. Mention other cards with [[Title]] in text.'
     }
   )
+
+  if (onCall) {
+    // Report every tool invocation (for the in-app activity feed)
+    const register = server.registerTool.bind(server) as (...a: unknown[]) => unknown
+    ;(server as unknown as { registerTool: (...a: unknown[]) => unknown }).registerTool = (name, config, cb) =>
+      register(name, config, (args: Record<string, unknown>, extra: unknown) => {
+        onCall(name as string, args ?? {})
+        return (cb as (a: unknown, e: unknown) => unknown)(args, extra)
+      })
+  }
 
   server.registerTool(
     'search_cards',

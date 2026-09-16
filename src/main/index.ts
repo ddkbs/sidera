@@ -3,7 +3,7 @@ import { copyFile, stat } from 'node:fs/promises'
 import { basename, extname, join } from 'node:path'
 import { app, BrowserWindow, dialog, net, protocol, shell } from 'electron'
 import { nanoid } from 'nanoid'
-import { DB_CHANGED, type DbChangeScope } from '@shared/api'
+import { DB_CHANGED, MCP_ACTIVITY, type DbChangeScope } from '@shared/api'
 import { openDatabase } from './db/client'
 import { registerIpc } from './ipc'
 import { startHttpMcp, startStdioMcp } from './mcp/server'
@@ -84,7 +84,9 @@ async function bootstrap(): Promise<void> {
     }
   })
 
-  const mcp = await startHttpMcp(services, app.getVersion())
+  const mcp = await startHttpMcp(services, app.getVersion(), (tool, args) =>
+    win?.webContents.send(MCP_ACTIVITY, { tool, args: JSON.stringify(args).slice(0, 200), at: Date.now() })
+  )
   mcpUrl = mcp?.url ?? null
 
   createWindow()

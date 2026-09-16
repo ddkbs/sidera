@@ -1,4 +1,5 @@
 import { createSlice, type PayloadAction } from '@reduxjs/toolkit'
+import type { McpActivity } from '@shared/api'
 
 export type View =
   | { type: 'whiteboard'; id: string }
@@ -17,6 +18,7 @@ export interface UiState {
   paletteOpen: boolean
   mcpDialogOpen: boolean
   theme: 'light' | 'dark'
+  activity: McpActivity[]
 }
 
 const stored = (() => {
@@ -35,6 +37,7 @@ const initialState: UiState = {
   openCardId: null,
   paletteOpen: false,
   mcpDialogOpen: false,
+  activity: [],
   theme: stored.theme ?? (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')
 }
 
@@ -58,8 +61,9 @@ export const ui = createSlice({
     openCard: (s, a: PayloadAction<string | null>) => void (s.openCardId = a.payload),
     setPaletteOpen: (s, a: PayloadAction<boolean>) => void (s.paletteOpen = a.payload),
     setMcpDialogOpen: (s, a: PayloadAction<boolean>) => void (s.mcpDialogOpen = a.payload),
-    toggleTheme: (s) => void (s.theme = s.theme === 'dark' ? 'light' : 'dark')
+    toggleTheme: (s) => void (s.theme = s.theme === 'dark' ? 'light' : 'dark'),
+    pushActivity: (s, a: PayloadAction<McpActivity>) => void (s.activity = [a.payload, ...s.activity].slice(0, 30))
   }
 })
 
-export const { toggleSidebar, navigate, back, setTool, openCard, setPaletteOpen, setMcpDialogOpen, toggleTheme } = ui.actions
+export const { toggleSidebar, navigate, back, setTool, openCard, setPaletteOpen, setMcpDialogOpen, toggleTheme, pushActivity } = ui.actions

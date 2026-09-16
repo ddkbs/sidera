@@ -2,12 +2,12 @@ import { createServer, type Server } from 'node:http'
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js'
 import type { Services } from '../services'
-import { createMcpServer } from './tools'
+import { createMcpServer, type ToolCallListener } from './tools'
 
 export const MCP_PORT = Number(process.env.CANVASCL_MCP_PORT ?? 3845)
 
 /** Stateless Streamable-HTTP MCP endpoint bound to localhost only. */
-export function startHttpMcp(api: Services, version: string): Promise<{ url: string; server: Server } | null> {
+export function startHttpMcp(api: Services, version: string, onCall?: ToolCallListener): Promise<{ url: string; server: Server } | null> {
   const http = createServer(async (req, res) => {
     if (!req.url?.startsWith('/mcp')) {
       res.writeHead(404).end()
@@ -27,7 +27,7 @@ export function startHttpMcp(api: Services, version: string): Promise<{ url: str
       const chunks: Buffer[] = []
       for await (const c of req) chunks.push(c as Buffer)
       const body = JSON.parse(Buffer.concat(chunks).toString('utf8') || 'null')
-      const server = createMcpServer(api, version)
+      const server = createMcpServer(api, version, onCall)
       const transport = new StreamableHTTPServerTransport({ sessionIdGenerator: undefined, enableJsonResponse: true })
       res.on('close', () => {
         void transport.close()
