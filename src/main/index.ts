@@ -56,14 +56,18 @@ async function bootstrap(): Promise<void> {
   let mcpUrl: string | null = null
   registerIpc({
     ...services,
-    async importFiles() {
-      const res = await dialog.showOpenDialog(win!, {
-        properties: ['openFile', 'multiSelections'],
-        filters: [{ name: 'Documents & images', extensions: ['pdf', 'png', 'jpg', 'jpeg', 'gif', 'webp', 'svg', 'md', 'txt'] }]
-      })
-      if (res.canceled) return []
+    async importFiles(paths) {
+      let filePaths = (paths ?? []).filter((p) => MIME[extname(p).toLowerCase()])
+      if (!paths) {
+        const res = await dialog.showOpenDialog(win!, {
+          properties: ['openFile', 'multiSelections'],
+          filters: [{ name: 'Documents & images', extensions: Object.keys(MIME).map((e) => e.slice(1)) }]
+        })
+        if (res.canceled) return []
+        filePaths = res.filePaths
+      }
       return Promise.all(
-        res.filePaths.map(async (p) => {
+        filePaths.map(async (p) => {
           const ext = extname(p).toLowerCase()
           const dest = join(filesDir, nanoid() + ext)
           await copyFile(p, dest)

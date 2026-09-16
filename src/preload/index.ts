@@ -1,4 +1,4 @@
-import { contextBridge, ipcRenderer } from 'electron'
+import { contextBridge, ipcRenderer, webUtils } from 'electron'
 import { API_METHODS, DB_CHANGED, type CanvasApi, type DbChangeScope } from '@shared/api'
 
 const api = Object.fromEntries(
@@ -16,5 +16,6 @@ const events = {
 contextBridge.exposeInMainWorld('api', api)
 contextBridge.exposeInMainWorld('events', events)
 contextBridge.exposeInMainWorld('platform', process.platform)
+contextBridge.exposeInMainWorld('files', { pathFor: (f: File) => webUtils.getPathForFile(f) })
 
 export type CanvasEvents = typeof events

@@ -545,7 +545,7 @@ export function createServices(db: DB, onChange: (scope: DbChangeScope) => void 
       if (!q) {
         return summarize(
           sql
-            .prepare(`SELECT id, title, content_text AS contentText, updated_at AS updatedAt FROM cards WHERE deleted_at IS NULL ORDER BY updated_at DESC LIMIT ?`)
+            .prepare(`SELECT id, title, content_text AS contentText, updated_at AS updatedAt FROM cards WHERE deleted_at IS NULL AND NOT (content_text = '' AND id IN (SELECT card_id FROM journal_entries)) ORDER BY updated_at DESC LIMIT ?`)
             .all(limit) as CardSummaryRow[]
         ).map((c): SearchHit => ({ id: c.id, title: c.title, snippet: c.excerpt.slice(0, 120), kind: 'card' }))
       }

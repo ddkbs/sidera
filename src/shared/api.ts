@@ -79,7 +79,7 @@ export interface CanvasApi {
   search(query: string, limit?: number): Promise<SearchHit[]>
 
   // files
-  importFiles(): Promise<FileRecord[]>
+  importFiles(paths?: string[]): Promise<FileRecord[]>
   getFileUrl(id: ID): Promise<string | null>
 
   // meta

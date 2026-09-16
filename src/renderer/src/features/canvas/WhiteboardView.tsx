@@ -33,6 +33,8 @@ import {
 } from '@/store/api'
 import { navigate, openCard, setTool, type CanvasTool } from '@/store/ui'
 import { AddCardDialog } from './AddCardDialog'
+import { CARD_MIME, CardDrawer } from './CardDrawer'
+import { FileViewer } from './FileViewer'
 import { CanvasToolbar, TOOLS, type OverflowAction } from './CanvasToolbar'
 import { edgeTypes } from './FloatingEdge'
 import { NodeMenu, type NodeMenuAction } from './NodeMenu'
@@ -111,6 +113,7 @@ function Canvas({ detail }: { detail: WhiteboardDetail }) {
   const [createCard] = useCreateCardMutation()
   const [createWhiteboard] = useCreateWhiteboardMutation()
   const [deleteCard] = useDeleteCardMutation()
+  const [viewing, setViewing] = useState<{ refId: string; name: string; mime: string } | null>(null)
   const [menu, setMenu] = useState<{ node: ObjectNode; x: number; y: number } | null>(null)
 
   const onMenuAction = useCallback(
@@ -347,7 +350,32 @@ function Canvas({ detail }: { detail: WhiteboardDetail }) {
   const hasViewport = detail.whiteboard.viewport.zoom !== 1 || detail.whiteboard.viewport.x !== 0 || detail.whiteboard.viewport.y !== 0
 
   return (
-    <div ref={wrapper} className={cn('canvas-root relative h-full w-full bg-canvas', `tool-${tool}`)}>
+    <div
+      ref={wrapper}
+      className={cn('canvas-root relative h-full w-full bg-canvas', `tool-${tool}`)}
+      onDragOver={(e) => {
+        if (e.dataTransfer.types.includes(CARD_MIME) || e.dataTransfer.types.includes('Files')) {
+          e.preventDefault()
+          e.dataTransfer.dropEffect = 'copy'
+        }
+      }}
+      onDrop={async (e) => {
+        const pos = rf.screenToFlowPosition({ x: e.clientX, y: e.clientY })
+        const cardId = e.dataTransfer.getData(CARD_MIME)
+        if (cardId) {
+          e.preventDefault()
+          await place('card', { x: pos.x - 160, y: pos.y - 30 }, { refId: cardId })
+          return
+        }
+        const paths = [...e.dataTransfer.files].map((f) => window.files.pathFor(f)).filter(Boolean)
+        if (!paths.length) return
+        e.preventDefault()
+        const files = await window.api.importFiles(paths)
+        for (const [i, f] of files.entries())
+          await place('file', { x: pos.x + i * 40, y: pos.y + i * 40 }, { refId: f.id, data: { name: f.name, mime: f.mime } })
+        if (!files.length) toast.error('Unsupported file type')
+      }}
+    >
       <ReactFlow<ObjectNode, ConnectionEdge>
         nodes={nodes}
         edges={edges}
@@ -363,6 +391,10 @@ function Canvas({ detail }: { detail: WhiteboardDetail }) {
         onConnect={onConnect}
         onPaneClick={onPaneClick}
         onNodeClick={onNodeClick}
+        onNodeDoubleClick={(_e, node) => {
+          const o = node.data.object
+          if (node.type === 'file' && o.refId) setViewing({ refId: o.refId, name: String(o.data.name ?? 'File'), mime: String(o.data.mime ?? '') })
+        }}
         onNodeContextMenu={(e, node) => {
           e.preventDefault()
           setMenu({ node, x: e.clientX, y: e.clientY })
@@ -391,6 +423,8 @@ function Canvas({ detail }: { detail: WhiteboardDetail }) {
       </ReactFlow>
       <CanvasToolbar tool={tool} onTool={(t) => void changeTool(t)} onAction={(a) => void onAction(a)} />
       <ZoomControls />
+      <CardDrawer onBoard={cardIds} />
+      <FileViewer file={viewing} onClose={() => setViewing(null)} />
       <NodeMenu menu={menu} onClose={() => setMenu(null)} onAction={(a, n) => void onMenuAction(a, n)} />
       {nodes.length === 0 && (
         <div className="pointer-events-none absolute inset-0 grid place-items-center">

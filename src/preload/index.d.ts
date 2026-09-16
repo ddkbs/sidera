@@ -5,6 +5,7 @@ declare global {
     api: CanvasApi
     events: { onDbChanged(cb: (scopes: DbChangeScope[]) => void): () => void }
     platform: string
+    files: { pathFor(file: File): string }
   }
 }
 export {}
