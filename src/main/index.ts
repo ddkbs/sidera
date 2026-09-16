@@ -20,6 +20,8 @@ import { seedWelcome } from './services/seed'
 const STDIO = process.argv.includes('--mcp-stdio')
 // One stable data folder for dev and packaged builds: ~/Library/Application Support/CanvasCL
 app.setName('CanvasCL')
+// Automated UI checks get their own browser profile so they never collide with a running app (localStorage lock, cache).
+if (process.env.CANVASCL_SHOT && process.env.CANVASCL_DATA_DIR) app.setPath('userData', join(process.env.CANVASCL_DATA_DIR, 'userdata'))
 const dataDir = process.env.CANVASCL_DATA_DIR ?? join(app.getPath('userData'), 'data')
 const filesDir = join(dataDir, 'files')
 mkdirSync(filesDir, { recursive: true })
@@ -230,7 +232,7 @@ function createWindow(): void {
     titleBarStyle: 'hiddenInset',
     trafficLightPosition: { x: 14, y: 14 },
     backgroundColor: '#fafafa',
-    webPreferences: { preload: join(__dirname, '../preload/index.cjs'), sandbox: false, contextIsolation: true }
+    webPreferences: { preload: join(__dirname, '../preload/index.cjs'), sandbox: false, contextIsolation: true, backgroundThrottling: !process.env.CANVASCL_SHOT }
   })
   win.once('ready-to-show', () => win?.show())
   if (!app.isPackaged && process.env.CANVASCL_SHOT) void devShot(win)
@@ -262,7 +264,24 @@ async function devShot(w: BrowserWindow): Promise<void> {
       w.webContents.focus()
       const [, kind, rest] = cmd
       if (kind === 'click' || kind === 'dblclick') {
-        const [x, y] = rest.split(/\s+/).map(Number)
+        // "@click 120 300" | "@click .css-selector" | "@click text=Mindmap"
+        let [x, y] = rest.split(/\s+/).map(Number)
+        if (Number.isNaN(x) || Number.isNaN(y)) {
+          const pos = (await w.webContents.executeJavaScript(`(() => {
+            const q = ${JSON.stringify(rest)};
+            const el = q.startsWith('text=')
+              ? [...document.querySelectorAll('button,[role=menuitem],[data-topic],a,span,div')].reverse().find((e) => e.textContent.trim() === q.slice(5))
+              : document.querySelector(q);
+            if (!el) return null;
+            const r = el.getBoundingClientRect();
+            return [Math.round(r.x + r.width / 2), Math.round(r.y + r.height / 2)];
+          })()`)) as [number, number] | null
+          if (!pos) {
+            console.log(`[shot] step ${i}: target not found: ${rest}`)
+            continue
+          }
+          ;[x, y] = pos
+        }
         const clickCount = kind === 'dblclick' ? 2 : 1
         w.webContents.sendInputEvent({ type: 'mouseMove', x, y })
         for (let c = 1; c <= clickCount; c++) {
@@ -293,8 +312,24 @@ async function devShot(w: BrowserWindow): Promise<void> {
       }
     }
     await new Promise((r) => setTimeout(r, 900))
-    const img = await w.webContents.capturePage()
+    let img: Electron.NativeImage | null = null
+    for (let attempt = 0; attempt < 4 && !img; attempt++) {
+      try {
+        w.webContents.invalidate()
+        img = await w.webContents.capturePage()
+      } catch {
+        await new Promise((r) => setTimeout(r, 500))
+      }
+    }
+    if (!img) {
+      console.log(`[shot] step ${i}: capture failed`)
+      continue
+    }
     await writeFile(process.env.CANVASCL_SHOT!.replace('.png', `-${i}.png`), img.toPNG())
   }
-  if (process.env.CANVASCL_QUIT) app.exit(0)
+  if (process.env.CANVASCL_QUIT) {
+    // flush localStorage so follow-up runs start where this one ended
+    await w.webContents.session.flushStorageData()
+    app.exit(0)
+  }
 }

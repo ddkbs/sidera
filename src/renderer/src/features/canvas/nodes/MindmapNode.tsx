@@ -38,11 +38,20 @@ export const MindmapNode = memo(function MindmapNode({ id, data, selected, width
   useEffect(() => updateInternals(id), [id, width, height, updateInternals])
 
   const inputs = useRef(new Map<string, HTMLInputElement>())
+  const selectOnFocus = useRef(!!data.autoEdit)
   useLayoutEffect(() => {
-    if (editing && focusId) inputs.current.get(focusId)?.focus()
+    if (!editing) return
+    const el = inputs.current.get(focusId ?? tree.id)
+    if (!el || document.activeElement === el) return
+    el.focus()
+    // entering a topic by double-click selects its text so typing replaces it
+    if (selectOnFocus.current) el.select()
+    else el.setSelectionRange(el.value.length, el.value.length)
+    selectOnFocus.current = false
   }, [editing, focusId, tree])
 
   const startEdit = (nodeId: string) => {
+    selectOnFocus.current = true
     setFocusId(nodeId)
     setEditing(true)
   }
@@ -84,9 +93,9 @@ export const MindmapNode = memo(function MindmapNode({ id, data, selected, width
           if ((e.target as HTMLElement).dataset.topic === undefined) startEdit(tree.id)
         }}
         className={cn(
-          'relative h-full w-full overflow-hidden rounded-xl border bg-card shadow-sm',
+          'relative h-full w-full overflow-hidden rounded-xl border bg-card shadow-sm transition-colors',
           selected && 'ring-2 ring-brand/70',
-          editing && 'nodrag nowheel cursor-default ring-2 ring-brand'
+          editing && 'nodrag nowheel cursor-default bg-brand/[0.03] ring-2 ring-brand'
         )}
       >
         <svg className="pointer-events-none absolute inset-0" width={width} height={height}>
@@ -124,7 +133,12 @@ export const MindmapNode = memo(function MindmapNode({ id, data, selected, width
               onKeyDown={(e) => onKey(e, n.id)}
               onFocus={() => setFocusId(n.id)}
               style={style}
-              className={cn(cls, 'nodrag outline-none placeholder:text-muted-foreground focus:ring-2 focus:ring-brand/60')}
+              className={cn(
+                cls,
+                'nodrag cursor-text border-dashed border-brand/40 outline-none placeholder:text-muted-foreground',
+                'focus:border-solid focus:border-brand focus:shadow-[0_0_0_3px_color-mix(in_oklch,var(--brand)_35%,transparent)]',
+                !isRoot && 'focus:bg-background'
+              )}
             />
           ) : (
             <div key={n.id} data-topic onDoubleClick={(e) => (e.stopPropagation(), startEdit(n.id))} style={style} className={cn(cls, 'cursor-text truncate')}>

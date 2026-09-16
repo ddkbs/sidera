@@ -11,7 +11,7 @@ import type { FontPref } from '@shared/settings'
 export const FONT_STACKS: Record<FontPref, string> = {
   jost: "'Jost Variable'",
   futura: "'Futura', 'Jost Variable'",
-  geist: "'Geist Variable'",
+  geist: "'Geist'",
   system: '-apple-system, BlinkMacSystemFont'
 }
 

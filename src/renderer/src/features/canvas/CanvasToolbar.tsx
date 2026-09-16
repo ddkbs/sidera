@@ -84,7 +84,7 @@ export function CanvasToolbar({ tool, onTool, onAction }: Props) {
           </TooltipTrigger>
           <TooltipContent side="right">More</TooltipContent>
         </Tooltip>
-        <DropdownMenuContent side="right" align="end" sideOffset={10} className="w-56">
+        <DropdownMenuContent side="right" align="end" sideOffset={10} className="w-56" onCloseAutoFocus={(e) => e.preventDefault()}>
           <DropdownMenuItem onClick={() => onAction('whiteboard')}>
             <LayoutDashboard /> Nested whiteboard
           </DropdownMenuItem>

@@ -33,8 +33,12 @@ export function useEditMode(selected: boolean | undefined, onDone: () => void, i
     }
   }, [editing])
 
+  // Stop editing when the node gets deselected — but not merely because it starts unselected
+  // (freshly created nodes open in edit mode before React Flow selects them).
+  const wasSelected = useRef(selected)
   useEffect(() => {
-    if (!selected) setEditing(false)
+    if (wasSelected.current && !selected) setEditing(false)
+    wasSelected.current = selected
   }, [selected])
 
   return { editing, setEditing, root }

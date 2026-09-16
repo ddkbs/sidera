@@ -1,7 +1,6 @@
 import './assets-path'
 import '@fontsource-variable/jost'
-import '@fontsource-variable/geist'
-import '@fontsource-variable/geist-mono'
+import './fonts.css'
 import './index.css'
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
