@@ -1,11 +1,11 @@
 import { useReactFlow } from '@xyflow/react'
-import { BoxSelect, FileText, LayoutDashboard, Network, PenTool, Type, Workflow, File } from '@/components/icons'
+import { BoxSelect, FileText, LayoutDashboard, Network, PenTool, BarChart, Type, Workflow, File } from '@/components/icons'
 import { useState } from 'react'
 import { useCommands } from '@/lib/shortcuts'
 import { CommandDialog, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command'
 import type { ObjectNode } from './types'
 
-const ICONS = { card: FileText, text: Type, section: BoxSelect, whiteboard: LayoutDashboard, file: File, mindmap: Network, mermaid: Workflow, sketch: PenTool }
+const ICONS = { card: FileText, text: Type, section: BoxSelect, whiteboard: LayoutDashboard, file: File, mindmap: Network, mermaid: Workflow, sketch: PenTool, chart: BarChart }
 
 const label = (n: ObjectNode): string => {
   const o = n.data.object
@@ -18,6 +18,8 @@ const label = (n: ObjectNode): string => {
       return String(o.data.title ?? 'Section')
     case 'whiteboard':
       return n.data.childName ?? 'Whiteboard'
+    case 'chart':
+      return String(o.data.title ?? 'Chart')
     case 'file':
       return String(o.data.name ?? 'File')
     default:

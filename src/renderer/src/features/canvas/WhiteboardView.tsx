@@ -48,6 +48,7 @@ const SketchEditor = lazy(() => import('./SketchEditor'))
 import { persist, type ConnectionEdge, type ObjectNode } from './types'
 import { ZoomControls } from './ZoomControls'
 import { useCommands } from '@/lib/shortcuts'
+import { defaultChart, type ChartType } from '@/features/charts/model'
 import './canvas.css'
 
 export function WhiteboardView({ id }: { id: string }) {
@@ -412,6 +413,12 @@ function Canvas({ detail }: { detail: WhiteboardDetail }) {
     async (a: OverflowAction) => {
       const c = center()
       if (a === 'fit') return void rf.fitView({ duration: 300, padding: 0.15 })
+      if (a.startsWith('chart:')) {
+        const type = a.slice(6) as ChartType
+        const o = await place('chart', { x: c.x - 220, y: c.y - 150 }, { data: defaultChart(type) as unknown as Record<string, unknown> })
+        if (o) autoEdit.current = o.id
+        return
+      }
       if (a === 'sketch') {
         const o = await place('sketch', { x: c.x - 190, y: c.y - 140 }, { data: {} })
         if (o) setSketchId(o.id)

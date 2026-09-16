@@ -6,6 +6,21 @@ import type { ComponentType, SVGProps } from 'react'
 import {
   IconAdd,
   IconAddRoundrect,
+  IconBarChart,
+  IconBarChartBox,
+  IconLineChartUp,
+  IconLineChartFill,
+  IconInsights,
+  IconTarget,
+  IconPieChart3Parts,
+  IconPieChartSinglePart,
+  IconChartScatter,
+  IconAtom,
+  IconGridFill,
+  IconTransfer,
+  IconGanttChart,
+  IconLayout as IconMatrixLayout,
+  IconBooleanUnion,
   IconAlignTextLeft,
   IconArrowRight,
   IconArrowRightUp,
@@ -169,3 +184,20 @@ export const User = IconUser
 export const Workflow = IconWorkflow
 export const Wrench = IconWrench
 export const X = IconClose
+
+// Charts & diagrams
+export const BarChart = IconBarChart
+export const ChartsMenu = IconBarChartBox
+export const LineChart = IconLineChartUp
+export const AreaChart = IconLineChartFill
+export const ComboChart = IconInsights
+export const RadarChart = IconTarget
+export const PieChart = IconPieChart3Parts
+export const DonutChart = IconPieChartSinglePart
+export const ScatterChart = IconChartScatter
+export const BubbleChart = IconAtom
+export const Heatmap = IconGridFill
+export const SankeyChart = IconTransfer
+export const TimelineChart = IconGanttChart
+export const MatrixChart = IconMatrixLayout
+export const VennChart = IconBooleanUnion

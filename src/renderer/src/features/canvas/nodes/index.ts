@@ -3,6 +3,7 @@ import { createElement, type ComponentType } from 'react'
 import { ErrorBoundary } from '@/components/ErrorBoundary'
 import type { ObjectNode } from '../types'
 import { CardNode } from './CardNode'
+import { ChartNode } from './ChartNode'
 import { FileNode } from './FileNode'
 import { MermaidNode } from './MermaidNode'
 import { MindmapNode } from './MindmapNode'
@@ -29,5 +30,6 @@ export const nodeTypes: NodeTypes = {
   file: safe(FileNode),
   mindmap: safe(MindmapNode),
   mermaid: safe(MermaidNode),
-  sketch: safe(SketchNode)
+  sketch: safe(SketchNode),
+  chart: safe(ChartNode)
 }

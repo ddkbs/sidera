@@ -6,13 +6,10 @@ import {
   LayoutDashboard,
   Maximize,
   MousePointer2,
-  Network,
-  PenTool,
   Search,
   SquarePlus,
   Type,
-  Upload,
-  Workflow
+  Upload
 } from '@/components/icons'
 import { motion } from 'motion/react'
 import type { ReactNode } from 'react'
@@ -22,6 +19,8 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
 import { Kbd } from '@/components/ui/kbd'
 import { formatBinding, useBinding } from '@/lib/shortcuts'
 import type { CanvasTool } from '@/store/ui'
+import type { ChartType } from '@/features/charts/model'
+import { InsertMenu } from './InsertMenu'
 
 export const TOOLS: { id: CanvasTool; label: string; icon: ReactNode }[] = [
   { id: 'select', label: 'Select', icon: <MousePointer2 /> },
@@ -33,7 +32,7 @@ export const TOOLS: { id: CanvasTool; label: string; icon: ReactNode }[] = [
   { id: 'search', label: 'Add existing card', icon: <Search /> }
 ]
 
-export type OverflowAction = 'whiteboard' | 'mindmap' | 'mermaid' | 'sketch' | 'autolayout' | 'fit'
+export type OverflowAction = 'whiteboard' | 'mindmap' | 'mermaid' | 'sketch' | 'autolayout' | 'fit' | `chart:${ChartType}`
 
 interface Props {
   tool: CanvasTool
@@ -75,6 +74,7 @@ export function CanvasToolbar({ tool, onTool, onAction }: Props) {
         ))}
       </ToggleGroup>
       <div className="my-0.5 h-px w-6 bg-border" />
+      <InsertMenu onAction={onAction} />
       <DropdownMenu>
         <Tooltip>
           <TooltipTrigger asChild>
@@ -87,15 +87,6 @@ export function CanvasToolbar({ tool, onTool, onAction }: Props) {
         <DropdownMenuContent side="right" align="end" sideOffset={10} className="w-56" onCloseAutoFocus={(e) => e.preventDefault()}>
           <DropdownMenuItem onClick={() => onAction('whiteboard')}>
             <LayoutDashboard /> Nested whiteboard
-          </DropdownMenuItem>
-          <DropdownMenuItem onClick={() => onAction('mindmap')}>
-            <Network /> Mindmap
-          </DropdownMenuItem>
-          <DropdownMenuItem onClick={() => onAction('sketch')}>
-            <PenTool /> Freehand sketch
-          </DropdownMenuItem>
-          <DropdownMenuItem onClick={() => onAction('mermaid')}>
-            <Workflow /> Mermaid diagram
           </DropdownMenuItem>
           <DropdownMenuSeparator />
           <DropdownMenuItem onClick={() => onAction('autolayout')}>
