@@ -1,16 +1,19 @@
-import { ArrowUp, KeyRound, RotateCcw, Square, Wrench, X } from '@/components/icons'
+import { ArrowUp, ChevronDown, KeyRound, RotateCcw, Square, Wrench, X } from '@/components/icons'
 import { motion } from 'motion/react'
 import { useEffect, useRef, useState } from 'react'
 import Markdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { toast } from 'sonner'
+import { AI_PROVIDERS, getProviderMeta } from '@shared/ai'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { Orb } from '@/components/Orb'
 import { cn } from '@/lib/utils'
 import { useAppDispatch, useAppSelector } from '@/store'
 import { api } from '@/store/api'
-import { clearQueuedChatMessage, setChatOpen } from '@/store/ui'
+import { updateSettings } from '@/store/settings'
+import { clearQueuedChatMessage, setChatOpen, setSettingsOpen, setSettingsSection } from '@/store/ui'
 
 interface Msg {
   role: 'user' | 'assistant'
@@ -29,14 +32,26 @@ const SUGGESTIONS = [
 export function ChatPanel() {
   const dispatch = useAppDispatch()
   const queuedChatMessage = useAppSelector((s) => s.ui.queuedChatMessage)
+  const ai = useAppSelector((s) => s.settings.ai)
   const [messages, setMessages] = useState<Msg[]>([])
   const [input, setInput] = useState('')
   const [busy, setBusy] = useState(false)
   const [hasKey, setHasKey] = useState<boolean | null>(null)
   const [key, setKey] = useState('')
   const scroller = useRef<HTMLDivElement>(null)
+  const prevProvider = useRef(ai.provider)
 
-  useEffect(() => void window.chat.hasKey().then(setHasKey), [])
+  useEffect(() => void window.chat.hasKey().then(setHasKey), [ai.provider, ai.model, ai.baseUrl])
+
+  // Switching provider starts a new conversation (the main-process agent resets its own history too).
+  useEffect(() => {
+    if (prevProvider.current === ai.provider) return
+    prevProvider.current = ai.provider
+    setMessages([])
+    setBusy(false)
+    toast(`Switched to ${getProviderMeta(ai.provider).label} — started a new conversation`)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ai.provider])
 
   useEffect(
     () =>
@@ -90,7 +105,36 @@ export function ChatPanel() {
       <div className="flex h-full w-[380px] flex-col">
         <div className="flex h-11 shrink-0 items-center gap-2 border-b px-3">
           <Orb online={!!hasKey} active={busy} />
-          <span className="text-sm font-medium">Assistant</span>
+          <Popover>
+            <PopoverTrigger asChild>
+              <button className="flex min-w-0 items-center gap-1 rounded-md px-1 py-0.5 text-sm font-medium transition hover:bg-accent">
+                <span className="truncate">{getProviderMeta(ai.provider).label}</span>
+                <ChevronDown className="size-3 shrink-0 text-muted-foreground" />
+              </button>
+            </PopoverTrigger>
+            <PopoverContent align="start" className="w-64 p-1.5">
+              <div className="px-1.5 py-1 text-xs text-muted-foreground">{ai.model}</div>
+              {AI_PROVIDERS.map((p) => (
+                <button
+                  key={p.id}
+                  onClick={() => {
+                    if (p.id !== ai.provider) dispatch(updateSettings({ ai: { provider: p.id, model: p.defaultModels[0] ?? '' } }))
+                  }}
+                  className={cn('flex w-full items-center justify-between rounded-md px-2 py-1.5 text-left text-sm transition hover:bg-accent', p.id === ai.provider && 'bg-accent font-medium')}
+                >
+                  {p.label}
+                </button>
+              ))}
+              <div className="mt-1 border-t pt-1">
+                <button
+                  onClick={() => (dispatch(setSettingsSection('ai')), dispatch(setSettingsOpen(true)))}
+                  className="flex w-full items-center rounded-md px-2 py-1.5 text-left text-sm text-muted-foreground transition hover:bg-accent hover:text-foreground"
+                >
+                  More providers & models…
+                </button>
+              </div>
+            </PopoverContent>
+          </Popover>
           <div className="flex-1" />
           <Button variant="ghost" size="icon" className="size-7" title="New conversation" onClick={() => (void window.chat.reset(), setMessages([]), setBusy(false))}>
             <RotateCcw className="size-3.5" />
@@ -121,15 +165,23 @@ export function ChatPanel() {
             <div className="mx-auto mb-2">
               <Orb online={false} active={false} className="size-10 [&>span]:size-8" />
             </div>
-            <h3 className="text-center font-medium">Connect Claude</h3>
+            <h3 className="text-center font-medium">Connect {getProviderMeta(ai.provider).label}</h3>
             <p className="text-center text-sm text-muted-foreground">
-              The assistant uses your own Anthropic API key. It's encrypted with the macOS Keychain and never leaves this Mac except to call the API.
+              {ai.provider === 'anthropic'
+                ? "The assistant uses your own Anthropic API key. It's encrypted with the macOS Keychain and never leaves this Mac except to call the API."
+                : `Add your ${getProviderMeta(ai.provider).label} API key, encrypted with the macOS Keychain.`}
             </p>
-            <Input type="password" placeholder="sk-ant-…" value={key} onChange={(e) => setKey(e.target.value)} autoFocus />
+            <Input type="password" placeholder={getProviderMeta(ai.provider).keyPlaceholder} value={key} onChange={(e) => setKey(e.target.value)} autoFocus />
             <Button type="submit" disabled={!key.trim()}>
               Save key
             </Button>
-            <p className="text-center text-xs text-muted-foreground">Prefer an external agent? Use the MCP server instead.</p>
+            <button
+              type="button"
+              onClick={() => (dispatch(setSettingsSection('ai')), dispatch(setSettingsOpen(true)))}
+              className="text-center text-xs text-muted-foreground underline-offset-2 hover:underline"
+            >
+              Use a different provider (OpenAI, Gemini, Ollama, …) in Settings
+            </button>
           </form>
         ) : (
           <>

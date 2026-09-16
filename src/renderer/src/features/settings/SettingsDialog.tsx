@@ -1,13 +1,15 @@
 import { useEffect, useState, type ReactNode } from 'react'
 import { toast } from 'sonner'
-import type { DataInfo, McpConnections } from '@shared/api'
+import type { DataInfo, McpConnections, ProviderStatus } from '@shared/api'
+import { AI_PROVIDERS, getProviderMeta, type AiProviderId } from '@shared/ai'
 import type { FontPref, ThemePref } from '@shared/settings'
-import { AskAI, Command, Download, File, Home, KeyRound, Palette, Pencil, Server, Settings, Upload } from '@/components/icons'
+import { AskAI, ArrowUpRight, CircleCheck, Command, Download, File, Home, KeyRound, Palette, Pencil, RotateCcw, Server, Settings, Upload } from '@/components/icons'
 import { Orb } from '@/components/Orb'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Kbd } from '@/components/ui/kbd'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Slider } from '@/components/ui/slider'
 import { Switch } from '@/components/ui/switch'
 import { FONT_STACKS } from '@/App'
@@ -385,52 +387,166 @@ function Snippet({ label, text }: { label: string; text: string }) {
   )
 }
 
-function AiSettings() {
-  const [hasKey, setHasKey] = useState<boolean | null>(null)
+/** Shared by Settings → AI assistant and the ChatPanel's compact switcher / connect state. */
+export function AiSettings() {
+  const dispatch = useAppDispatch()
+  const s = useAppSelector((st) => st.settings)
+  const [status, setStatus] = useState<ProviderStatus[]>([])
+  const [selected, setSelected] = useState<AiProviderId>(s.ai.provider)
   const [key, setKey] = useState('')
-  useEffect(() => void window.chat.hasKey().then(setHasKey), [])
+  const [baseUrl, setBaseUrl] = useState(s.ai.baseUrl ?? '')
+  const [model, setModel] = useState(s.ai.model)
+  const [models, setModels] = useState<string[]>([])
+  const [loadingModels, setLoadingModels] = useState(false)
+
+  const refreshStatus = () => void window.chat.getProviderStatus().then(setStatus)
+  useEffect(refreshStatus, [])
+
+  const meta = getProviderMeta(selected)
+  const isActive = selected === s.ai.provider
+  const connected = status.find((p) => p.provider === selected)?.hasKey ?? false
+
+  useEffect(() => {
+    setBaseUrl(selected === s.ai.provider ? (s.ai.baseUrl ?? '') : '')
+    setModel(selected === s.ai.provider ? s.ai.model : (meta.defaultModels[0] ?? ''))
+    setModels([])
+    setKey('')
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selected])
+
+  const loadModels = async () => {
+    setLoadingModels(true)
+    try {
+      const list = await window.chat.listModels(selected, baseUrl || undefined)
+      setModels(list)
+      if (!model && list[0]) setModel(list[0])
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : String(err))
+    } finally {
+      setLoadingModels(false)
+    }
+  }
+
   return (
-    <div>
-      <Row title="Model" description="The assistant uses Claude Opus 5 with the same tools as the MCP server.">
-        <code className="rounded bg-muted px-2 py-1 font-mono text-xs">claude-opus-5</code>
-      </Row>
-      <Row
-        title="Anthropic API key"
-        description={hasKey ? 'A key is stored, encrypted with your macOS Keychain.' : 'Required for the built-in assistant (⌘J). Not needed for MCP.'}
-      >
-        {hasKey ? (
-          <Button
-            variant="outline"
-            onClick={async () => {
-              await window.chat.setKey(null)
-              setHasKey(await window.chat.hasKey())
-              toast('API key removed')
-            }}
-          >
-            Remove key
-          </Button>
-        ) : (
-          <form
-            className="flex gap-2"
-            onSubmit={async (e) => {
-              e.preventDefault()
-              try {
-                await window.chat.setKey(key)
-                setKey('')
-                setHasKey(await window.chat.hasKey())
-                toast.success('API key saved')
-              } catch (err) {
-                toast.error(String(err))
-              }
-            }}
-          >
-            <Input type="password" placeholder="sk-ant-…" value={key} onChange={(e) => setKey(e.target.value)} className="w-56" />
-            <Button type="submit" disabled={!key.trim()}>
-              <KeyRound /> Save
-            </Button>
-          </form>
+    <div className="flex gap-6">
+      <div className="w-44 shrink-0 space-y-0.5">
+        {AI_PROVIDERS.map((p) => {
+          const st = status.find((x) => x.provider === p.id)
+          return (
+            <button
+              key={p.id}
+              onClick={() => setSelected(p.id)}
+              className={cn(
+                'flex w-full items-center justify-between gap-2 rounded-md px-2.5 py-1.5 text-left text-sm transition hover:bg-accent',
+                selected === p.id && 'bg-accent font-medium'
+              )}
+            >
+              <span className="truncate">{p.label}</span>
+              {p.id === s.ai.provider ? (
+                <CircleCheck className="size-3.5 shrink-0 text-primary" />
+              ) : st?.hasKey ? (
+                <span className="size-1.5 shrink-0 rounded-full bg-emerald-500" />
+              ) : null}
+            </button>
+          )
+        })}
+      </div>
+
+      <div className="min-w-0 flex-1 space-y-4">
+        <div className="flex items-center gap-2">
+          <h3 className="font-medium">{meta.label}</h3>
+          {isActive && <span className="rounded-full bg-primary/10 px-2 py-0.5 text-xs text-primary">Active</span>}
+        </div>
+
+        {meta.needsKey && (
+          <div>
+            <div className="mb-1.5 flex items-center justify-between text-sm font-medium">
+              <span>API key</span>
+              {meta.keyDocsUrl && (
+                <a href={meta.keyDocsUrl} target="_blank" rel="noreferrer" className="inline-flex items-center gap-0.5 text-xs font-normal text-muted-foreground hover:text-foreground">
+                  Get a key <ArrowUpRight className="size-3" />
+                </a>
+              )}
+            </div>
+            {connected ? (
+              <div className="flex items-center gap-2">
+                <span className="inline-flex items-center gap-1.5 rounded-md bg-emerald-500/10 px-2 py-1 text-xs text-emerald-600 dark:text-emerald-400">
+                  <CircleCheck className="size-3.5" /> Connected
+                </span>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={async () => {
+                    await window.chat.setProviderKey(selected, null)
+                    refreshStatus()
+                    toast('API key removed')
+                  }}
+                >
+                  Remove
+                </Button>
+              </div>
+            ) : (
+              <form
+                className="flex gap-2"
+                onSubmit={async (e) => {
+                  e.preventDefault()
+                  try {
+                    await window.chat.setProviderKey(selected, key)
+                    setKey('')
+                    refreshStatus()
+                    toast.success('API key saved')
+                  } catch (err) {
+                    toast.error(String(err))
+                  }
+                }}
+              >
+                <Input type="password" placeholder={meta.keyPlaceholder} value={key} onChange={(e) => setKey(e.target.value)} className="w-64" />
+                <Button type="submit" disabled={!key.trim()}>
+                  <KeyRound /> Save
+                </Button>
+              </form>
+            )}
+          </div>
         )}
-      </Row>
+
+        {meta.editableBaseUrl && (
+          <div>
+            <div className="mb-1.5 text-sm font-medium">Base URL</div>
+            <Input placeholder={meta.id === 'ollama' ? 'http://127.0.0.1:11434/v1' : 'https://your-endpoint/v1'} value={baseUrl} onChange={(e) => setBaseUrl(e.target.value)} className="w-80" />
+          </div>
+        )}
+
+        <div>
+          <div className="mb-1.5 text-sm font-medium">Model</div>
+          <div className="flex items-center gap-2">
+            <Select value={model} onValueChange={setModel}>
+              <SelectTrigger className="w-64">
+                <SelectValue placeholder="Pick or type a model" />
+              </SelectTrigger>
+              <SelectContent>
+                {[...new Set([...meta.defaultModels, ...models])].map((m) => (
+                  <SelectItem key={m} value={m}>
+                    {m}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Button type="button" variant="outline" size="sm" onClick={() => void loadModels()} disabled={loadingModels}>
+              <RotateCcw className={cn('size-3.5', loadingModels && 'animate-spin')} /> Load models
+            </Button>
+          </div>
+          <Input value={model} onChange={(e) => setModel(e.target.value)} placeholder="Or type a model id" className="mt-2 w-64" />
+        </div>
+
+        <Button
+          onClick={() =>
+            dispatch(updateSettings({ ai: { provider: selected, model: model.trim(), baseUrl: meta.editableBaseUrl ? baseUrl.trim() : undefined } }))
+          }
+          disabled={isActive && s.ai.model === model.trim() && (s.ai.baseUrl ?? '') === baseUrl.trim() || !model.trim()}
+        >
+          Use this provider
+        </Button>
+      </div>
     </div>
   )
 }
