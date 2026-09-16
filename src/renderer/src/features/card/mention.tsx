@@ -84,6 +84,7 @@ export const CardMention = Mention.extend({ name: MENTION_NODE }).configure({
         onStart: (p) => {
           renderer = new ReactRenderer(MentionList, { props: p, editor: p.editor })
           el = document.createElement('div')
+          el.className = 'mention-popup'
           el.style.position = 'fixed'
           el.style.zIndex = '100'
           el.appendChild(renderer.element)

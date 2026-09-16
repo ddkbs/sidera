@@ -1,30 +1,72 @@
 import type { NodeProps } from '@xyflow/react'
-import { FileText } from 'lucide-react'
-import { memo } from 'react'
+import { Expand, FileText } from 'lucide-react'
+import { memo, useEffect, useRef, useState } from 'react'
 import { cn } from '@/lib/utils'
-import { store } from '@/store'
+import { useAppDispatch, useAppSelector } from '@/store'
+import { useGetCardQuery, useUpdateCardMutation } from '@/store/api'
 import { openCard } from '@/store/ui'
+import { CardEditor } from '@/features/card/CardEditor'
 import { TagBadge } from '@/features/card/TagBadge'
 import type { ObjectNode } from '../types'
 import { Handles, Resizer } from './NodeChrome'
 
 export const CardNode = memo(function CardNode({ data, selected }: NodeProps<ObjectNode>) {
+  const dispatch = useAppDispatch()
   const card = data.card
-  const isOpen = store.getState().ui.openCardId === card?.id
+  const isOpen = useAppSelector((s) => s.ui.openCardId === card?.id)
+  const [editing, setEditing] = useState(false)
+  const root = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (!editing) return
+    const onDown = (e: MouseEvent) => {
+      const t = e.target as HTMLElement
+      if (root.current?.contains(t) || t.closest('.mention-popup')) return
+      setEditing(false)
+    }
+    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && setEditing(false)
+    document.addEventListener('mousedown', onDown, true)
+    window.addEventListener('keydown', onKey)
+    return () => {
+      document.removeEventListener('mousedown', onDown, true)
+      window.removeEventListener('keydown', onKey)
+    }
+  }, [editing])
+
+  useEffect(() => {
+    if (!selected) setEditing(false)
+  }, [selected])
+
   return (
     <>
       <Resizer selected={selected} minWidth={180} minHeight={80} />
       <div
-        onDoubleClick={() => card && store.dispatch(openCard(card.id))}
+        ref={root}
+        onDoubleClick={() => card && setEditing(true)}
         className={cn(
-          'group flex h-full w-full flex-col overflow-hidden rounded-xl border bg-card text-card-foreground shadow-[0_1px_2px_rgba(0,0,0,0.04),0_4px_16px_-4px_rgba(0,0,0,0.08)] transition-shadow',
+          'group relative flex h-full w-full flex-col overflow-hidden rounded-xl border bg-card text-card-foreground shadow-[0_1px_2px_rgba(0,0,0,0.04),0_4px_16px_-4px_rgba(0,0,0,0.08)] transition-shadow',
           selected && 'ring-2 ring-brand/70',
-          isOpen && 'ring-2 ring-brand'
+          (isOpen || editing) && 'ring-2 ring-brand'
         )}
       >
-        {card ? (
+        {card && (
+          <button
+            onClick={() => dispatch(openCard(card.id))}
+            className="nodrag absolute top-2 right-2 z-10 grid size-6 place-items-center rounded-md bg-card/80 text-muted-foreground opacity-0 transition group-hover:opacity-100 hover:bg-accent hover:text-foreground"
+            aria-label="Open card"
+          >
+            <Expand className="size-3.5" />
+          </button>
+        )}
+        {!card ? (
+          <div className="flex flex-1 items-center justify-center gap-2 text-sm text-muted-foreground">
+            <FileText className="size-4" /> Missing card
+          </div>
+        ) : editing ? (
+          <InlineEditor cardId={card.id} />
+        ) : (
           <div className="flex min-h-0 flex-1 flex-col gap-1.5 p-4">
-            <div className="line-clamp-2 text-[15px] leading-snug font-semibold tracking-tight">{card.title || <span className="text-muted-foreground">Untitled</span>}</div>
+            <div className="line-clamp-2 pr-6 text-[15px] leading-snug font-semibold tracking-tight">{card.title || <span className="text-muted-foreground">Untitled</span>}</div>
             {card.tags.length > 0 && (
               <div className="flex flex-wrap gap-1">
                 {card.tags.map((t) => (
@@ -36,13 +78,28 @@ export const CardNode = memo(function CardNode({ data, selected }: NodeProps<Obj
               {card.excerpt}
             </p>
           </div>
-        ) : (
-          <div className="flex flex-1 items-center justify-center gap-2 text-sm text-muted-foreground">
-            <FileText className="size-4" /> Missing card
-          </div>
         )}
       </div>
       <Handles />
     </>
   )
 })
+
+function InlineEditor({ cardId }: { cardId: string }) {
+  const { data: card } = useGetCardQuery(cardId)
+  const [update] = useUpdateCardMutation()
+  const [title, setTitle] = useState<string | null>(null)
+  if (!card) return null
+  return (
+    <div className="nodrag nowheel nopan flex min-h-0 flex-1 cursor-text flex-col overflow-y-auto p-4">
+      <input
+        value={title ?? card.title}
+        onChange={(e) => setTitle(e.target.value)}
+        onBlur={() => title !== null && title !== card.title && update({ id: cardId, title })}
+        placeholder="Untitled"
+        className="mb-1 bg-transparent pr-6 text-[15px] font-semibold tracking-tight outline-none"
+      />
+      <CardEditor key={card.id} content={card.content} autofocus className="text-sm [&_.prose-canvas]:text-[13px]" onChange={(content) => update({ id: cardId, content })} />
+    </div>
+  )
+}

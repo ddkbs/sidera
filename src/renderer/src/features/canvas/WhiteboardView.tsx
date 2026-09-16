@@ -26,14 +26,16 @@ import {
   useAddObjectMutation,
   useCreateCardMutation,
   useCreateWhiteboardMutation,
+  useDeleteCardMutation,
   useGetWhiteboardQuery,
   useRemoveConnectionsMutation,
   useRemoveObjectsMutation
 } from '@/store/api'
-import { openCard, setTool, type CanvasTool } from '@/store/ui'
+import { navigate, openCard, setTool, type CanvasTool } from '@/store/ui'
 import { AddCardDialog } from './AddCardDialog'
 import { CanvasToolbar, TOOLS, type OverflowAction } from './CanvasToolbar'
 import { edgeTypes } from './FloatingEdge'
+import { NodeMenu, type NodeMenuAction } from './NodeMenu'
 import { nodeTypes } from './nodes'
 import { persist, type ConnectionEdge, type ObjectNode } from './types'
 import { ZoomControls } from './ZoomControls'
@@ -108,6 +110,31 @@ function Canvas({ detail }: { detail: WhiteboardDetail }) {
   const [removeConnections] = useRemoveConnectionsMutation()
   const [createCard] = useCreateCardMutation()
   const [createWhiteboard] = useCreateWhiteboardMutation()
+  const [deleteCard] = useDeleteCardMutation()
+  const [menu, setMenu] = useState<{ node: ObjectNode; x: number; y: number } | null>(null)
+
+  const onMenuAction = useCallback(
+    async (a: NodeMenuAction, node: ObjectNode) => {
+      setMenu(null)
+      const o = node.data.object
+      if (a === 'open' && o.refId) dispatch(node.type === 'whiteboard' ? navigate({ type: 'whiteboard', id: o.refId }) : openCard(o.refId))
+      else if (a === 'remove') void rf.deleteElements({ nodes: [{ id: node.id }] })
+      else if (a === 'delete-card' && o.refId) {
+        await deleteCard(o.refId)
+        toast('Card deleted')
+      } else if (a === 'front' || a === 'back') {
+        const zs = rf.getNodes().map((n) => n.data.object.z)
+        const z = a === 'front' ? Math.max(...zs) + 1 : Math.min(...zs) - 1
+        persist([{ id: node.id, z }])
+        setNodes((ns) => {
+          const rest = ns.filter((n) => n.id !== node.id)
+          const me = { ...node, data: { ...node.data, object: { ...o, z } } }
+          return a === 'front' ? [...rest, me] : [me, ...rest]
+        })
+      }
+    },
+    [dispatch, rf, deleteCard]
+  )
 
   useEffect(() => {
     setNodes((prev) => toNodes(detail, prev, autoEdit.current))
@@ -336,6 +363,10 @@ function Canvas({ detail }: { detail: WhiteboardDetail }) {
         onConnect={onConnect}
         onPaneClick={onPaneClick}
         onNodeClick={onNodeClick}
+        onNodeContextMenu={(e, node) => {
+          e.preventDefault()
+          setMenu({ node, x: e.clientX, y: e.clientY })
+        }}
         onDoubleClick={(e) => {
           if ((e.target as HTMLElement).classList.contains('react-flow__pane')) void newCardAt(rf.screenToFlowPosition({ x: e.clientX, y: e.clientY }))
         }}
@@ -360,6 +391,7 @@ function Canvas({ detail }: { detail: WhiteboardDetail }) {
       </ReactFlow>
       <CanvasToolbar tool={tool} onTool={(t) => void changeTool(t)} onAction={(a) => void onAction(a)} />
       <ZoomControls />
+      <NodeMenu menu={menu} onClose={() => setMenu(null)} onAction={(a, n) => void onMenuAction(a, n)} />
       {nodes.length === 0 && (
         <div className="pointer-events-none absolute inset-0 grid place-items-center">
           <div className="text-center text-sm text-muted-foreground">
