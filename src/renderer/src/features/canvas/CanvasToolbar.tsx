@@ -1,5 +1,7 @@
 import {
   ArrowUpRight,
+  AskAI,
+  Globe,
   BoxSelect,
   Ellipsis,
   GitBranch,
@@ -79,7 +81,7 @@ export function CanvasToolbar({ tool, onTool, onAction }: Props) {
       <DropdownMenu>
         <Tooltip>
           <TooltipTrigger asChild>
-            <DropdownMenuTrigger className="grid size-9 place-items-center rounded-xl text-muted-foreground transition hover:bg-accent hover:text-foreground">
+            <DropdownMenuTrigger aria-label="More" className="grid size-9 place-items-center rounded-xl text-muted-foreground transition hover:bg-accent hover:text-foreground">
               <Ellipsis className="size-[18px]" />
             </DropdownMenuTrigger>
           </TooltipTrigger>
@@ -88,6 +90,13 @@ export function CanvasToolbar({ tool, onTool, onAction }: Props) {
         <DropdownMenuContent side="right" align="end" sideOffset={10} className="w-56" onCloseAutoFocus={(e) => e.preventDefault()}>
           <DropdownMenuItem onClick={() => onAction('whiteboard')}>
             <LayoutDashboard /> Nested whiteboard
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={() => onAction('link')}>
+            <Globe /> Link preview…
+          </DropdownMenuItem>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem onClick={() => onAction('organize')}>
+            <AskAI /> Organize with AI
           </DropdownMenuItem>
           <DropdownMenuSeparator />
           <DropdownMenuItem onClick={() => onAction('autolayout')}>

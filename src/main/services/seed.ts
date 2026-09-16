@@ -19,7 +19,7 @@ export function seedWelcome(api: Services): boolean {
     },
     {
       title: 'Whiteboards arrange ideas',
-      markdown: '- Double-click empty space → new card\n- Open the ••• menu for mindmaps & diagrams\n- Sections group and move cards together\n- ⌘Z / ⇧⌘Z undo and redo',
+      markdown: '- Double-click empty space → new card\n- The chart button adds charts, timelines & mindmaps\n- Sections group and move cards together\n- ⌘Z / ⇧⌘Z undo and redo',
       x: 360
     },
     {

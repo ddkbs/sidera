@@ -110,8 +110,7 @@ function EditableTitle({ id, name }: { id: string; name: string }) {
       onChange={(e) => setValue(e.target.value)}
       onBlur={commit}
       onKeyDown={(e) => e.key === 'Enter' && (e.target as HTMLInputElement).blur()}
-      size={Math.max(8, value.length)}
-      className="rounded-md bg-transparent px-1.5 py-1 font-medium outline-none hover:bg-accent focus:bg-accent"
+      className="max-w-[40vw] min-w-16 rounded-md bg-transparent px-1.5 py-1 font-medium outline-none [field-sizing:content] hover:bg-accent focus:bg-accent"
     />
   )
 }

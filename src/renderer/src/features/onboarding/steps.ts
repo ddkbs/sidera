@@ -29,7 +29,7 @@ export const TOUR_STEPS: TourStep[] = [
   {
     id: 'toolbar',
     title: 'The whiteboard toolbar',
-    body: 'Add cards, text, sections, connectors and diagrams. The ••• menu has nested whiteboards, mindmaps and auto-layout.',
+    body: 'Add cards, text, sections and connectors. The chart button inserts charts, timelines, matrices and mindmaps; ••• has links, nested whiteboards and “Organize with AI”.',
     target: 'canvas-toolbar',
     needsWhiteboard: true
   },
