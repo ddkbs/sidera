@@ -6,6 +6,7 @@ import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { TagBadge } from '@/features/card/TagBadge'
 import { KanbanBoard } from '@/features/kanban/KanbanBoard'
+import { TagTable } from './TagTable'
 import { useAppDispatch, useAppSelector } from '@/store'
 import { useCreateCardMutation, useListCardsQuery, useListTagsQuery } from '@/store/api'
 import { navigate, openCard } from '@/store/ui'
@@ -60,7 +61,7 @@ export function LibraryView() {
         </Button>
       </div>
       <div className="min-h-0 flex-1">
-        {mode === 'kanban' && view.tagId ? <KanbanBoard tagId={view.tagId} filter={filter} /> : <CardCollection tagId={view.tagId} mode={mode === 'list' ? 'list' : 'table'} filter={filter} />}
+        {mode === 'kanban' && view.tagId ? <KanbanBoard tagId={view.tagId} filter={filter} /> : mode === 'table' && view.tagId ? <TagTable tagId={view.tagId} filter={filter} /> : <CardCollection tagId={view.tagId} mode={mode === 'list' ? 'list' : 'table'} filter={filter} />}
       </div>
     </div>
   )

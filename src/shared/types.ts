@@ -26,6 +26,8 @@ export interface CardSummary {
   excerpt: string
   updatedAt: number
   tags: Tag[]
+  /** property id → value; only filled when listing cards of a tag */
+  values?: Record<ID, unknown>
 }
 
 export interface Tag {

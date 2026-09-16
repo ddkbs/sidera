@@ -63,11 +63,19 @@ export const api = createApi({
     }),
     setPropertyValue: b.mutation<void, { cardId: string; propertyId: string; value: unknown }>({
       queryFn: ({ cardId, propertyId, value }) => call('setPropertyValue', cardId, propertyId, value),
-      invalidatesTags: (_r, _e, { cardId }) => [{ type: 'Card', id: cardId }, 'Kanban']
+      invalidatesTags: (_r, _e, { cardId }) => [{ type: 'Card', id: cardId }, 'Kanban', 'CardList']
+    }),
+    listProperties: b.query<Res<'listProperties'>, string>({
+      queryFn: (tagId) => call('listProperties', tagId),
+      providesTags: ['Tag']
+    }),
+    createProperty: b.mutation<Res<'createProperty'>, Arg<'createProperty'>[0]>({
+      queryFn: (input) => call('createProperty', input),
+      invalidatesTags: ['Tag', 'Card', 'Kanban']
     }),
     updateProperty: b.mutation<Res<'updateProperty'>, Arg<'updateProperty'>[0]>({
       queryFn: (input) => call('updateProperty', input),
-      invalidatesTags: ['Kanban', 'Card']
+      invalidatesTags: ['Kanban', 'Card', 'Tag']
     }),
 
     // kanban
@@ -160,6 +168,8 @@ export const {
   useSetCardTagsMutation,
   useSetPropertyValueMutation,
   useUpdatePropertyMutation,
+  useListPropertiesQuery,
+  useCreatePropertyMutation,
   useGetKanbanQuery,
   useMoveKanbanItemMutation,
   useListWhiteboardsQuery,

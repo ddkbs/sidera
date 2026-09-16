@@ -45,6 +45,10 @@ describe('tags & kanban', () => {
     board = api.getKanban(tag.id)!
     expect(board.columns[3].cards.map((c) => c.title)).toEqual(['two', 'one'])
     expect(board.columns[0].cards).toHaveLength(0)
+    const prio = api.createProperty({ tagId: tag.id, name: 'Priority', type: 'number' })
+    api.setPropertyValue(c1.id, prio.id, 3)
+    const listed = api.listCards({ tagId: tag.id })
+    expect(listed.find((c) => c.id === c1.id)!.values).toMatchObject({ [prio.id]: 3, [board.property.id]: done.id })
   })
 })
 

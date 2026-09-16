@@ -190,7 +190,19 @@ export function createServices(db: DB, onChange: (scope: DbChangeScope) => void 
                ORDER BY updated_at DESC LIMIT ? OFFSET ?`
             )
             .all(limit, offset) as CardSummaryRow[])
-      return summarize(rows)
+      const cards = summarize(rows)
+      if (opts.tagId && cards.length) {
+        const values = sql
+          .prepare(
+            `SELECT v.card_id AS cardId, v.property_id AS propertyId, v.value FROM card_property_values v
+             JOIN tag_properties p ON p.id = v.property_id WHERE p.tag_id = ?`
+          )
+          .all(opts.tagId) as { cardId: string; propertyId: string; value: string | null }[]
+        const byCard = new Map<string, Record<string, unknown>>()
+        for (const v of values) byCard.set(v.cardId, { ...byCard.get(v.cardId), [v.propertyId]: json<unknown>(v.value, null) })
+        for (const c of cards) c.values = byCard.get(c.id) ?? {}
+      }
+      return cards
     },
 
     getCard(id) {
