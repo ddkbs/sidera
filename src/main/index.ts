@@ -1,0 +1,115 @@
+import { mkdirSync } from 'node:fs'
+import { copyFile, stat } from 'node:fs/promises'
+import { basename, extname, join } from 'node:path'
+import { app, BrowserWindow, dialog, net, protocol, shell } from 'electron'
+import { nanoid } from 'nanoid'
+import { DB_CHANGED, type DbChangeScope } from '@shared/api'
+import { openDatabase } from './db/client'
+import { registerIpc } from './ipc'
+import { startHttpMcp, startStdioMcp } from './mcp/server'
+import { createServices } from './services'
+
+const STDIO = process.argv.includes('--mcp-stdio')
+const dataDir = process.env.CANVASCL_DATA_DIR ?? join(app.getPath('userData'), 'data')
+const filesDir = join(dataDir, 'files')
+mkdirSync(filesDir, { recursive: true })
+
+let win: BrowserWindow | null = null
+let changeTimer: NodeJS.Timeout | null = null
+const pending = new Set<DbChangeScope>()
+const emit = (scope: DbChangeScope): void => {
+  pending.add(scope)
+  if (changeTimer) return
+  changeTimer = setTimeout(() => {
+    win?.webContents.send(DB_CHANGED, [...pending])
+    pending.clear()
+    changeTimer = null
+  }, 30)
+}
+
+const db = openDatabase(join(dataDir, 'canvascl.db'))
+const services = createServices(db, emit)
+
+const MIME: Record<string, string> = {
+  '.pdf': 'application/pdf', '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg',
+  '.gif': 'image/gif', '.webp': 'image/webp', '.svg': 'image/svg+xml', '.md': 'text/markdown', '.txt': 'text/plain'
+}
+
+if (STDIO) {
+  app.dock?.hide()
+  app.whenReady().then(() => startStdioMcp(services, app.getVersion()))
+} else {
+  protocol.registerSchemesAsPrivileged([{ scheme: 'canvascl-file', privileges: { standard: true, secure: true, supportFetchAPI: true, stream: true } }])
+  void bootstrap()
+}
+
+async function bootstrap(): Promise<void> {
+  await app.whenReady()
+
+  protocol.handle('canvascl-file', (req) => {
+    const id = new URL(req.url).hostname
+    const f = services.getFile(id)
+    if (!f) return new Response('Not found', { status: 404 })
+    return net.fetch('file://' + f.path)
+  })
+
+  let mcpUrl: string | null = null
+  registerIpc({
+    ...services,
+    async importFiles() {
+      const res = await dialog.showOpenDialog(win!, {
+        properties: ['openFile', 'multiSelections'],
+        filters: [{ name: 'Documents & images', extensions: ['pdf', 'png', 'jpg', 'jpeg', 'gif', 'webp', 'svg', 'md', 'txt'] }]
+      })
+      if (res.canceled) return []
+      return Promise.all(
+        res.filePaths.map(async (p) => {
+          const ext = extname(p).toLowerCase()
+          const dest = join(filesDir, nanoid() + ext)
+          await copyFile(p, dest)
+          const { size } = await stat(dest)
+          return services.registerFile({ name: basename(p), mime: MIME[ext] ?? 'application/octet-stream', path: dest, size })
+        })
+      )
+    },
+    async getFileUrl(id) {
+      return services.getFile(id) ? `canvascl-file://${id}/` : null
+    },
+    async getMcpInfo() {
+      return { running: !!mcpUrl, url: mcpUrl, stdioCommand: `"${process.execPath}" --mcp-stdio` }
+    }
+  })
+
+  const mcp = await startHttpMcp(services, app.getVersion())
+  mcpUrl = mcp?.url ?? null
+
+  createWindow()
+  app.on('activate', () => BrowserWindow.getAllWindows().length === 0 && createWindow())
+}
+
+function createWindow(): void {
+  win = new BrowserWindow({
+    width: 1440,
+    height: 900,
+    minWidth: 900,
+    minHeight: 600,
+    show: false,
+    titleBarStyle: 'hiddenInset',
+    trafficLightPosition: { x: 14, y: 14 },
+    backgroundColor: '#fafafa',
+    webPreferences: { preload: join(__dirname, '../preload/index.cjs'), sandbox: false, contextIsolation: true }
+  })
+  win.once('ready-to-show', () => win?.show())
+  win.on('closed', () => (win = null))
+  win.webContents.setWindowOpenHandler(({ url }) => {
+    void shell.openExternal(url)
+    return { action: 'deny' }
+  })
+  if (process.env.ELECTRON_RENDERER_URL) void win.loadURL(process.env.ELECTRON_RENDERER_URL)
+  else void win.loadFile(join(__dirname, '../renderer/index.html'))
+}
+
+app.on('window-all-closed', () => {
+  if (process.platform !== 'darwin' && !STDIO) app.quit()
+})
+app.on('before-quit', () => db.$client.close())
