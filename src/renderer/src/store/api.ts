@@ -152,7 +152,13 @@ export const api = createApi({
       providesTags: ['CardList', 'Whiteboard'],
       keepUnusedDataFor: 5
     }),
-    getMcpInfo: b.query<Res<'getMcpInfo'>, void>({ queryFn: () => call('getMcpInfo') })
+    getMcpInfo: b.query<Res<'getMcpInfo'>, void>({ queryFn: () => call('getMcpInfo') }),
+
+    // web clipper
+    clipUrl: b.mutation<Res<'clipUrl'>, Arg<'clipUrl'>[0]>({
+      queryFn: (input) => call('clipUrl', input),
+      invalidatesTags: ['CardList']
+    })
   })
 })
 
@@ -196,5 +202,6 @@ export const {
   useListTasksQuery,
   useSetTaskCheckedMutation,
   useSearchQuery,
-  useGetMcpInfoQuery
+  useGetMcpInfoQuery,
+  useClipUrlMutation
 } = api

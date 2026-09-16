@@ -32,7 +32,7 @@ export const TOOLS: { id: CanvasTool; label: string; icon: ReactNode }[] = [
   { id: 'search', label: 'Add existing card', icon: <Search /> }
 ]
 
-export type OverflowAction = 'whiteboard' | 'mindmap' | 'mermaid' | 'sketch' | 'autolayout' | 'fit' | 'organize' | `chart:${ChartType}`
+export type OverflowAction = 'whiteboard' | 'mindmap' | 'mermaid' | 'sketch' | 'link' | 'autolayout' | 'fit' | 'organize' | `chart:${ChartType}`
 
 interface Props {
   tool: CanvasTool

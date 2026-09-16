@@ -1,8 +1,10 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { z } from 'zod'
 import { docToMarkdown, linkWikiRefs, markdownToDoc } from '@shared/doc'
+import { withSourceHeader } from '@shared/html'
 import { todayISO } from '@shared/util'
 import type { Services } from '../services'
+import { fetchPageForClip } from '../web'
 
 const ok = (value: unknown) => ({
   content: [{ type: 'text' as const, text: typeof value === 'string' ? value : JSON.stringify(value, null, 2) }]
@@ -101,6 +103,20 @@ export function createMcpServer(api: Services, version: string, onCall?: ToolCal
       }
       const updated = api.updateCard({ id: card_id, title, content, color, icon })
       return ok({ id: updated.id, title: updated.title })
+    }
+  )
+
+  server.registerTool(
+    'clip_url',
+    {
+      description: 'Fetch a web page and save its readable content as a new card (Markdown), tagged with the given tags.',
+      inputSchema: { url: z.string(), tags: z.array(z.string()).optional() }
+    },
+    async ({ url, tags }) => {
+      const { title, markdown } = await fetchPageForClip(url)
+      const tagIds = (tags ?? []).map((name) => api.createTag({ name }).id)
+      const card = api.createCard({ title, markdown: withSourceHeader(url, markdown), tagIds })
+      return ok({ id: card.id, title: card.title })
     }
   )
 

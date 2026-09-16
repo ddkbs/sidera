@@ -68,7 +68,7 @@ export interface Whiteboard {
   updatedAt: number
 }
 
-export type ObjectKind = 'card' | 'text' | 'section' | 'whiteboard' | 'file' | 'mindmap' | 'mermaid' | 'sketch' | 'chart'
+export type ObjectKind = 'card' | 'text' | 'section' | 'whiteboard' | 'file' | 'mindmap' | 'mermaid' | 'sketch' | 'chart' | 'link'
 
 export interface WhiteboardObject {
   id: ID
@@ -162,4 +162,15 @@ export interface Task {
   text: string
   checked: boolean
   updatedAt: number
+}
+
+/** og:* / meta data fetched for a `link` whiteboard object. */
+export interface LinkPreviewData {
+  url: string
+  title?: string
+  description?: string
+  image?: string
+  siteName?: string
+  favicon?: string
+  fetchedAt: number
 }
