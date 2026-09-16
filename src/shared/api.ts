@@ -172,4 +172,7 @@ export interface AppBridge {
   revealDataDir(): Promise<void>
   getMcpConnections(): Promise<McpConnections>
   connectClaude(target: 'desktop' | 'code'): Promise<{ ok: boolean; message: string }>
+  /** Quick-capture window (see src/main/capture.ts). */
+  openCapture(): Promise<void>
+  hideCapture(): Promise<void>
 }

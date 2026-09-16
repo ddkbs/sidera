@@ -11,6 +11,8 @@ export interface AppSettings {
   mcp: { httpEnabled: boolean; port: number }
   /** command id → key binding (e.g. "Mod+Shift+K"); only overrides are stored */
   shortcuts: Record<string, string>
+  /** System-wide shortcut that opens the quick-capture window, even while the app is backgrounded. */
+  quickCapture: { enabled: boolean; accelerator: string }
 }
 
 export const DEFAULT_SETTINGS: AppSettings = {
@@ -21,7 +23,8 @@ export const DEFAULT_SETTINGS: AppSettings = {
   editor: { spellcheck: true },
   canvas: { showMinimap: true, snapToGrid: false },
   mcp: { httpEnabled: true, port: 3845 },
-  shortcuts: {}
+  shortcuts: {},
+  quickCapture: { enabled: true, accelerator: 'Ctrl+Alt+Space' }
 }
 
 type DeepPartial<T> = { [K in keyof T]?: T[K] extends object ? (T[K] extends unknown[] ? T[K] : DeepPartial<T[K]>) : T[K] }
