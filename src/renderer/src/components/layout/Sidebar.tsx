@@ -1,6 +1,7 @@
 import { BookOpen, CalendarDays, ChevronRight, Hash, Home, LayoutDashboard, Plus, Search } from 'lucide-react'
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { Orb } from '@/components/Orb'
+import { BoardMenu } from './BoardMenu'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Kbd } from '@/components/ui/kbd'
@@ -117,6 +118,7 @@ function BoardItem({ board, tree, depth }: { board: Whiteboard; tree: Map<string
   const [open, setOpen] = useState(true)
   return (
     <>
+      <BoardMenu board={board}>
       <div style={{ paddingLeft: depth * 12 }} className="group flex items-center">
         <button
           onClick={() => setOpen((o) => !o)}
@@ -133,6 +135,7 @@ function BoardItem({ board, tree, depth }: { board: Whiteboard; tree: Map<string
           {board.name}
         </NavItem>
       </div>
+      </BoardMenu>
       {open && children.map((c) => <BoardItem key={c.id} board={c} tree={tree} depth={depth + 1} />)}
     </>
   )
