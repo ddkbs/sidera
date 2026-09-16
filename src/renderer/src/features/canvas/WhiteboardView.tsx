@@ -33,6 +33,7 @@ import {
 import { openCard, setTool, type CanvasTool } from '@/store/ui'
 import { AddCardDialog } from './AddCardDialog'
 import { CanvasToolbar, TOOLS, type OverflowAction } from './CanvasToolbar'
+import { edgeTypes } from './FloatingEdge'
 import { nodeTypes } from './nodes'
 import { persist, type ConnectionEdge, type ObjectNode } from './types'
 import { ZoomControls } from './ZoomControls'
@@ -80,6 +81,7 @@ const toEdges = (d: WhiteboardDetail, prev: ConnectionEdge[] = []): ConnectionEd
     id: c.id,
     source: c.sourceId,
     target: c.targetId,
+    type: 'floating',
     label: c.label || undefined,
     selected: sel.has(c.id),
     markerEnd: { type: MarkerType.ArrowClosed, width: 18, height: 18 },
@@ -323,6 +325,7 @@ function Canvas({ detail }: { detail: WhiteboardDetail }) {
         nodes={nodes}
         edges={edges}
         nodeTypes={nodeTypes}
+        edgeTypes={edgeTypes}
         onNodesChange={onNodesChange}
         onEdgesChange={onEdgesChange}
         onNodeDragStart={onNodeDragStart}
@@ -351,7 +354,7 @@ function Canvas({ detail }: { detail: WhiteboardDetail }) {
         deleteKeyCode={['Backspace', 'Delete']}
         multiSelectionKeyCode="Shift"
         proOptions={{ hideAttribution: true }}
-        defaultEdgeOptions={{ type: 'default' }}
+        defaultEdgeOptions={{ type: 'floating' }}
       >
         <Background variant={BackgroundVariant.Dots} gap={22} size={1.4} color="var(--canvas-dot)" />
       </ReactFlow>

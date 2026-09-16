@@ -4,7 +4,7 @@ export const MENTION_NODE = 'cardMention'
 
 export const emptyDoc = (): DocJSON => ({ type: 'doc', content: [] })
 
-const BLOCKS = new Set(['paragraph', 'heading', 'listItem', 'taskItem', 'blockquote', 'codeBlock', 'horizontalRule'])
+const BLOCKS = new Set(['paragraph', 'heading', 'codeBlock', 'horizontalRule'])
 
 /** Plain text used for FTS indexing and excerpts. */
 export function docToText(doc: DocJSON | null | undefined): string {

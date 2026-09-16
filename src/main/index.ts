@@ -118,7 +118,7 @@ app.on('before-quit', () => db.$client.close())
 /** Dev-only: run a script in the renderer, capture a screenshot, optionally quit. Used for automated UI checks. */
 async function devShot(w: BrowserWindow): Promise<void> {
   const { readFile, writeFile } = await import('node:fs/promises')
-  await new Promise((r) => w.webContents.once('did-finish-load', r))
+  await new Promise((r) => w.webContents.once('did-finish-load', () => r(null)))
   await new Promise((r) => setTimeout(r, 1500))
   const steps = process.env.CANVASCL_SCRIPT ? (await readFile(process.env.CANVASCL_SCRIPT, 'utf8')).split('\n---\n') : ['']
   for (const [i, step] of steps.entries()) {

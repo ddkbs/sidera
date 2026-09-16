@@ -8,7 +8,7 @@ macOS only, local-first. Keep answers & diffs small; don't re-explore what this 
 - `npm test` — vitest, runs **inside Electron's Node** (`ELECTRON_RUN_AS_NODE`) because better-sqlite3 is built for Electron ABI
 - `npm run typecheck` — tsc for node + web projects
 - Done-criteria for any goal: `npm test && npm run typecheck` both green
-- Add UI primitives via CLI: `npx shadcn@latest add <name>` (never hand-write shadcn components)
+- Add UI primitives via CLI: `npx shadcn@latest add <name>` (never hand-write shadcn components). Afterwards run `sed -i "" "s#from \"cn\"#from \"@/lib/utils\"#" src/renderer/src/components/ui/*.tsx` and `npm uninstall cn` — we use tailwind-merge via @/lib/utils
 - After adding native deps: `npx electron-builder install-app-deps`
 
 ## Layout

@@ -61,7 +61,7 @@ export function CanvasToolbar({ tool, onTool, onAction }: Props) {
               <ToggleGroupItem
                 value={t.id}
                 aria-label={t.label}
-                className="size-9 rounded-xl! border-0 text-muted-foreground data-[state=on]:bg-primary data-[state=on]:text-primary-foreground [&_svg]:size-[18px]"
+                className="size-9 rounded-xl! border-0 text-muted-foreground aria-checked:bg-primary aria-checked:text-primary-foreground aria-checked:hover:bg-primary aria-checked:hover:text-primary-foreground [&_svg]:size-[18px]"
               >
                 {t.icon}
               </ToggleGroupItem>
