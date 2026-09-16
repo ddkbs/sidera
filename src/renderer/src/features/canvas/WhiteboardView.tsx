@@ -41,6 +41,7 @@ import { navigate, openCard, queueChatMessage, setTool, type CanvasTool } from '
 import { AddCardDialog } from './AddCardDialog'
 import { CARD_MIME, CardDrawer } from './CardDrawer'
 import { FileViewer } from './FileViewer'
+import { BoardBreadcrumb } from './BoardBreadcrumb'
 import { FindOnBoard } from './FindOnBoard'
 import { History, invert, type HistoryOp } from './history'
 import { CanvasToolbar, TOOLS, type OverflowAction } from './CanvasToolbar'
@@ -640,6 +641,7 @@ function Canvas({ detail }: { detail: WhiteboardDetail }) {
       <CanvasToolbar tool={tool} onTool={(t) => void changeTool(t)} onAction={(a) => void onAction(a)} />
       <ZoomControls />
       <CardDrawer onBoard={cardIds} />
+      <BoardBreadcrumb id={boardId} />
       {edgeEdit && (
         <input
           autoFocus

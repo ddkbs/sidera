@@ -29,6 +29,11 @@ export function LibraryView() {
     <div className="flex h-full flex-col">
       <div className="flex items-center gap-3 px-8 pt-6 pb-4">
         <div className="min-w-0">
+          {tag && (
+            <button onClick={() => dispatch(navigate({ type: 'library', tagId: null, mode: view.mode }))} className="mb-0.5 text-xs text-muted-foreground hover:text-foreground">
+              Card Library /
+            </button>
+          )}
           <h1 className="text-2xl font-semibold tracking-tight">{tag ? `#${tag.name}` : 'Card Library'}</h1>
           <p className="text-sm text-muted-foreground">{tag ? 'Tagged cards — switch to Kanban to organize by status' : 'Every card across your whiteboards'}</p>
         </div>

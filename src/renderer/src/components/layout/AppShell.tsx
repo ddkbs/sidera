@@ -16,7 +16,6 @@ import { TabBar } from './TabBar'
 import { ChatPanel } from '@/features/chat/ChatPanel'
 import { ErrorBoundary } from '@/components/ErrorBoundary'
 import { Sidebar } from './Sidebar'
-import { TopBar } from './TopBar'
 
 export function AppShell() {
   const dispatch = useAppDispatch()
@@ -56,7 +55,6 @@ export function AppShell() {
       </AnimatePresence>
       <main className="flex min-w-0 flex-1 flex-col overflow-hidden bg-background">
         <TabBar />
-        <TopBar />
         <div className="relative flex min-h-0 flex-1">
           <div className="relative min-w-0 flex-1">
             <ErrorBoundary key={JSON.stringify(view)}>

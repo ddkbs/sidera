@@ -1,5 +1,6 @@
 import { BookOpen, CalendarDays, ChevronLeft, ChevronRight, Hash, Home, LayoutDashboard, ListChecks, PanelLeft, Plus, X } from '@/components/icons'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
+import { AppActions } from './AppActions'
 import { formatBinding, useBinding } from '@/lib/shortcuts'
 import { cn } from '@/lib/utils'
 import { useAppDispatch, useAppSelector } from '@/store'
@@ -106,6 +107,7 @@ export function TabBar() {
         </Tooltip>
         <div className="flex-1" />
       </div>
+      {!sidebarOpen && <AppActions className="border-l px-2" />}
     </div>
   )
 }

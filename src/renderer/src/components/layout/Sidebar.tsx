@@ -1,6 +1,8 @@
-import { BookOpen, CalendarDays, ChevronRight, Hash, Home, LayoutDashboard, ListChecks, PanelLeft, Plus, Search } from '@/components/icons'
+import { BookOpen, CalendarDays, ChevronRight, Hash, Home, LayoutDashboard, ListChecks, Moon, PanelLeft, Plus, Search, Settings, Sun } from '@/components/icons'
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { Orb } from '@/components/Orb'
+import { formatBinding, useBinding } from '@/lib/shortcuts'
+import { updateSettings } from '@/store/settings'
 import { BoardMenu } from './BoardMenu'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
@@ -11,7 +13,7 @@ import { color } from '@/lib/colors'
 import { cn } from '@/lib/utils'
 import { useAppDispatch, useAppSelector } from '@/store'
 import { useCreateWhiteboardMutation, useGetMcpInfoQuery, useListTagsQuery, useListWhiteboardsQuery } from '@/store/api'
-import { navigate, openSettings, openTab, setPaletteOpen, toggleSidebar, type View } from '@/store/ui'
+import { type View, navigate, openSettings, openTab, setChatOpen, setPaletteOpen, toggleSidebar } from '@/store/ui'
 import type { Whiteboard } from '@shared/types'
 
 export function Sidebar() {
@@ -22,6 +24,10 @@ export function Sidebar() {
   const { data: mcp } = useGetMcpInfoQuery()
   const [createWhiteboard] = useCreateWhiteboardMutation()
   const last = useAppSelector((s) => s.ui.activity[0])
+  const { theme, chatOpen } = useAppSelector((s) => s.ui)
+  const searchKey = formatBinding(useBinding('palette.open'))
+  const chatKey = formatBinding(useBinding('chat.toggle'))
+  const settingsKey = formatBinding(useBinding('settings.open'))
   const [agentBusy, setAgentBusy] = useState(false)
   useEffect(() => {
     if (!last) return
@@ -68,7 +74,19 @@ export function Sidebar() {
         >
           <Search className="size-3.5" />
           <span className="flex-1 text-left">Search</span>
-          <Kbd>⌘K</Kbd>
+          <Kbd>{searchKey}</Kbd>
+        </button>
+        <button
+          data-tour="ask-ai"
+          onClick={() => dispatch(setChatOpen(!chatOpen))}
+          className={cn(
+            'no-drag mt-1 flex h-8 w-full items-center gap-2 rounded-md px-2.5 text-sm transition hover:bg-sidebar-accent',
+            chatOpen && 'bg-sidebar-accent font-medium'
+          )}
+        >
+          <Orb online active={agentBusy} className="size-3.5" />
+          <span className="flex-1 text-left">Ask AI</span>
+          <span className="text-xs text-muted-foreground">{chatKey}</span>
         </button>
       </div>
       <ScrollArea className="min-h-0 flex-1">
@@ -111,13 +129,30 @@ export function Sidebar() {
           {!tags.length && <p className="px-2 py-1 text-xs text-muted-foreground">Tag cards to build databases</p>}
         </nav>
       </ScrollArea>
-      <div className="border-t border-sidebar-border p-2">
+      <div className="flex items-center gap-1 border-t border-sidebar-border p-2">
         <button
           onClick={() => dispatch(openSettings('mcp'))}
-          className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-xs text-muted-foreground transition hover:bg-sidebar-accent hover:text-foreground"
+          className="flex min-w-0 flex-1 items-center gap-2 rounded-md px-2 py-1.5 text-xs text-muted-foreground transition hover:bg-sidebar-accent hover:text-foreground"
+          title="MCP & Claude settings"
         >
-          <Orb online={!!mcp?.running} active={agentBusy} />
-          <span className="truncate">{agentBusy && last ? `Agent: ${last.tool}` : `MCP server ${mcp?.running ? 'ready' : 'offline'}`}</span>
+          <span className={cn('size-1.5 shrink-0 rounded-full', mcp?.running ? 'bg-emerald-500' : 'bg-muted-foreground/40')} />
+          <span className="truncate">{agentBusy && last ? `Agent: ${last.tool}` : `MCP ${mcp?.running ? 'ready' : 'offline'}`}</span>
+        </button>
+        <button
+          onClick={() => dispatch(updateSettings({ theme: theme === 'dark' ? 'light' : 'dark' }))}
+          className="grid size-7 place-items-center rounded-md text-muted-foreground transition hover:bg-sidebar-accent hover:text-foreground"
+          aria-label="Toggle theme"
+        >
+          {theme === 'dark' ? <Sun className="size-4" /> : <Moon className="size-4" />}
+        </button>
+        <button
+          data-tour="settings-gear"
+          onClick={() => dispatch(openSettings(undefined))}
+          className="grid size-7 place-items-center rounded-md text-muted-foreground transition hover:bg-sidebar-accent hover:text-foreground"
+          aria-label="Settings"
+          title={`Settings ${settingsKey}`}
+        >
+          <Settings className="size-4" />
         </button>
       </div>
     </div>
