@@ -49,3 +49,25 @@ describe('mcp', () => {
     expect((await call('get_journal', { date: '2026-09-16' })).markdown).toBe('- did a thing')
   })
 })
+
+describe('mcp http transport', () => {
+  it('serves tools over stateless streamable HTTP', async () => {
+    process.env.CANVASCL_MCP_PORT = '0'
+    const { startHttpMcp } = await import('../src/main/mcp/server')
+    const api = createServices(openDatabase(':memory:'))
+    const started = await startHttpMcp(api, 'test')
+    expect(started).not.toBeNull()
+    const addr = started!.server.address() as { port: number }
+    const post = (body: unknown) =>
+      fetch(`http://127.0.0.1:${addr.port}/mcp`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', accept: 'application/json, text/event-stream' },
+        body: JSON.stringify(body)
+      })
+    const res = await post({ jsonrpc: '2.0', id: 1, method: 'tools/call', params: { name: 'create_card', arguments: { title: 'Via HTTP', markdown: 'x' } } })
+    const text = await res.text()
+    expect(res.status, text).toBe(200)
+    expect(api.search('via http')).toHaveLength(1)
+    started!.server.close()
+  })
+})
