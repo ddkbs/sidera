@@ -2,7 +2,7 @@ import { and, desc, eq, inArray, isNull } from 'drizzle-orm'
 import { nanoid } from 'nanoid'
 import type { CanvasApi, DbChangeScope } from '@shared/api'
 import { docToText, emptyDoc, extractMentions, markdownToDoc } from '@shared/doc'
-import { collectTasks, setTaskChecked as applyTaskChecked } from '@shared/tasks'
+import { appendTask, collectTasks, setTaskChecked as applyTaskChecked } from '@shared/tasks'
 import type {
   Card,
   CardDetail,
@@ -21,7 +21,7 @@ import type {
   WhiteboardDetail,
   WhiteboardObject
 } from '@shared/types'
-import { between, now, TAG_COLORS } from '@shared/util'
+import { between, now, TAG_COLORS, todayISO } from '@shared/util'
 import type { DB } from '../db/client'
 import * as s from '../db/schema'
 import { layoutGroups } from './organize'
@@ -665,6 +665,25 @@ export function createServices(db: DB, onChange: (scope: DbChangeScope) => void 
     setTaskChecked(cardId, index, checked) {
       const card = requireCard(cardId)
       api.updateCard({ id: cardId, content: applyTaskChecked(card.content, index, checked) })
+    },
+
+    addTask({ text, cardId, date }) {
+      const clean = text.trim()
+      if (!clean) throw new Error('Task text is empty')
+      const journal = cardId ? null : api.getJournal(date ?? todayISO())
+      const card = journal ? journal.card : requireCard(cardId!)
+      const { doc, index } = appendTask(card.content, clean)
+      const saved = api.updateCard({ id: card.id, content: doc })
+      return {
+        cardId: card.id,
+        cardTitle: saved.title,
+        isJournal: !!journal,
+        journalDate: journal?.date ?? null,
+        index,
+        text: clean,
+        checked: false,
+        updatedAt: saved.updatedAt
+      }
     },
 
     // ---------- search ----------

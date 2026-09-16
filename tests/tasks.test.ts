@@ -57,3 +57,32 @@ describe('services: tasks', () => {
     expect(tasks.map((t) => t.checked)).toEqual([false, true])
   })
 })
+
+describe('adding tasks', async () => {
+  const { appendTask, collectTasks } = await import('../src/shared/tasks')
+  const { openDatabase } = await import('../src/main/db/client')
+  const { createServices } = await import('../src/main/services')
+
+  it('extends a trailing to-do list or starts a new one', () => {
+    const empty = { type: 'doc', content: [{ type: 'paragraph' }] }
+    const first = appendTask(empty, 'One')
+    expect(first.doc.content).toHaveLength(1)
+    expect(first.index).toBe(0)
+    const second = appendTask(first.doc, 'Two')
+    expect(second.doc.content).toHaveLength(1)
+    expect(collectTasks(second.doc).map((t) => t.text)).toEqual(['One', 'Two'])
+    const afterText = appendTask({ type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text: 'Notes' }] }] }, 'Three')
+    expect(afterText.doc.content?.map((b) => b.type)).toEqual(['paragraph', 'taskList'])
+  })
+
+  it('adds to the journal by default and to a card when given', () => {
+    const api = createServices(openDatabase(':memory:'))
+    const j = api.addTask({ text: 'Call Anna', date: '2026-09-17' })
+    expect(j).toMatchObject({ isJournal: true, journalDate: '2026-09-17', index: 0, checked: false })
+    const card = api.createCard({ title: 'Launch', markdown: '- [x] Scope' })
+    const t = api.addTask({ text: 'Ship it', cardId: card.id })
+    expect(t).toMatchObject({ cardId: card.id, isJournal: false, index: 1 })
+    expect(api.listTasks({ status: 'open' }).map((x) => x.text).sort()).toEqual(['Call Anna', 'Ship it'])
+    expect(() => api.addTask({ text: '  ' })).toThrow()
+  })
+})

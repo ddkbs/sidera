@@ -78,9 +78,15 @@ describe('mcp', () => {
       { card_id: card.id, card_title: 'Todos', is_journal: false, journal_date: null, index: 0, text: 'one', checked: false },
       { card_id: card.id, card_title: 'Todos', is_journal: false, journal_date: null, index: 1, text: 'two', checked: false }
     ])
+    const added = await call('add_task', { text: 'three', card_id: card.id })
+    expect(added.index).toBe(2)
+    const journalTask = await call('add_task', { text: 'journal todo', date: '2026-09-17' })
+    expect(journalTask.journal_date).toBe('2026-09-17')
+    await call('complete_task', { card_id: card.id, index: 2 })
+    await call('complete_task', { card_id: card.id, index: 1 })
     await call('complete_task', { card_id: card.id, index: 0 })
-    expect((await call('list_tasks', { status: 'open' })).map((t: { text: string }) => t.text)).toEqual(['two'])
-    expect((await call('list_tasks', { status: 'done' })).map((t: { text: string }) => t.text)).toEqual(['one'])
+    expect((await call('list_tasks', { status: 'open' })).map((t: { text: string }) => t.text)).toEqual(['journal todo'])
+    expect((await call('list_tasks', { status: 'done' })).map((t: { text: string }) => t.text).sort()).toEqual(['one', 'three', 'two'])
   })
 
   it('organizes a whiteboard into sections via the organize_board tool', async () => {

@@ -47,3 +47,16 @@ export function setTaskChecked(doc: DocJSON, index: number, checked: boolean): D
   }
   return walk(doc)
 }
+
+/** Returns a new doc with an unchecked task appended: extends a trailing to-do list, otherwise starts a new one. */
+export function appendTask(doc: DocJSON, text: string): { doc: DocJSON; index: number } {
+  const item: DocJSON = { type: 'taskItem', attrs: { checked: false }, content: [{ type: 'paragraph', content: text ? [{ type: 'text', text }] : undefined }] }
+  const blocks = doc.content ?? []
+  const last = blocks[blocks.length - 1]
+  const content =
+    last?.type === 'taskList'
+      ? [...blocks.slice(0, -1), { ...last, content: [...(last.content ?? []), item] }]
+      : [...blocks.filter((b, i) => !(i === blocks.length - 1 && b.type === 'paragraph' && !b.content?.length)), { type: 'taskList', content: [item] }]
+  const next = { ...doc, content }
+  return { doc: next, index: collectTasks(next).length - 1 }
+}

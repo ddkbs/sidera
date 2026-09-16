@@ -88,6 +88,8 @@ export interface CanvasApi {
   // tasks
   listTasks(opts?: { status?: 'open' | 'done' | 'all' }): Promise<Task[]>
   setTaskChecked(cardId: ID, index: number, checked: boolean): Promise<void>
+  /** Add a to-do to a card, or to today's (or the given day's) journal when no card is given. */
+  addTask(input: { text: string; cardId?: ID; date?: string }): Promise<Task>
 
   // search
   search(query: string, limit?: number): Promise<SearchHit[]>
@@ -118,7 +120,7 @@ export const API_METHODS: ApiMethod[] = [
   'listWhiteboards', 'getWhiteboard', 'createWhiteboard', 'updateWhiteboard', 'deleteWhiteboard',
   'addObject', 'updateObjects', 'removeObjects', 'restoreObjects', 'addConnection', 'updateConnection', 'removeConnections', 'organizeBoard',
   'getJournal', 'listJournal',
-  'listTasks', 'setTaskChecked',
+  'listTasks', 'setTaskChecked', 'addTask',
   'search',
   'importFiles', 'getFileUrl',
   'fetchLinkPreview', 'clipUrl',

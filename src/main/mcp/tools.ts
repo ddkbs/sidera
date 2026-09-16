@@ -588,6 +588,22 @@ export function createMcpServer(api: Services, version: string, onCall?: ToolCal
   )
 
   server.registerTool(
+    'add_task',
+    {
+      description: "Add a to-do (checkbox) to a card, or to the journal of a date (default today) when card_id is omitted. It appears in the Tasks view.",
+      inputSchema: { text: z.string().min(1), card_id: z.string().optional(), date: z.string().optional().describe('YYYY-MM-DD, only used without card_id') }
+    },
+    async ({ text, card_id, date }) => {
+      try {
+        const task = api.addTask({ text, cardId: card_id, date })
+        return ok({ card_id: task.cardId, index: task.index, journal_date: task.journalDate })
+      } catch (e) {
+        return { ...ok(String(e instanceof Error ? e.message : e)), isError: true }
+      }
+    }
+  )
+
+  server.registerTool(
     'complete_task',
     {
       description: 'Mark a to-do item done or not done (card_id + index from list_tasks).',

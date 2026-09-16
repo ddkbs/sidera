@@ -146,6 +146,11 @@ export const api = createApi({
       invalidatesTags: (_r, _e, { cardId }) => ['Task', 'CardList', { type: 'Card' as const, id: cardId }, { type: 'Journal' as const }]
     }),
 
+    addTask: b.mutation<Res<'addTask'>, Arg<'addTask'>[0]>({
+      queryFn: (input) => call('addTask', input),
+      invalidatesTags: (r) => ['Task', 'CardList', { type: 'Journal' as const }, ...(r ? [{ type: 'Card' as const, id: r.cardId }] : [])]
+    }),
+
     // search & meta
     search: b.query<Res<'search'>, string>({
       queryFn: (q) => call('search', q, 30),
@@ -201,6 +206,7 @@ export const {
   useListJournalQuery,
   useListTasksQuery,
   useSetTaskCheckedMutation,
+  useAddTaskMutation,
   useSearchQuery,
   useGetMcpInfoQuery,
   useClipUrlMutation
