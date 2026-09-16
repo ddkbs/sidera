@@ -1,10 +1,13 @@
-import { mkdirSync } from 'node:fs'
+import { mkdirSync, readdirSync, statSync } from 'node:fs'
 import { pathToFileURL } from 'node:url'
 import { copyFile, mkdir, readFile, stat, writeFile } from 'node:fs/promises'
 import { basename, dirname, extname, join } from 'node:path'
 import { app, BrowserWindow, dialog, ipcMain, net, protocol, safeStorage, shell } from 'electron'
 import { nanoid } from 'nanoid'
 import { CHAT_EVENT, DB_CHANGED, MCP_ACTIVITY, type DbChangeScope } from '@shared/api'
+import { SETTINGS_CHANGED, type SettingsPatch } from '@shared/settings'
+import { SettingsStore } from './settings'
+import { addToClaudeCode, addToClaudeDesktop, isInClaudeCode, isInClaudeDesktop, stdioLaunchSpec } from './integrations'
 import { existsSync, readFileSync, rmSync, writeFileSync as writeFileSyncFs } from 'node:fs'
 import { ChatAgent } from './ai/chat'
 import { openDatabase } from './db/client'
@@ -15,6 +18,8 @@ import { exportCards, importCards } from './services/markdown'
 import { seedWelcome } from './services/seed'
 
 const STDIO = process.argv.includes('--mcp-stdio')
+// One stable data folder for dev and packaged builds: ~/Library/Application Support/CanvasCL
+app.setName('CanvasCL')
 const dataDir = process.env.CANVASCL_DATA_DIR ?? join(app.getPath('userData'), 'data')
 const filesDir = join(dataDir, 'files')
 mkdirSync(filesDir, { recursive: true })
@@ -34,6 +39,7 @@ const emit = (scope: DbChangeScope): void => {
 
 const db = openDatabase(join(dataDir, 'canvascl.db'))
 const services = createServices(db, emit)
+const settings = new SettingsStore(dataDir)
 
 const MIME: Record<string, string> = {
   '.pdf': 'application/pdf', '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg',
@@ -65,6 +71,7 @@ async function bootstrap(): Promise<void> {
   })
 
   let mcpUrl: string | null = null
+  let mcpServer: import('node:http').Server | null = null
   registerIpc({
     ...services,
     async importFiles(paths) {
@@ -113,7 +120,8 @@ async function bootstrap(): Promise<void> {
       return { count: importCards(services, files) }
     },
     async getMcpInfo() {
-      return { running: !!mcpUrl, url: mcpUrl, stdioCommand: `"${process.execPath}" --mcp-stdio` }
+      const spec = stdioLaunchSpec(dataDir)
+      return { running: !!mcpUrl, url: mcpUrl, stdioCommand: [spec.command, ...spec.args].map((a) => `"${a}"`).join(' ') }
     }
   })
 
@@ -141,8 +149,50 @@ async function bootstrap(): Promise<void> {
     writeFileSyncFs(keyFile, safeStorage.encryptString(key.trim()))
   })
 
-  const mcp = await startHttpMcp(services, app.getVersion(), reportActivity)
-  mcpUrl = mcp?.url ?? null
+  const restartMcp = async (): Promise<void> => {
+    await new Promise<void>((r) => (mcpServer ? mcpServer.close(() => r()) : r()))
+    mcpServer = null
+    mcpUrl = null
+    const { httpEnabled, port } = settings.get().mcp
+    if (!httpEnabled) return
+    const started = await startHttpMcp(services, app.getVersion(), reportActivity, port)
+    mcpServer = started?.server ?? null
+    mcpUrl = started?.url ?? null
+  }
+  await restartMcp()
+
+  ipcMain.handle('app:getSettings', () => settings.get())
+  ipcMain.handle('app:setSettings', async (_e, patch: SettingsPatch) => {
+    const before = settings.get().mcp
+    const next = settings.set(patch)
+    if (before.httpEnabled !== next.mcp.httpEnabled || before.port !== next.mcp.port) await restartMcp()
+    win?.webContents.send(SETTINGS_CHANGED, next)
+    return next
+  })
+  ipcMain.handle('app:getDataInfo', () => {
+    const dbPath = join(dataDir, 'canvascl.db')
+    const size = (p: string): number => (existsSync(p) ? statSync(p).size : 0)
+    return {
+      dataDir,
+      dbPath,
+      filesDir,
+      dbBytes: size(dbPath) + size(dbPath + '-wal'),
+      fileCount: readdirSync(filesDir).length,
+      version: app.getVersion()
+    }
+  })
+  ipcMain.handle('app:revealDataDir', () => shell.openPath(dataDir))
+  ipcMain.handle('app:getMcpConnections', async () => ({
+    desktop: isInClaudeDesktop(),
+    code: await isInClaudeCode(),
+    httpUrl: mcpUrl,
+    stdio: stdioLaunchSpec(dataDir)
+  }))
+  ipcMain.handle('app:connectClaude', async (_e, target: 'desktop' | 'code') => {
+    if (target === 'desktop') return addToClaudeDesktop(stdioLaunchSpec(dataDir))
+    if (!mcpUrl) return { ok: false, message: 'Enable the HTTP MCP server first (Settings → MCP).' }
+    return addToClaudeCode(mcpUrl)
+  })
 
   // Detect writes from other processes (e.g. `--mcp-stdio` instances) and refresh the UI
   let dataVersion = db.$client.pragma('data_version', { simple: true })

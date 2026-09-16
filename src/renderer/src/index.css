@@ -72,7 +72,7 @@
 }
 
 @theme inline {
-  --font-sans: 'Geist Variable', ui-sans-serif, system-ui, sans-serif;
+  --font-sans: var(--app-font, 'Jost Variable'), 'Futura', ui-sans-serif, system-ui, sans-serif;
   --font-mono: 'Geist Mono Variable', ui-monospace, monospace;
   --color-background: var(--background);
   --color-foreground: var(--foreground);
@@ -117,7 +117,8 @@
   }
   body {
     @apply bg-background text-foreground antialiased;
-    font-feature-settings: 'ss01', 'cv11';
+    font-size: var(--app-font-size, 15px);
+    letter-spacing: 0.005em;
     -webkit-font-smoothing: antialiased;
   }
 }

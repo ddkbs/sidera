@@ -28,7 +28,7 @@ export function JournalView() {
         <div className="mx-auto max-w-2xl px-10 py-12">
           <div className="mb-6 flex items-center gap-2">
             <div className="min-w-0 flex-1">
-              <p className="text-xs font-medium tracking-wide text-muted-foreground uppercase">{date === today ? 'Today' : 'Journal'}</p>
+              <p className="text-xs font-medium text-muted-foreground">{date === today ? 'Today' : 'Journal'}</p>
               <h1 className="text-2xl font-semibold tracking-tight">{pretty(date)}</h1>
             </div>
             <Button variant="ghost" size="icon" onClick={() => setDate(shift(date, -1))} aria-label="Previous day">

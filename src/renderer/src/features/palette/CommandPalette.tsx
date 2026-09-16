@@ -1,15 +1,17 @@
 import { BookOpen, CalendarDays, Download, FileText, Home, LayoutDashboard, Moon, PanelLeft, Plus, Sparkles, Upload } from '@/components/icons'
 import { toast } from 'sonner'
 import { api } from '@/store/api'
+import { updateSettings } from '@/store/settings'
 import { useEffect, useState } from 'react'
 import { CommandDialog, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList, CommandSeparator, CommandShortcut } from '@/components/ui/command'
 import { useAppDispatch, useAppSelector } from '@/store'
 import { useCreateCardMutation, useCreateWhiteboardMutation, useSearchQuery } from '@/store/api'
-import { navigate, openCard, setMcpDialogOpen, setPaletteOpen, toggleSidebar, toggleTheme } from '@/store/ui'
+import { navigate, openCard, openSettings, setPaletteOpen, toggleSidebar } from '@/store/ui'
 
 export function CommandPalette() {
   const dispatch = useAppDispatch()
   const open = useAppSelector((s) => s.ui.paletteOpen)
+  const theme = useAppSelector((s) => s.ui.theme)
   const [q, setQ] = useState('')
   const [debounced, setDebounced] = useState('')
   const { data: hits = [] } = useSearchQuery(debounced, { skip: !open })
@@ -87,7 +89,7 @@ export function CommandPalette() {
               <CommandItem value="sidebar" onSelect={run(() => dispatch(toggleSidebar()))}>
                 <PanelLeft /> Toggle sidebar <CommandShortcut>⌘\</CommandShortcut>
               </CommandItem>
-              <CommandItem value="theme" onSelect={run(() => dispatch(toggleTheme()))}>
+              <CommandItem value="theme" onSelect={run(() => dispatch(updateSettings({ theme: theme === 'dark' ? 'light' : 'dark' })))}>
                 <Moon /> Toggle dark mode
               </CommandItem>
               <CommandItem
@@ -111,7 +113,7 @@ export function CommandPalette() {
               >
                 <Upload /> Import Markdown files
               </CommandItem>
-              <CommandItem value="mcp" onSelect={run(() => dispatch(setMcpDialogOpen(true)))}>
+              <CommandItem value="mcp" onSelect={run(() => dispatch(openSettings('mcp')))}>
                 <Sparkles /> Connect AI via MCP
               </CommandItem>
             </>

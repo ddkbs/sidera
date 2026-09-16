@@ -4,10 +4,8 @@ import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/
 import type { Services } from '../services'
 import { createMcpServer, type ToolCallListener } from './tools'
 
-export const MCP_PORT = Number(process.env.CANVASCL_MCP_PORT ?? 3845)
-
 /** Stateless Streamable-HTTP MCP endpoint bound to localhost only. */
-export function startHttpMcp(api: Services, version: string, onCall?: ToolCallListener): Promise<{ url: string; server: Server } | null> {
+export function startHttpMcp(api: Services, version: string, onCall?: ToolCallListener, port = Number(process.env.CANVASCL_MCP_PORT ?? 3845)): Promise<{ url: string; server: Server } | null> {
   const http = createServer(async (req, res) => {
     if (!req.url?.startsWith('/mcp')) {
       res.writeHead(404).end()
@@ -46,7 +44,7 @@ export function startHttpMcp(api: Services, version: string, onCall?: ToolCallLi
   })
   return new Promise((resolve) => {
     http.once('error', () => resolve(null))
-    http.listen(MCP_PORT, '127.0.0.1', () => resolve({ url: `http://127.0.0.1:${MCP_PORT}/mcp`, server: http }))
+    http.listen(port, '127.0.0.1', () => resolve({ url: `http://127.0.0.1:${(http.address() as { port: number }).port}/mcp`, server: http }))
   })
 }
 

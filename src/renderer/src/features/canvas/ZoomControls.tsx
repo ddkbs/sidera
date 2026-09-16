@@ -3,11 +3,12 @@ import { Map as MapIcon, Maximize, Minus, Plus } from '@/components/icons'
 import { useState } from 'react'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { cn } from '@/lib/utils'
+import { useAppSelector } from '@/store'
 
 export function ZoomControls() {
   const rf = useReactFlow()
   const { zoom } = useViewport()
-  const [showMap, setShowMap] = useState(true)
+  const [showMap, setShowMap] = useState(useAppSelector((s) => s.settings.canvas.showMinimap))
   const btn = 'grid size-8 place-items-center rounded-lg text-muted-foreground transition hover:bg-accent hover:text-foreground'
   return (
     <div className="absolute right-3 bottom-3 z-10 flex flex-col items-end gap-2">

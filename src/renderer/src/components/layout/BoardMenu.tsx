@@ -1,4 +1,4 @@
-import { LayoutDashboard, Pencil, Trash2 } from '@/components/icons'
+import { LayoutDashboard, Pencil, Plus, Trash2 } from '@/components/icons'
 import { useState, type ReactElement } from 'react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
@@ -7,7 +7,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Input } from '@/components/ui/input'
 import { useAppDispatch, useAppSelector } from '@/store'
 import { useCreateWhiteboardMutation, useDeleteWhiteboardMutation, useUpdateWhiteboardMutation } from '@/store/api'
-import { navigate } from '@/store/ui'
+import { navigate, openTab } from '@/store/ui'
 import type { Whiteboard } from '@shared/types'
 
 export function BoardMenu({ board, children }: { board: Whiteboard; children: ReactElement }) {
@@ -24,6 +24,9 @@ export function BoardMenu({ board, children }: { board: Whiteboard; children: Re
       <ContextMenu>
         <ContextMenuTrigger asChild>{children}</ContextMenuTrigger>
         <ContextMenuContent className="w-52">
+          <ContextMenuItem onSelect={() => dispatch(openTab({ type: 'whiteboard', id: board.id }))}>
+            <Plus /> Open in new tab
+          </ContextMenuItem>
           <ContextMenuItem onSelect={() => (setName(board.name), setDialog('rename'))}>
             <Pencil /> Rename
           </ContextMenuItem>

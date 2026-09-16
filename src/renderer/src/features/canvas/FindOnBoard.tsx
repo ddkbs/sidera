@@ -1,6 +1,7 @@
 import { useReactFlow } from '@xyflow/react'
 import { BoxSelect, FileText, LayoutDashboard, Network, PenTool, Type, Workflow, File } from '@/components/icons'
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
+import { useCommands } from '@/lib/shortcuts'
 import { CommandDialog, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command'
 import type { ObjectNode } from './types'
 
@@ -28,16 +29,7 @@ const label = (n: ObjectNode): string => {
 export function FindOnBoard() {
   const rf = useReactFlow<ObjectNode>()
   const [open, setOpen] = useState(false)
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.metaKey && e.key.toLowerCase() === 'f') {
-        e.preventDefault()
-        setOpen(true)
-      }
-    }
-    window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
-  }, [])
+  useCommands({ 'canvas.find': () => setOpen(true) })
 
   const nodes = open ? rf.getNodes() : []
   return (

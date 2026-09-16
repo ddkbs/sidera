@@ -11,7 +11,7 @@ import {
   IconArrowRightUp,
   IconArrowUp,
   IconArticle,
-  IconBoard,
+  IconPresentation,
   IconBookOpen,
   IconCalendarDates,
   IconCards,
@@ -132,7 +132,7 @@ export const Heading2 = heading(2)
 export const Heading3 = heading(3)
 export const Home = IconHome
 export const KeyRound = IconKey
-export const LayoutDashboard = IconBoard
+export const LayoutDashboard = IconPresentation
 export const Library = IconCards
 export const Link2 = IconLink
 export const List = IconUnorderedList

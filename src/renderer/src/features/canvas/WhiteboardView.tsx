@@ -47,6 +47,7 @@ import { EDIT_SKETCH_EVENT } from './nodes/SketchNode'
 const SketchEditor = lazy(() => import('./SketchEditor'))
 import { persist, type ConnectionEdge, type ObjectNode } from './types'
 import { ZoomControls } from './ZoomControls'
+import { useCommands } from '@/lib/shortcuts'
 import './canvas.css'
 
 export function WhiteboardView({ id }: { id: string }) {
@@ -103,6 +104,7 @@ function Canvas({ detail }: { detail: WhiteboardDetail }) {
   const boardId = detail.whiteboard.id
   const dispatch = useAppDispatch()
   const tool = useAppSelector((s) => s.ui.tool)
+  const snapToGrid = useAppSelector((s) => s.settings.canvas.snapToGrid)
   const rf = useReactFlow<ObjectNode, ConnectionEdge>()
   const [nodes, setNodes] = useState<ObjectNode[]>(() => toNodes(detail))
   const [edges, setEdges] = useState<ConnectionEdge[]>(() => toEdges(detail))
@@ -236,18 +238,6 @@ function Canvas({ detail }: { detail: WhiteboardDetail }) {
     [dispatch, boardId]
   )
 
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      const el = e.target as HTMLElement
-      if (!e.metaKey || e.key.toLowerCase() !== 'z' || el.isContentEditable || /INPUT|TEXTAREA|SELECT/.test(el.tagName)) return
-      e.preventDefault()
-      const op = e.shiftKey ? history.current.redo() : history.current.undo()
-      if (op) void applyOp(e.shiftKey ? op : invert(op))
-    }
-    window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
-  }, [applyOp])
-
   // copy / paste / duplicate selected objects (cards are referenced, not cloned)
   const clipboard = useRef<{ objects: ObjectNode['data']['object'][] } | null>(null)
   const pasteObjects = useCallback(
@@ -272,45 +262,45 @@ function Canvas({ detail }: { detail: WhiteboardDetail }) {
     [addObject, boardId]
   )
 
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      const el = e.target as HTMLElement
-      if (!e.metaKey || el.isContentEditable || /INPUT|TEXTAREA|SELECT/.test(el.tagName)) return
-      const selected = rf.getNodes().filter((n) => n.selected).map((n) => ({ ...n.data.object, x: n.position.x, y: n.position.y }))
-      const key = e.key.toLowerCase()
-      if (key === 'c' && selected.length) clipboard.current = { objects: selected }
-      else if (key === 'd' && selected.length) {
-        e.preventDefault()
-        void pasteObjects(selected, { x: 40, y: 40 })
-      } else if (key === 'v' && clipboard.current) {
-        e.preventDefault()
-        const objs = clipboard.current.objects
-        const c = center()
-        const minX = Math.min(...objs.map((o) => o.x))
-        const minY = Math.min(...objs.map((o) => o.y))
-        void pasteObjects(objs, { x: c.x - minX - 100, y: c.y - minY - 100 })
-      } else if (key === 'a') {
-        e.preventDefault()
-        setNodes((ns) => ns.map((n) => ({ ...n, selected: true })))
-      }
-    }
-    window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
-  }, [rf, pasteObjects, center])
+  const selectedObjects = () => rf.getNodes().filter((n) => n.selected).map((n) => ({ ...n.data.object, x: n.position.x, y: n.position.y }))
 
-  // keyboard shortcuts for tools
+  useCommands({
+    'canvas.undo': () => {
+      const op = history.current.undo()
+      if (op) void applyOp(invert(op))
+    },
+    'canvas.redo': () => {
+      const op = history.current.redo()
+      if (op) void applyOp(op)
+    },
+    'canvas.copy': () => {
+      const selected = selectedObjects()
+      if (!selected.length) return false
+      clipboard.current = { objects: selected }
+    },
+    'canvas.duplicate': () => {
+      const selected = selectedObjects()
+      if (selected.length) void pasteObjects(selected, { x: 40, y: 40 })
+    },
+    'canvas.paste': () => {
+      if (!clipboard.current) return false
+      const objs = clipboard.current.objects
+      const c = center()
+      const minX = Math.min(...objs.map((o) => o.x))
+      const minY = Math.min(...objs.map((o) => o.y))
+      void pasteObjects(objs, { x: c.x - minX - 100, y: c.y - minY - 100 })
+    },
+    'canvas.selectAll': () => setNodes((ns) => ns.map((n) => ({ ...n, selected: true }))),
+    'canvas.fit': () => void rf.fitView({ duration: 300, padding: 0.15 }),
+    ...Object.fromEntries(TOOLS.map((tool) => [`tool.${tool.id}`, () => void changeTool(tool.id)]))
+  })
+
+  // Esc always returns to the select tool
   useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      const el = e.target as HTMLElement
-      if (e.metaKey || e.ctrlKey || e.altKey || el.isContentEditable || /INPUT|TEXTAREA|SELECT/.test(el.tagName)) return
-      if (e.key === 'Escape') return void dispatch(setTool('select'))
-      if (e.shiftKey && e.key === '!') return void rf.fitView({ duration: 300, padding: 0.15 })
-      const t = TOOLS.find((x) => x.key.toLowerCase() === e.key.toLowerCase())
-      if (t) void changeTool(t.id)
-    }
+    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && dispatch(setTool('select'))
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [changeTool, dispatch, rf])
+  }, [dispatch])
 
   const onNodesChange = useCallback((changes: NodeChange<ObjectNode>[]) => {
     setNodes((ns) => applyNodeChanges(changes, ns))
@@ -543,6 +533,8 @@ function Canvas({ detail }: { detail: WhiteboardDetail }) {
         fitView={!hasViewport && nodes.length > 0}
         fitViewOptions={{ padding: 0.2, maxZoom: 1 }}
         connectionMode={ConnectionMode.Loose}
+        snapToGrid={snapToGrid}
+        snapGrid={[22, 22]}
         nodesDraggable={tool !== 'connector'}
         panOnScroll
         zoomOnDoubleClick={false}

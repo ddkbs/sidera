@@ -16,20 +16,21 @@ import {
 } from '@/components/icons'
 import { motion } from 'motion/react'
 import type { ReactNode } from 'react'
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuShortcut, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { Kbd } from '@/components/ui/kbd'
+import { formatBinding, useBinding } from '@/lib/shortcuts'
 import type { CanvasTool } from '@/store/ui'
 
-export const TOOLS: { id: CanvasTool; label: string; icon: ReactNode; key: string }[] = [
-  { id: 'select', label: 'Select', icon: <MousePointer2 />, key: 'V' },
-  { id: 'card', label: 'Card', icon: <SquarePlus />, key: 'C' },
-  { id: 'import', label: 'Import file', icon: <Upload />, key: 'U' },
-  { id: 'connector', label: 'Connector', icon: <ArrowUpRight />, key: 'A' },
-  { id: 'text', label: 'Text', icon: <Type />, key: 'T' },
-  { id: 'section', label: 'Section', icon: <BoxSelect />, key: 'S' },
-  { id: 'search', label: 'Add existing card', icon: <Search />, key: 'F' }
+export const TOOLS: { id: CanvasTool; label: string; icon: ReactNode }[] = [
+  { id: 'select', label: 'Select', icon: <MousePointer2 /> },
+  { id: 'card', label: 'Card', icon: <SquarePlus /> },
+  { id: 'import', label: 'Import file', icon: <Upload /> },
+  { id: 'connector', label: 'Connector', icon: <ArrowUpRight /> },
+  { id: 'text', label: 'Text', icon: <Type /> },
+  { id: 'section', label: 'Section', icon: <BoxSelect /> },
+  { id: 'search', label: 'Add existing card', icon: <Search /> }
 ]
 
 export type OverflowAction = 'whiteboard' | 'mindmap' | 'mermaid' | 'sketch' | 'autolayout' | 'fit'
@@ -68,7 +69,7 @@ export function CanvasToolbar({ tool, onTool, onAction }: Props) {
               </ToggleGroupItem>
             </TooltipTrigger>
             <TooltipContent side="right" className="flex items-center gap-2">
-              {t.label} <Kbd>{t.key}</Kbd>
+              {t.label} <ToolKey id={t.id} />
             </TooltipContent>
           </Tooltip>
         ))}
@@ -101,10 +102,15 @@ export function CanvasToolbar({ tool, onTool, onAction }: Props) {
             <GitBranch /> Auto-layout connected
           </DropdownMenuItem>
           <DropdownMenuItem onClick={() => onAction('fit')}>
-            <Maximize /> Fit to screen <DropdownMenuShortcut>⇧1</DropdownMenuShortcut>
+            <Maximize /> Fit to screen
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
     </motion.div>
   )
+}
+
+function ToolKey({ id }: { id: CanvasTool }) {
+  const binding = useBinding(`tool.${id}`)
+  return binding ? <Kbd>{formatBinding(binding)}</Kbd> : null
 }

@@ -7,6 +7,7 @@ import StarterKit from '@tiptap/starter-kit'
 import { useEffect, useRef } from 'react'
 import type { DocJSON } from '@shared/types'
 import { cn } from '@/lib/utils'
+import { useAppSelector } from '@/store'
 import { CardMention, handleMentionClick } from './mention'
 import { SlashCommand } from './slash'
 import './editor.css'
@@ -22,6 +23,7 @@ interface Props {
 
 /** Rich text editor for card content. Uncontrolled after mount — remount (key) to load a different card. */
 export function CardEditor({ content, onChange, placeholder = "Write, type '/' for commands or '@' to link a card…", className, autofocus, editable = true }: Props) {
+  const spellcheck = useAppSelector((s) => s.settings.editor.spellcheck)
   const timer = useRef<ReturnType<typeof setTimeout>>(undefined)
   const latest = useRef(onChange)
   latest.current = onChange
@@ -40,7 +42,7 @@ export function CardEditor({ content, onChange, placeholder = "Write, type '/' f
     content,
     editable,
     autofocus: autofocus ? 'end' : false,
-    editorProps: { attributes: { class: 'prose-canvas focus:outline-none' } },
+    editorProps: { attributes: { class: 'prose-canvas focus:outline-none', spellcheck: String(spellcheck) } },
     onUpdate: ({ editor }) => {
       pending.current = editor.getJSON() as DocJSON
       clearTimeout(timer.current)

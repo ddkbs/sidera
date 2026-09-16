@@ -1,4 +1,4 @@
-import type { CanvasApi, ChatBridge, DbChangeScope, McpActivity } from '../shared/api'
+import type { AppBridge, CanvasApi, ChatBridge, DbChangeScope, McpActivity } from '../shared/api'
 
 declare global {
   interface Window {
@@ -9,6 +9,7 @@ declare global {
     }
     platform: string
     chat: ChatBridge
+    app: AppBridge
     files: { pathFor(file: File): string }
   }
 }

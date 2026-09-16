@@ -1,15 +1,16 @@
 import { AnimatePresence, motion } from 'motion/react'
-import { useEffect } from 'react'
 import { CardPanel } from '@/features/card/CardPanel'
 import { WhiteboardView } from '@/features/canvas/WhiteboardView'
 import { HomeView } from '@/features/home/HomeView'
 import { JournalView } from '@/features/journal/JournalView'
 import { LibraryView } from '@/features/library/LibraryView'
 import { CommandPalette } from '@/features/palette/CommandPalette'
-import { McpDialog } from '@/features/mcp/McpDialog'
 import { ShortcutsDialog } from '@/features/help/ShortcutsDialog'
 import { store, useAppDispatch, useAppSelector } from '@/store'
-import { back, setChatOpen, setPaletteOpen, toggleSidebar } from '@/store/ui'
+import { back, closeTab, cycleTab, forward, navigate, openSettings, openTab, setChatOpen, setPaletteOpen, toggleSidebar } from '@/store/ui'
+import { useCommands } from '@/lib/shortcuts'
+import { SettingsDialog } from '@/features/settings/SettingsDialog'
+import { TabBar } from './TabBar'
 import { ChatPanel } from '@/features/chat/ChatPanel'
 import { ErrorBoundary } from '@/components/ErrorBoundary'
 import { Sidebar } from './Sidebar'
@@ -19,26 +20,19 @@ export function AppShell() {
   const dispatch = useAppDispatch()
   const { sidebarOpen, view, openCardId, chatOpen } = useAppSelector((s) => s.ui)
 
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (!e.metaKey) return
-      if (e.key === 'k') {
-        e.preventDefault()
-        dispatch(setPaletteOpen(true))
-      } else if (e.key === '\\') {
-        e.preventDefault()
-        dispatch(toggleSidebar())
-      } else if (e.key === 'j') {
-        e.preventDefault()
-        dispatch(setChatOpen(!store.getState().ui.chatOpen))
-      } else if (e.key === '[') {
-        e.preventDefault()
-        dispatch(back())
-      }
-    }
-    window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
-  }, [dispatch])
+  useCommands({
+    'palette.open': () => dispatch(setPaletteOpen(true)),
+    'settings.open': () => dispatch(openSettings(undefined)),
+    'sidebar.toggle': () => dispatch(toggleSidebar()),
+    'chat.toggle': () => dispatch(setChatOpen(!store.getState().ui.chatOpen)),
+    'nav.back': () => dispatch(back()),
+    'nav.forward': () => dispatch(forward()),
+    'nav.journal': () => dispatch(navigate({ type: 'journal' })),
+    'tab.new': () => dispatch(openTab(undefined)),
+    'tab.close': () => dispatch(closeTab(undefined)),
+    'tab.next': () => dispatch(cycleTab(1)),
+    'tab.prev': () => dispatch(cycleTab(-1))
+  })
 
   return (
     <div className="flex h-full w-full bg-sidebar">
@@ -57,6 +51,7 @@ export function AppShell() {
         )}
       </AnimatePresence>
       <main className="flex min-w-0 flex-1 flex-col overflow-hidden bg-background">
+        <TabBar />
         <TopBar />
         <div className="relative flex min-h-0 flex-1">
           <div className="relative min-w-0 flex-1">
@@ -72,8 +67,8 @@ export function AppShell() {
         </div>
       </main>
       <CommandPalette />
-      <McpDialog />
       <ShortcutsDialog />
+      <SettingsDialog />
     </div>
   )
 }

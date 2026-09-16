@@ -1,5 +1,6 @@
 import { contextBridge, ipcRenderer, webUtils } from 'electron'
-import { API_METHODS, CHAT_EVENT, DB_CHANGED, MCP_ACTIVITY, type ChatBridge, type ChatEvent, type CanvasApi, type DbChangeScope, type McpActivity } from '@shared/api'
+import { SETTINGS_CHANGED, type AppSettings } from '@shared/settings'
+import { API_METHODS, CHAT_EVENT, type AppBridge, DB_CHANGED, MCP_ACTIVITY, type ChatBridge, type ChatEvent, type CanvasApi, type DbChangeScope, type McpActivity } from '@shared/api'
 
 const api = Object.fromEntries(
   API_METHODS.map((name) => [name, (...args: unknown[]) => ipcRenderer.invoke(`api:${name}`, ...args)])
@@ -31,7 +32,22 @@ const chat: ChatBridge = {
   }
 }
 
+const appBridge: AppBridge = {
+  getSettings: () => ipcRenderer.invoke('app:getSettings'),
+  setSettings: (patch) => ipcRenderer.invoke('app:setSettings', patch),
+  onSettingsChanged(cb) {
+    const listener = (_: unknown, s: AppSettings): void => cb(s)
+    ipcRenderer.on(SETTINGS_CHANGED, listener)
+    return () => ipcRenderer.removeListener(SETTINGS_CHANGED, listener)
+  },
+  getDataInfo: () => ipcRenderer.invoke('app:getDataInfo'),
+  revealDataDir: () => ipcRenderer.invoke('app:revealDataDir'),
+  getMcpConnections: () => ipcRenderer.invoke('app:getMcpConnections'),
+  connectClaude: (target) => ipcRenderer.invoke('app:connectClaude', target)
+}
+
 contextBridge.exposeInMainWorld('api', api)
+contextBridge.exposeInMainWorld('app', appBridge)
 contextBridge.exposeInMainWorld('chat', chat)
 contextBridge.exposeInMainWorld('events', events)
 contextBridge.exposeInMainWorld('platform', process.platform)

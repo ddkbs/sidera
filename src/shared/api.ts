@@ -1,3 +1,4 @@
+import type { AppSettings, SettingsPatch } from './settings'
 import type {
   Card,
   CardDetail,
@@ -137,4 +138,32 @@ export interface ChatBridge {
   hasKey(): Promise<boolean>
   setKey(key: string | null): Promise<void>
   onEvent(cb: (e: ChatEvent) => void): () => void
+}
+
+export interface DataInfo {
+  dataDir: string
+  dbPath: string
+  filesDir: string
+  dbBytes: number
+  fileCount: number
+  version: string
+}
+
+export interface McpConnections {
+  desktop: boolean
+  /** null = Claude Code CLI not installed */
+  code: boolean | null
+  httpUrl: string | null
+  stdio: { command: string; args: string[]; env: Record<string, string> }
+}
+
+/** App-level bridge: settings, data location, integrations. */
+export interface AppBridge {
+  getSettings(): Promise<AppSettings>
+  setSettings(patch: SettingsPatch): Promise<AppSettings>
+  onSettingsChanged(cb: (s: AppSettings) => void): () => void
+  getDataInfo(): Promise<DataInfo>
+  revealDataDir(): Promise<void>
+  getMcpConnections(): Promise<McpConnections>
+  connectClaude(target: 'desktop' | 'code'): Promise<{ ok: boolean; message: string }>
 }

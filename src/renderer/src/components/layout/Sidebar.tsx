@@ -1,4 +1,4 @@
-import { BookOpen, CalendarDays, ChevronRight, Hash, Home, LayoutDashboard, Plus, Search } from '@/components/icons'
+import { BookOpen, CalendarDays, ChevronRight, Hash, Home, LayoutDashboard, PanelLeft, Plus, Search } from '@/components/icons'
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { Orb } from '@/components/Orb'
 import { BoardMenu } from './BoardMenu'
@@ -11,7 +11,7 @@ import { color } from '@/lib/colors'
 import { cn } from '@/lib/utils'
 import { useAppDispatch, useAppSelector } from '@/store'
 import { useCreateWhiteboardMutation, useGetMcpInfoQuery, useListTagsQuery, useListWhiteboardsQuery } from '@/store/api'
-import { navigate, setMcpDialogOpen, setPaletteOpen, type View } from '@/store/ui'
+import { navigate, openSettings, openTab, setPaletteOpen, toggleSidebar, type View } from '@/store/ui'
 import type { Whiteboard } from '@shared/types'
 
 export function Sidebar() {
@@ -41,7 +41,8 @@ export function Sidebar() {
     return byParent
   }, [boards])
 
-  const go = (v: View) => dispatch(navigate(v))
+  /** ⌘-click opens in a new tab, like a browser */
+  const go = (v: View, e?: { metaKey: boolean }) => dispatch(e?.metaKey ? openTab(v) : navigate(v))
   const newBoard = async () => {
     const res = await createWhiteboard({ name: 'Untitled whiteboard' })
     if ('data' in res && res.data) go({ type: 'whiteboard', id: res.data.id })
@@ -50,7 +51,15 @@ export function Sidebar() {
 
   return (
     <div className="flex h-full w-64 flex-col border-r border-sidebar-border text-sidebar-foreground">
-      <div className="drag-region h-12 shrink-0" />
+      <div className="drag-region flex h-10 shrink-0 items-center justify-end px-2">
+        <button
+          onClick={() => dispatch(toggleSidebar())}
+          className="no-drag grid size-7 place-items-center rounded-md text-muted-foreground transition hover:bg-sidebar-accent hover:text-foreground"
+          aria-label="Hide sidebar"
+        >
+          <PanelLeft className="size-4" />
+        </button>
+      </div>
       <div className="px-2 pb-2">
         <button
           onClick={() => dispatch(setPaletteOpen(true))}
@@ -63,16 +72,16 @@ export function Sidebar() {
       </div>
       <ScrollArea className="min-h-0 flex-1">
         <nav className="flex flex-col gap-0.5 px-2 text-sm">
-          <NavItem icon={<Home className="size-4" />} active={view.type === 'home'} onClick={() => go({ type: 'home' })}>
+          <NavItem icon={<Home className="size-4" />} active={view.type === 'home'} onClick={(e) => go({ type: 'home' }, e)}>
             Home
           </NavItem>
-          <NavItem icon={<CalendarDays className="size-4" />} active={view.type === 'journal'} onClick={() => go({ type: 'journal' })}>
+          <NavItem icon={<CalendarDays className="size-4" />} active={view.type === 'journal'} onClick={(e) => go({ type: 'journal' }, e)}>
             Journal
           </NavItem>
           <NavItem
             icon={<BookOpen className="size-4" />}
             active={view.type === 'library' && !view.tagId}
-            onClick={() => go({ type: 'library', tagId: null, mode: 'table' })}
+            onClick={(e) => go({ type: 'library', tagId: null, mode: 'table' }, e)}
           >
             Card Library
           </NavItem>
@@ -89,7 +98,7 @@ export function Sidebar() {
               <NavItem
                 icon={<Hash className="size-3.5" style={{ color: color(t.color).fg }} />}
                 active={view.type === 'library' && view.tagId === t.id}
-                onClick={() => go({ type: 'library', tagId: t.id, mode: view.type === 'library' ? view.mode : 'table' })}
+                onClick={(e) => go({ type: 'library', tagId: t.id, mode: view.type === 'library' ? view.mode : 'table' }, e)}
               >
                 {t.name}
               </NavItem>
@@ -100,7 +109,7 @@ export function Sidebar() {
       </ScrollArea>
       <div className="border-t border-sidebar-border p-2">
         <button
-          onClick={() => dispatch(setMcpDialogOpen(true))}
+          onClick={() => dispatch(openSettings('mcp'))}
           className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-xs text-muted-foreground transition hover:bg-sidebar-accent hover:text-foreground"
         >
           <Orb online={!!mcp?.running} active={agentBusy} />
@@ -130,7 +139,7 @@ function BoardItem({ board, tree, depth }: { board: Whiteboard; tree: Map<string
           className="flex-1"
           icon={<LayoutDashboard className="size-4" />}
           active={view.type === 'whiteboard' && view.id === board.id}
-          onClick={() => dispatch(navigate({ type: 'whiteboard', id: board.id }))}
+          onClick={(e) => dispatch(e.metaKey ? openTab({ type: 'whiteboard', id: board.id }) : navigate({ type: 'whiteboard', id: board.id }))}
         >
           {board.name}
         </NavItem>
@@ -141,7 +150,7 @@ function BoardItem({ board, tree, depth }: { board: Whiteboard; tree: Map<string
   )
 }
 
-function NavItem(props: { icon: ReactNode; active?: boolean; onClick: () => void; children: ReactNode; className?: string }) {
+function NavItem(props: { icon: ReactNode; active?: boolean; onClick: (e: React.MouseEvent) => void; children: ReactNode; className?: string }) {
   return (
     <button
       onClick={props.onClick}
@@ -159,7 +168,7 @@ function NavItem(props: { icon: ReactNode; active?: boolean; onClick: () => void
 
 function SectionHeader({ children, action }: { children: ReactNode; action?: ReactNode }) {
   return (
-    <div className="mt-4 mb-1 flex items-center justify-between px-2 text-[11px] font-medium tracking-wide text-muted-foreground uppercase">
+    <div className="mt-4 mb-1 flex items-center justify-between px-2 text-xs font-medium text-muted-foreground">
       {children}
       {action}
     </div>

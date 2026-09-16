@@ -1,28 +1,23 @@
-import { AskAI, BookOpen, CalendarDays, ChevronRight, Home, LayoutDashboard, Moon, PanelLeft, Sun } from '@/components/icons'
+import { AskAI, BookOpen, CalendarDays, ChevronRight, Home, LayoutDashboard, Moon, Settings, Sun } from '@/components/icons'
 import { Fragment, useEffect, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { cn } from '@/lib/utils'
 import { useAppDispatch, useAppSelector } from '@/store'
 import { useGetWhiteboardQuery, useListTagsQuery, useUpdateWhiteboardMutation } from '@/store/api'
-import { navigate, setChatOpen, toggleSidebar, toggleTheme } from '@/store/ui'
+import { navigate, openSettings, setChatOpen } from '@/store/ui'
+import { updateSettings } from '@/store/settings'
+import { formatBinding, useBinding } from '@/lib/shortcuts'
 
 export function TopBar() {
   const dispatch = useAppDispatch()
-  const { sidebarOpen, view, theme, chatOpen } = useAppSelector((s) => s.ui)
+  const { view, theme, chatOpen } = useAppSelector((s) => s.ui)
+  const chatKey = formatBinding(useBinding('chat.toggle'))
+  const settingsKey = formatBinding(useBinding('settings.open'))
 
   return (
-    <header className={cn('drag-region flex h-12 shrink-0 items-center gap-1 border-b px-2', !sidebarOpen && 'pl-20')}>
-      <Tooltip>
-        <TooltipTrigger asChild>
-          <Button variant="ghost" size="icon" className="no-drag size-8" onClick={() => dispatch(toggleSidebar())}>
-            <PanelLeft className="size-4" />
-          </Button>
-        </TooltipTrigger>
-        <TooltipContent>Toggle sidebar ⌘\</TooltipContent>
-      </Tooltip>
-      <div className="mx-1 h-4 w-px bg-border" />
-      <nav className="no-drag flex min-w-0 items-center gap-0.5 text-sm">
+    <header className="flex h-11 shrink-0 items-center gap-1 border-b px-3">
+      <nav className="flex min-w-0 items-center gap-0.5 text-sm">
         {view.type === 'whiteboard' && <WhiteboardCrumbs id={view.id} />}
         {view.type === 'library' && <LibraryCrumbs tagId={view.tagId} />}
         {view.type === 'journal' && <Crumb icon={<CalendarDays className="size-3.5" />} current>Journal</Crumb>}
@@ -31,15 +26,29 @@ export function TopBar() {
       <div className="flex-1" />
       <Tooltip>
         <TooltipTrigger asChild>
-          <Button variant={chatOpen ? 'secondary' : 'ghost'} size="sm" className="no-drag h-8 gap-1.5" onClick={() => dispatch(setChatOpen(!chatOpen))}>
+          <Button variant={chatOpen ? 'secondary' : 'ghost'} size="sm" className="h-8 gap-1.5" onClick={() => dispatch(setChatOpen(!chatOpen))}>
             <AskAI className="size-4" /> Ask AI
           </Button>
         </TooltipTrigger>
-        <TooltipContent>Assistant ⌘J</TooltipContent>
+        <TooltipContent>Assistant {chatKey}</TooltipContent>
       </Tooltip>
-      <Button variant="ghost" size="icon" className="no-drag size-8" onClick={() => dispatch(toggleTheme())} aria-label="Toggle theme">
+      <Button
+        variant="ghost"
+        size="icon"
+        className="size-8"
+        onClick={() => dispatch(updateSettings({ theme: theme === 'dark' ? 'light' : 'dark' }))}
+        aria-label="Toggle theme"
+      >
         {theme === 'dark' ? <Sun className="size-4" /> : <Moon className="size-4" />}
       </Button>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <Button variant="ghost" size="icon" className="size-8" onClick={() => dispatch(openSettings(undefined))} aria-label="Settings">
+            <Settings className="size-4" />
+          </Button>
+        </TooltipTrigger>
+        <TooltipContent>Settings {settingsKey}</TooltipContent>
+      </Tooltip>
     </header>
   )
 }

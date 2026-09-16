@@ -1,4 +1,4 @@
-import { createSlice, type PayloadAction } from '@reduxjs/toolkit'
+import { createSlice, nanoid, type PayloadAction } from '@reduxjs/toolkit'
 import type { McpActivity } from '@shared/api'
 
 export type View =
@@ -9,18 +9,33 @@ export type View =
 
 export type CanvasTool = 'select' | 'card' | 'import' | 'connector' | 'text' | 'section' | 'search'
 
+export interface Tab {
+  id: string
+  view: View
+  back: View[]
+  forward: View[]
+}
+
 export interface UiState {
   sidebarOpen: boolean
+  tabs: Tab[]
+  activeTabId: string
+  /** mirror of the active tab's view (kept in sync by every reducer) */
   view: View
-  history: View[]
   tool: CanvasTool
   openCardId: string | null
   paletteOpen: boolean
   chatOpen: boolean
-  mcpDialogOpen: boolean
+  settingsOpen: boolean
+  settingsSection: string
+  /** resolved from settings.theme + OS appearance */
   theme: 'light' | 'dark'
   activity: McpActivity[]
 }
+
+const HOME: View = { type: 'home' }
+const newTab = (view: View = HOME): Tab => ({ id: nanoid(8), view, back: [], forward: [] })
+const same = (a: View, b: View) => JSON.stringify(a) === JSON.stringify(b)
 
 const stored = (() => {
   try {
@@ -30,17 +45,30 @@ const stored = (() => {
   }
 })()
 
+const initialTabs: Tab[] = stored.tabs?.length ? stored.tabs.map((t) => ({ ...t, back: [], forward: [] })) : [newTab(stored.view ?? HOME)]
+const initialActive = initialTabs.find((t) => t.id === stored.activeTabId) ?? initialTabs[0]
+
 const initialState: UiState = {
   sidebarOpen: stored.sidebarOpen ?? true,
-  view: stored.view ?? { type: 'home' },
-  history: [],
+  tabs: initialTabs,
+  activeTabId: initialActive.id,
+  view: initialActive.view,
   tool: 'select',
   openCardId: null,
   paletteOpen: false,
   chatOpen: stored.chatOpen ?? false,
-  mcpDialogOpen: false,
+  settingsOpen: false,
+  settingsSection: 'general',
   activity: [],
-  theme: stored.theme ?? (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')
+  theme: matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
+}
+
+const active = (s: UiState): Tab => s.tabs.find((t) => t.id === s.activeTabId) ?? s.tabs[0]
+const sync = (s: UiState): void => {
+  const tab = active(s)
+  s.activeTabId = tab.id
+  s.view = tab.view
+  s.tool = 'select'
 }
 
 export const ui = createSlice({
@@ -49,24 +77,98 @@ export const ui = createSlice({
   reducers: {
     toggleSidebar: (s) => void (s.sidebarOpen = !s.sidebarOpen),
     navigate: (s, a: PayloadAction<View>) => {
-      if (JSON.stringify(s.view) === JSON.stringify(a.payload)) return
-      s.history.push(s.view)
-      if (s.history.length > 50) s.history.shift()
-      s.view = a.payload
-      s.tool = 'select'
+      const tab = active(s)
+      if (same(tab.view, a.payload)) return
+      tab.back.push(tab.view)
+      if (tab.back.length > 50) tab.back.shift()
+      tab.forward = []
+      tab.view = a.payload
+      sync(s)
     },
     back: (s) => {
-      const prev = s.history.pop()
-      if (prev) s.view = prev
+      const tab = active(s)
+      const prev = tab.back.pop()
+      if (!prev) return
+      tab.forward.push(tab.view)
+      tab.view = prev
+      sync(s)
+    },
+    forward: (s) => {
+      const tab = active(s)
+      const next = tab.forward.pop()
+      if (!next) return
+      tab.back.push(tab.view)
+      tab.view = next
+      sync(s)
+    },
+    openTab: (s, a: PayloadAction<View | undefined>) => {
+      const tab = newTab(a.payload ?? HOME)
+      const i = s.tabs.findIndex((t) => t.id === s.activeTabId)
+      s.tabs.splice(i + 1, 0, tab)
+      s.activeTabId = tab.id
+      sync(s)
+    },
+    closeTab: (s, a: PayloadAction<string | undefined>) => {
+      const id = a.payload ?? s.activeTabId
+      const i = s.tabs.findIndex((t) => t.id === id)
+      if (i < 0) return
+      s.tabs.splice(i, 1)
+      if (!s.tabs.length) s.tabs.push(newTab())
+      if (id === s.activeTabId) s.activeTabId = s.tabs[Math.min(i, s.tabs.length - 1)].id
+      sync(s)
+    },
+    selectTab: (s, a: PayloadAction<string | number>) => {
+      const tab = typeof a.payload === 'number' ? s.tabs[a.payload] : s.tabs.find((t) => t.id === a.payload)
+      if (!tab || tab.id === s.activeTabId) return
+      s.activeTabId = tab.id
+      sync(s)
+    },
+    cycleTab: (s, a: PayloadAction<1 | -1>) => {
+      const i = s.tabs.findIndex((t) => t.id === s.activeTabId)
+      s.activeTabId = s.tabs[(i + a.payload + s.tabs.length) % s.tabs.length].id
+      sync(s)
+    },
+    moveTab: (s, a: PayloadAction<{ from: number; to: number }>) => {
+      const [tab] = s.tabs.splice(a.payload.from, 1)
+      s.tabs.splice(a.payload.to, 0, tab)
+    },
+    resetTabs: (s) => {
+      s.tabs = [newTab()]
+      sync(s)
     },
     setTool: (s, a: PayloadAction<CanvasTool>) => void (s.tool = a.payload),
     openCard: (s, a: PayloadAction<string | null>) => void (s.openCardId = a.payload),
     setPaletteOpen: (s, a: PayloadAction<boolean>) => void (s.paletteOpen = a.payload),
     setChatOpen: (s, a: PayloadAction<boolean>) => void (s.chatOpen = a.payload),
-    setMcpDialogOpen: (s, a: PayloadAction<boolean>) => void (s.mcpDialogOpen = a.payload),
-    toggleTheme: (s) => void (s.theme = s.theme === 'dark' ? 'light' : 'dark'),
+    openSettings: (s, a: PayloadAction<string | undefined>) => {
+      s.settingsOpen = true
+      if (a.payload) s.settingsSection = a.payload
+    },
+    setSettingsOpen: (s, a: PayloadAction<boolean>) => void (s.settingsOpen = a.payload),
+    setSettingsSection: (s, a: PayloadAction<string>) => void (s.settingsSection = a.payload),
+    setResolvedTheme: (s, a: PayloadAction<'light' | 'dark'>) => void (s.theme = a.payload),
     pushActivity: (s, a: PayloadAction<McpActivity>) => void (s.activity = [a.payload, ...s.activity].slice(0, 30))
   }
 })
 
-export const { toggleSidebar, navigate, back, setTool, openCard, setPaletteOpen, setChatOpen, setMcpDialogOpen, toggleTheme, pushActivity } = ui.actions
+export const {
+  toggleSidebar,
+  navigate,
+  back,
+  forward,
+  openTab,
+  closeTab,
+  selectTab,
+  cycleTab,
+  moveTab,
+  resetTabs,
+  setTool,
+  openCard,
+  setPaletteOpen,
+  setChatOpen,
+  openSettings,
+  setSettingsOpen,
+  setSettingsSection,
+  setResolvedTheme,
+  pushActivity
+} = ui.actions

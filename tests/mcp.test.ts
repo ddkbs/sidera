@@ -71,10 +71,9 @@ describe('mcp', () => {
 
 describe('mcp http transport', () => {
   it('serves tools over stateless streamable HTTP', async () => {
-    process.env.CANVASCL_MCP_PORT = '0'
     const { startHttpMcp } = await import('../src/main/mcp/server')
     const api = createServices(openDatabase(':memory:'))
-    const started = await startHttpMcp(api, 'test')
+    const started = await startHttpMcp(api, 'test', undefined, 0)
     expect(started).not.toBeNull()
     const addr = started!.server.address() as { port: number }
     const post = (body: unknown) =>

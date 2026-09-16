@@ -17,6 +17,8 @@ export default defineConfig({
     resolve: {
       alias: { '@': resolve('src/renderer/src'), '@shared': resolve('src/shared') }
     },
-    plugins: [react(), tailwindcss()]
+    plugins: [react(), tailwindcss()],
+    // top-level await in main.tsx (settings are loaded before first render)
+    build: { target: 'esnext' }
   }
 })
