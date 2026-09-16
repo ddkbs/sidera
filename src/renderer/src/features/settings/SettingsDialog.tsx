@@ -116,6 +116,17 @@ function General() {
       <Row title="Restore tabs on launch" description="Reopen the tabs and views you had open last time.">
         <Switch checked={s.restoreLastView} onCheckedChange={(v) => dispatch(updateSettings({ restoreLastView: v }))} />
       </Row>
+      <Row title="Onboarding tour" description="Replay the guided tour of the sidebar, tabs, canvas and AI features.">
+        <Button
+          variant="outline"
+          onClick={() => {
+            dispatch(setSettingsOpen(false))
+            void dispatch(updateSettings({ tourCompleted: false }))
+          }}
+        >
+          Restart tour
+        </Button>
+      </Row>
     </div>
   )
 }

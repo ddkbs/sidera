@@ -118,6 +118,9 @@ export function CommandPalette() {
               <CommandItem value="mcp" onSelect={run(() => dispatch(openSettings('mcp')))}>
                 <Sparkles /> Connect AI via MCP
               </CommandItem>
+              <CommandItem value="restart-tour" onSelect={run(() => dispatch(updateSettings({ tourCompleted: false })))}>
+                <Sparkles /> Restart onboarding tour
+              </CommandItem>
               {view.type === 'whiteboard' && currentBoard && (
                 <CommandItem
                   value="organize-board"
