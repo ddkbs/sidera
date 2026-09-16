@@ -8,7 +8,7 @@ import { useGetMcpInfoQuery } from '@/store/api'
 import { setMcpDialogOpen } from '@/store/ui'
 
 const TOOLS = [
-  'search_cards', 'get_card', 'create_card', 'update_card', 'list_tags', 'tag_card', 'list_whiteboards', 'get_whiteboard',
+  'search_cards', 'list_cards', 'get_card', 'create_card', 'update_card', 'list_tags', 'tag_card', 'create_property', 'set_card_property', 'list_whiteboards', 'get_whiteboard',
   'create_whiteboard', 'add_card_to_whiteboard', 'add_section', 'connect_objects', 'get_kanban', 'move_kanban_item', 'get_journal', 'append_to_journal'
 ]
 

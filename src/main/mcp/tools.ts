@@ -115,6 +115,83 @@ export function createMcpServer(api: Services, version: string, onCall?: ToolCal
     }
   )
 
+  const findTag = (tag: string) => api.listTags().find((x) => x.id === tag || x.name.toLowerCase() === tag.replace(/^#/, '').toLowerCase())
+
+  server.registerTool(
+    'list_cards',
+    {
+      description: 'List cards, optionally only those with a tag. With a tag, property values are included by property name.',
+      inputSchema: { tag: z.string().optional(), limit: z.number().int().min(1).max(500).default(100) },
+      annotations: { readOnlyHint: true }
+    },
+    async ({ tag, limit }) => {
+      const t = tag ? findTag(tag) : undefined
+      if (tag && !t) return { ...ok(`Tag ${tag} not found`), isError: true }
+      const props = t ? api.listProperties(t.id) : []
+      return ok(
+        api.listCards({ tagId: t?.id, limit }).map((c) => ({
+          id: c.id,
+          title: c.title,
+          tags: c.tags.map((x) => x.name),
+          ...(t && {
+            properties: Object.fromEntries(
+              props.map((p) => {
+                const v = c.values?.[p.id] ?? null
+                return [p.name, p.type === 'select' ? (p.options.find((o) => o.id === v)?.name ?? null) : v]
+              })
+            )
+          })
+        }))
+      )
+    }
+  )
+
+  server.registerTool(
+    'create_property',
+    {
+      description: 'Add a property (database column) to a tag. For type=select pass option names.',
+      inputSchema: {
+        tag: z.string(),
+        name: z.string(),
+        type: z.enum(['select', 'text', 'number', 'date', 'checkbox']),
+        options: z.array(z.string()).optional()
+      }
+    },
+    async ({ tag, name, type, options }) => {
+      const t = findTag(tag) ?? api.createTag({ name: tag })
+      const colors = ['gray', 'blue', 'green', 'orange', 'purple', 'pink', 'red', 'teal', 'yellow']
+      const prop = api.createProperty({
+        tagId: t.id,
+        name,
+        type,
+        options: (options ?? []).map((n, i) => ({ id: Math.random().toString(36).slice(2, 10), name: n, color: colors[i % colors.length] }))
+      })
+      return ok({ property_id: prop.id })
+    }
+  )
+
+  server.registerTool(
+    'set_card_property',
+    {
+      description: 'Set a property value on a card by property name (select values by option name). The card must have the tag.',
+      inputSchema: { card_id: z.string(), tag: z.string(), property: z.string(), value: z.union([z.string(), z.number(), z.boolean(), z.null()]) }
+    },
+    async ({ card_id, tag, property, value }) => {
+      const t = findTag(tag)
+      if (!t) return { ...ok(`Tag ${tag} not found`), isError: true }
+      const p = api.listProperties(t.id).find((x) => x.name.toLowerCase() === property.toLowerCase() || x.id === property)
+      if (!p) return { ...ok(`Property ${property} not found on #${t.name}`), isError: true }
+      let v: unknown = value
+      if (p.type === 'select' && value !== null) {
+        const opt = p.options.find((o) => o.name.toLowerCase() === String(value).toLowerCase() || o.id === value)
+        if (!opt) return { ...ok(`Option ${value} not found. Options: ${p.options.map((o) => o.name).join(', ')}`), isError: true }
+        v = opt.id
+      }
+      api.setPropertyValue(card_id, p.id, v)
+      return ok('Updated')
+    }
+  )
+
   server.registerTool(
     'list_whiteboards',
     { description: 'List all whiteboards with their parent ids (nesting).', inputSchema: {}, annotations: { readOnlyHint: true } },

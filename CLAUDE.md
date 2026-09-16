@@ -11,6 +11,13 @@ macOS only, local-first. Keep answers & diffs small; don't re-explore what this 
 - Add UI primitives via CLI: `npx shadcn@latest add <name>` (never hand-write shadcn components). Afterwards run `sed -i "" "s#from \"cn\"#from \"@/lib/utils\"#" src/renderer/src/components/ui/*.tsx` and `npm uninstall cn` — we use tailwind-merge via @/lib/utils
 - After adding native deps: `npx electron-builder install-app-deps`
 
+## Visual verification (no manual clicking)
+Dev-only hook in `src/main/index.ts` (`devShot`). Steps separated by `\n---\n`; each step is renderer JS **or** `@click x y`, `@dblclick x y`, `@key meta+z`, `@type text` (CSS px). A PNG is written after every step.
+```
+CANVASCL_DATA_DIR=<scratch>/data CANVASCL_SHOT=<scratch>/s.png CANVASCL_SCRIPT=<scratch>/steps.js CANVASCL_QUIT=1 npx electron-vite dev
+```
+Navigate by writing `localStorage['canvascl.ui'] = {sidebarOpen, theme, view}` then `location.reload()`. Seed via `window.api.*`. Kill leftover `Electron .` processes if port 3845 is busy.
+
 ## Layout
 - `src/shared/` — types (`types.ts`), IPC/API contract (`api.ts`), Tiptap↔Markdown (`doc.ts`). Pure, no Electron imports.
 - `src/main/db/` — `migrations.ts` (append-only SQL, PRAGMA user_version) + `schema.ts` (Drizzle, keep in sync). FTS5 table `cards_fts` via triggers.
