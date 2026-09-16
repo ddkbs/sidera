@@ -104,3 +104,15 @@ describe('markdown export/import', () => {
     expect(fresh.search('Heading')[0].title).toBe('Heading title')
   })
 })
+
+describe('seed', () => {
+  it('seeds a welcome board only into an empty database', async () => {
+    const { seedWelcome } = await import('../src/main/services/seed')
+    expect(seedWelcome(api)).toBe(true)
+    expect(seedWelcome(api)).toBe(false)
+    const [board] = api.listWhiteboards()
+    const detail = api.getWhiteboard(board.id)!
+    expect(detail.objects.length).toBeGreaterThan(5)
+    expect(detail.connections).toHaveLength(2)
+  })
+})

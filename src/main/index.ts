@@ -9,6 +9,7 @@ import { registerIpc } from './ipc'
 import { startHttpMcp, startStdioMcp } from './mcp/server'
 import { createServices } from './services'
 import { exportCards, importCards } from './services/markdown'
+import { seedWelcome } from './services/seed'
 
 const STDIO = process.argv.includes('--mcp-stdio')
 const dataDir = process.env.CANVASCL_DATA_DIR ?? join(app.getPath('userData'), 'data')
@@ -122,6 +123,18 @@ async function bootstrap(): Promise<void> {
       emit('all')
     }
   }, 1500)
+
+  if (seedWelcome(services) && !process.env.CANVASCL_SHOT) {
+    const board = services.listWhiteboards()[0]
+    // open the welcome board on first launch
+    app.once('browser-window-created', (_e, w) =>
+      w.webContents.once('did-finish-load', () =>
+        w.webContents.executeJavaScript(
+          `localStorage.getItem('canvascl.ui') || (localStorage.setItem('canvascl.ui', JSON.stringify({ view: { type: 'whiteboard', id: ${JSON.stringify(board.id)} } })), location.reload())`
+        )
+      )
+    )
+  }
 
   createWindow()
   app.on('activate', () => BrowserWindow.getAllWindows().length === 0 && createWindow())
