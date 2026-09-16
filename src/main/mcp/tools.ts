@@ -353,6 +353,40 @@ export function createMcpServer(api: Services, version: string, onCall?: ToolCal
     }
   )
 
+  server.registerTool(
+    'list_tasks',
+    {
+      description: 'List to-do items (task list checkboxes) across all cards and journal days.',
+      inputSchema: { status: z.enum(['open', 'done', 'all']).default('open') },
+      annotations: { readOnlyHint: true }
+    },
+    async ({ status }) =>
+      ok(
+        api.listTasks({ status }).map((t) => ({
+          card_id: t.cardId,
+          card_title: t.cardTitle,
+          is_journal: t.isJournal,
+          journal_date: t.journalDate,
+          index: t.index,
+          text: t.text,
+          checked: t.checked
+        }))
+      )
+  )
+
+  server.registerTool(
+    'complete_task',
+    {
+      description: 'Mark a to-do item done or not done (card_id + index from list_tasks).',
+      inputSchema: { card_id: z.string(), index: z.number().int().min(0), checked: z.boolean().default(true) }
+    },
+    async ({ card_id, index, checked }) => {
+      if (!api.getCard(card_id)) return { ...ok(`Card ${card_id} not found`), isError: true }
+      api.setTaskChecked(card_id, index, checked)
+      return ok('Updated')
+    }
+  )
+
   return server
 }
 

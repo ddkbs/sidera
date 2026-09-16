@@ -11,10 +11,11 @@ import { Kbd } from '@/components/ui/kbd'
 import { Slider } from '@/components/ui/slider'
 import { Switch } from '@/components/ui/switch'
 import { FONT_STACKS } from '@/App'
+import { eventToBinding, formatBinding, shortcutRecording } from '@/lib/shortcuts'
 import { cn } from '@/lib/utils'
 import { useAppDispatch, useAppSelector } from '@/store'
 import { api, useGetMcpInfoQuery } from '@/store/api'
-import { updateSettings } from '@/store/settings'
+import { settingsLoaded, updateSettings } from '@/store/settings'
 import { setSettingsOpen, setSettingsSection } from '@/store/ui'
 import { ShortcutsSettings } from './ShortcutsSettings'
 
@@ -116,7 +117,57 @@ function General() {
       <Row title="Restore tabs on launch" description="Reopen the tabs and views you had open last time.">
         <Switch checked={s.restoreLastView} onCheckedChange={(v) => dispatch(updateSettings({ restoreLastView: v }))} />
       </Row>
+      <QuickCaptureRow />
     </div>
+  )
+}
+
+function QuickCaptureRow() {
+  const dispatch = useAppDispatch()
+  const s = useAppSelector((st) => st.settings.quickCapture)
+  const [recording, setRecording] = useState(false)
+
+  useEffect(() => {
+    shortcutRecording.active = recording
+    if (!recording) return
+    const onKey = (e: KeyboardEvent) => {
+      e.preventDefault()
+      e.stopPropagation()
+      if (e.key === 'Escape') return setRecording(false)
+      const binding = eventToBinding(e)
+      if (!binding) return
+      setRecording(false)
+      void save({ accelerator: binding })
+    }
+    window.addEventListener('keydown', onKey, true)
+    return () => {
+      window.removeEventListener('keydown', onKey, true)
+      shortcutRecording.active = false
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [recording])
+
+  const save = async (patch: Partial<typeof s>) => {
+    try {
+      await dispatch(updateSettings({ quickCapture: { ...s, ...patch } })).unwrap()
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : String(err))
+      dispatch(settingsLoaded(await window.app.getSettings()))
+    }
+  }
+
+  return (
+    <Row title="Quick capture" description="Global shortcut opens a small capture window from anywhere, even while CanvasCL is in the background.">
+      <div className="flex items-center gap-2">
+        <button
+          onClick={() => setRecording((r) => !r)}
+          className={cn('h-7 min-w-28 rounded-md border px-2 text-xs tracking-wider transition hover:bg-accent', recording && 'border-brand bg-brand/10 text-brand')}
+        >
+          {recording ? 'Press keys…' : formatBinding(s.accelerator)}
+        </button>
+        <Switch checked={s.enabled} onCheckedChange={(v) => void save({ enabled: v })} />
+      </div>
+    </Row>
   )
 }
 
@@ -175,7 +226,7 @@ function EditorCanvas() {
 const TOOL_NAMES = [
   'search_cards', 'list_cards', 'get_card', 'create_card', 'update_card', 'list_tags', 'tag_card', 'create_property', 'set_card_property',
   'list_whiteboards', 'get_whiteboard', 'create_whiteboard', 'add_card_to_whiteboard', 'add_section', 'connect_objects',
-  'get_kanban', 'move_kanban_item', 'get_journal', 'append_to_journal'
+  'get_kanban', 'move_kanban_item', 'get_journal', 'append_to_journal', 'list_tasks', 'complete_task'
 ]
 
 function McpSettings() {

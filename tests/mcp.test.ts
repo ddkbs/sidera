@@ -69,6 +69,19 @@ describe('mcp', () => {
     await call('append_to_journal', { markdown: '- did a thing', date: '2026-09-16' })
     expect((await call('get_journal', { date: '2026-09-16' })).markdown).toBe('- did a thing')
   })
+
+  it('lists and completes tasks', async () => {
+    const { call } = await connect()
+    const card = await call('create_card', { title: 'Todos', markdown: '- [ ] one\n- [ ] two' })
+    const open = await call('list_tasks', { status: 'open' })
+    expect(open).toEqual([
+      { card_id: card.id, card_title: 'Todos', is_journal: false, journal_date: null, index: 0, text: 'one', checked: false },
+      { card_id: card.id, card_title: 'Todos', is_journal: false, journal_date: null, index: 1, text: 'two', checked: false }
+    ])
+    await call('complete_task', { card_id: card.id, index: 0 })
+    expect((await call('list_tasks', { status: 'open' })).map((t: { text: string }) => t.text)).toEqual(['two'])
+    expect((await call('list_tasks', { status: 'done' })).map((t: { text: string }) => t.text)).toEqual(['one'])
+  })
 })
 
 describe('mcp http transport', () => {

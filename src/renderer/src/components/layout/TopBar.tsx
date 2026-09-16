@@ -1,4 +1,4 @@
-import { AskAI, BookOpen, CalendarDays, ChevronRight, Home, LayoutDashboard, Moon, Settings, Sun } from '@/components/icons'
+import { AskAI, BookOpen, CalendarDays, ChevronRight, Home, LayoutDashboard, ListChecks, Moon, Settings, Sun } from '@/components/icons'
 import { Fragment, useEffect, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
@@ -21,6 +21,7 @@ export function TopBar() {
         {view.type === 'whiteboard' && <WhiteboardCrumbs id={view.id} />}
         {view.type === 'library' && <LibraryCrumbs tagId={view.tagId} />}
         {view.type === 'journal' && <Crumb icon={<CalendarDays className="size-3.5" />} current>Journal</Crumb>}
+        {view.type === 'tasks' && <Crumb icon={<ListChecks className="size-3.5" />} current>Tasks</Crumb>}
         {view.type === 'home' && <Crumb icon={<Home className="size-3.5" />} current>Home</Crumb>}
       </nav>
       <div className="flex-1" />

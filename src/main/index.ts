@@ -7,6 +7,7 @@ import { nanoid } from 'nanoid'
 import { CHAT_EVENT, DB_CHANGED, MCP_ACTIVITY, type DbChangeScope } from '@shared/api'
 import { SETTINGS_CHANGED, type SettingsPatch } from '@shared/settings'
 import { SettingsStore } from './settings'
+import { applyCaptureShortcut, hideCaptureWindow, showCaptureWindow, teardownCapture } from './capture'
 import { addToClaudeCode, addToClaudeDesktop, isInClaudeCode, isInClaudeDesktop, stdioLaunchSpec } from './integrations'
 import { existsSync, readFileSync, rmSync, writeFileSync as writeFileSyncFs } from 'node:fs'
 import { ChatAgent } from './ai/chat'
@@ -163,11 +164,23 @@ async function bootstrap(): Promise<void> {
   }
   await restartMcp()
 
+  applyCaptureShortcut(settings.get().quickCapture.enabled ? settings.get().quickCapture.accelerator : null)
+  ipcMain.handle('app:openCapture', () => showCaptureWindow())
+  ipcMain.handle('app:hideCapture', () => hideCaptureWindow())
+
   ipcMain.handle('app:getSettings', () => settings.get())
   ipcMain.handle('app:setSettings', async (_e, patch: SettingsPatch) => {
-    const before = settings.get().mcp
+    const before = settings.get()
     const next = settings.set(patch)
-    if (before.httpEnabled !== next.mcp.httpEnabled || before.port !== next.mcp.port) await restartMcp()
+    if (patch.quickCapture) {
+      const ok = applyCaptureShortcut(next.quickCapture.enabled ? next.quickCapture.accelerator : null)
+      if (!ok) {
+        const reverted = settings.set({ quickCapture: { enabled: false } })
+        win?.webContents.send(SETTINGS_CHANGED, reverted)
+        throw new Error(`Could not register "${next.quickCapture.accelerator}" — it may already be used by another app.`)
+      }
+    }
+    if (before.mcp.httpEnabled !== next.mcp.httpEnabled || before.mcp.port !== next.mcp.port) await restartMcp()
     win?.webContents.send(SETTINGS_CHANGED, next)
     return next
   })
@@ -248,6 +261,7 @@ function createWindow(): void {
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin' && !STDIO) app.quit()
 })
+app.on('will-quit', () => teardownCapture())
 app.on('before-quit', () => db.$client.close())
 
 /** Dev-only: run a script in the renderer, capture a screenshot, optionally quit. Used for automated UI checks. */
@@ -326,6 +340,16 @@ async function devShot(w: BrowserWindow): Promise<void> {
       continue
     }
     await writeFile(process.env.CANVASCL_SHOT!.replace('.png', `-${i}.png`), img.toPNG())
+    // Dev-only: also snapshot any other visible window (e.g. the quick-capture window), for verification scripts.
+    for (const other of BrowserWindow.getAllWindows()) {
+      if (other === w || !other.isVisible()) continue
+      try {
+        const otherImg = await other.webContents.capturePage()
+        await writeFile(process.env.CANVASCL_SHOT!.replace('.png', `-${i}-extra.png`), otherImg.toPNG())
+      } catch (e) {
+        console.log(`[shot] step ${i}: extra window capture failed:`, e)
+      }
+    }
   }
   if (process.env.CANVASCL_QUIT) {
     // flush localStorage so follow-up runs start where this one ended

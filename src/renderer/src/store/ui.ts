@@ -5,6 +5,7 @@ export type View =
   | { type: 'whiteboard'; id: string }
   | { type: 'library'; tagId: string | null; mode: 'table' | 'list' | 'kanban' }
   | { type: 'journal' }
+  | { type: 'tasks' }
   | { type: 'home' }
 
 export type CanvasTool = 'select' | 'card' | 'import' | 'connector' | 'text' | 'section' | 'search'

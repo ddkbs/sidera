@@ -43,7 +43,9 @@ const appBridge: AppBridge = {
   getDataInfo: () => ipcRenderer.invoke('app:getDataInfo'),
   revealDataDir: () => ipcRenderer.invoke('app:revealDataDir'),
   getMcpConnections: () => ipcRenderer.invoke('app:getMcpConnections'),
-  connectClaude: (target) => ipcRenderer.invoke('app:connectClaude', target)
+  connectClaude: (target) => ipcRenderer.invoke('app:connectClaude', target),
+  openCapture: () => ipcRenderer.invoke('app:openCapture'),
+  hideCapture: () => ipcRenderer.invoke('app:hideCapture')
 }
 
 contextBridge.exposeInMainWorld('api', api)

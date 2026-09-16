@@ -151,3 +151,15 @@ export interface FileRecord {
 export type ObjectPatch = Partial<Pick<WhiteboardObject, 'x' | 'y' | 'width' | 'height' | 'z' | 'color' | 'data'>> & {
   id: ID
 }
+
+export interface Task {
+  cardId: ID
+  cardTitle: string
+  isJournal: boolean
+  journalDate: string | null
+  /** position among taskItems in the card's content, depth-first */
+  index: number
+  text: string
+  checked: boolean
+  updatedAt: number
+}
