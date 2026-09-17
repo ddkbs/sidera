@@ -166,6 +166,42 @@ export const api = createApi({
       queryFn: (input) => call('addTask', input),
       invalidatesTags: (r) => ['Task', 'CardList', ...(r ? [{ type: 'Card' as const, id: r.cardId }] : [])]
     }),
+    updateTask: b.mutation<Res<'updateTask'>, Arg<'updateTask'>[0]>({
+      queryFn: (input) => call('updateTask', input),
+      // optimistic: status/priority/assignee/due show up instantly (board drag & drop, pickers)
+      async onQueryStarted(patch, { dispatch, getState, queryFulfilled }) {
+        const profiles = api.endpoints.listProfiles.select()(getState() as never).data ?? []
+        const undos = api.util.selectInvalidatedBy(getState() as never, ['Task']).filter((e) => e.endpointName === 'listTasks').map((e) =>
+          dispatch(
+            api.util.updateQueryData('listTasks', e.originalArgs as Arg<'listTasks'>[0], (draft) => {
+              const t = draft.find((x) => x.cardId === patch.cardId && x.taskId === patch.taskId)
+              if (!t) return
+              if (patch.status !== undefined) {
+                t.status = patch.status
+                t.checked = patch.status === 'done'
+              }
+              if (patch.priority !== undefined) t.priority = patch.priority
+              if (patch.dueDate !== undefined) t.dueDate = patch.dueDate
+              if (patch.text !== undefined) t.text = patch.text
+              if (patch.assigneeId !== undefined) {
+                const p = profiles.find((x) => x.id === patch.assigneeId)
+                t.assignee = p ? { id: p.id, name: p.name, color: p.color, avatarUrl: p.avatarUrl } : null
+              }
+            })
+          )
+        )
+        try {
+          await queryFulfilled
+        } catch {
+          undos.forEach((u) => u.undo())
+        }
+      },
+      invalidatesTags: (_r, _e, { cardId, taskId }) => ['Task', 'CardList', { type: 'Card' as const, id: cardId }, { type: 'TaskComment' as const, id: taskId }]
+    }),
+    listTaskActivity: b.query<Res<'listTaskActivity'>, { cardId: string; taskId: string }>({
+      queryFn: ({ cardId, taskId }) => call('listTaskActivity', cardId, taskId),
+      providesTags: (_r, _e, { taskId }) => [{ type: 'TaskComment', id: taskId }]
+    }),
 
     // task comments
     listTaskComments: b.query<Res<'listTaskComments'>, { cardId: string; taskId: string }>({
@@ -273,6 +309,8 @@ export const {
   useListTasksQuery,
   useSetTaskCheckedMutation,
   useAddTaskMutation,
+  useUpdateTaskMutation,
+  useListTaskActivityQuery,
   useListTaskCommentsQuery,
   useAddTaskCommentMutation,
   useUpdateTaskCommentMutation,

@@ -1,4 +1,5 @@
 import { toast } from 'sonner'
+import type { TaskPatch } from '@shared/types'
 import { record, redo, undo, type UndoResult } from './undo'
 
 const report = (kind: string, r: UndoResult): void => {
@@ -27,11 +28,15 @@ export function recordCardPatch(id: string, label: string, before: CardPatch, af
   record({ label, undo: () => window.api.updateCard({ id, ...before }), redo: () => window.api.updateCard({ id, ...after }) })
 }
 
-export function recordTaskToggle(cardId: string, index: number, checked: boolean): void {
+type TaskFields = Pick<TaskPatch, 'status' | 'priority' | 'assigneeId' | 'dueDate' | 'text'>
+
+/** Record a task property change (call after applying it). */
+export function recordTaskPatch(cardId: string, taskId: string, label: string, before: TaskFields, after: TaskFields): void {
+  if (JSON.stringify(before) === JSON.stringify(after)) return
   record({
-    label: checked ? 'Complete task' : 'Reopen task',
-    undo: () => window.api.setTaskChecked(cardId, index, !checked),
-    redo: () => window.api.setTaskChecked(cardId, index, checked)
+    label,
+    undo: () => window.api.updateTask({ cardId, taskId, ...before }),
+    redo: () => window.api.updateTask({ cardId, taskId, ...after })
   })
 }
 

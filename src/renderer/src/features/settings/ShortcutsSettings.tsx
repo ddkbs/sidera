@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { RotateCcw } from '@/components/icons'
 import { Button } from '@/components/ui/button'
-import { COMMANDS, eventToBinding, formatBinding, shortcutRecording, useBindings } from '@/lib/shortcuts'
+import { COMMAND_BY_ID, COMMANDS, eventToBinding, scopesOverlap, formatBinding, shortcutRecording, useBindings } from '@/lib/shortcuts'
 import { cn } from '@/lib/utils'
 import { useAppDispatch, useAppSelector } from '@/store'
 import { updateSettings } from '@/store/settings'
@@ -40,7 +40,7 @@ export function ShortcutsSettings() {
 
   const conflicts = (id: string) => {
     const b = bindings[id]
-    return !!b && COMMANDS.some((c) => c.id !== id && bindings[c.id] === b)
+    return !!b && COMMANDS.some((c) => c.id !== id && bindings[c.id] === b && scopesOverlap(c, COMMAND_BY_ID[id]))
   }
 
   return (

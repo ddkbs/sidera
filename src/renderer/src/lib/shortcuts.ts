@@ -7,8 +7,10 @@ export { eventToBinding, eventToBindings, formatBinding, normalize } from './key
 export interface CommandDef {
   id: string
   label: string
-  group: 'General' | 'Navigation' | 'Whiteboard tools' | 'Whiteboard editing'
+  group: 'General' | 'Navigation' | 'Whiteboard tools' | 'Whiteboard editing' | 'Tasks'
   binding: string
+  /** only active inside this view; commands of different scopes may share a binding */
+  scope?: 'whiteboard' | 'tasks'
   /** fire even while typing in an input/editor (only sensible for modifier combos) */
   global?: boolean
 }
@@ -30,24 +32,32 @@ export const COMMANDS: CommandDef[] = [
   { id: 'tab.next', label: 'Next tab', group: 'Navigation', binding: 'Ctrl+Tab', global: true },
   { id: 'tab.prev', label: 'Previous tab', group: 'Navigation', binding: 'Ctrl+Shift+Tab', global: true },
   { id: 'nav.tasks', label: 'Open tasks', group: 'Navigation', binding: 'Mod+Shift+T', global: true },
-  { id: 'tool.select', label: 'Select tool', group: 'Whiteboard tools', binding: 'V' },
-  { id: 'tool.card', label: 'Card tool', group: 'Whiteboard tools', binding: 'C' },
-  { id: 'tool.import', label: 'Import file', group: 'Whiteboard tools', binding: 'U' },
-  { id: 'tool.connector', label: 'Connector tool', group: 'Whiteboard tools', binding: 'A' },
-  { id: 'tool.text', label: 'Text tool', group: 'Whiteboard tools', binding: 'T' },
-  { id: 'tool.section', label: 'Section tool', group: 'Whiteboard tools', binding: 'S' },
-  { id: 'tool.search', label: 'Add existing card', group: 'Whiteboard tools', binding: 'F' },
-  { id: 'canvas.fit', label: 'Fit to screen', group: 'Whiteboard editing', binding: 'Shift+1' },
-  { id: 'canvas.find', label: 'Find on whiteboard', group: 'Whiteboard editing', binding: 'Mod+F', global: true },
-  { id: 'canvas.copy', label: 'Copy objects', group: 'Whiteboard editing', binding: 'Mod+C' },
-  { id: 'canvas.paste', label: 'Paste objects', group: 'Whiteboard editing', binding: 'Mod+V' },
-  { id: 'canvas.duplicate', label: 'Duplicate selection', group: 'Whiteboard editing', binding: 'Mod+D' },
-  { id: 'canvas.selectAll', label: 'Select all', group: 'Whiteboard editing', binding: 'Mod+A' }
+  { id: 'tool.select', scope: 'whiteboard', label: 'Select tool', group: 'Whiteboard tools', binding: 'V' },
+  { id: 'tool.card', scope: 'whiteboard', label: 'Card tool', group: 'Whiteboard tools', binding: 'C' },
+  { id: 'tool.import', scope: 'whiteboard', label: 'Import file', group: 'Whiteboard tools', binding: 'U' },
+  { id: 'tool.connector', scope: 'whiteboard', label: 'Connector tool', group: 'Whiteboard tools', binding: 'A' },
+  { id: 'tool.text', scope: 'whiteboard', label: 'Text tool', group: 'Whiteboard tools', binding: 'T' },
+  { id: 'tool.section', scope: 'whiteboard', label: 'Section tool', group: 'Whiteboard tools', binding: 'S' },
+  { id: 'tool.search', scope: 'whiteboard', label: 'Add existing card', group: 'Whiteboard tools', binding: 'F' },
+  { id: 'canvas.fit', scope: 'whiteboard', label: 'Fit to screen', group: 'Whiteboard editing', binding: 'Shift+1' },
+  { id: 'canvas.find', scope: 'whiteboard', label: 'Find on whiteboard', group: 'Whiteboard editing', binding: 'Mod+F', global: true },
+  { id: 'canvas.copy', scope: 'whiteboard', label: 'Copy objects', group: 'Whiteboard editing', binding: 'Mod+C' },
+  { id: 'canvas.paste', scope: 'whiteboard', label: 'Paste objects', group: 'Whiteboard editing', binding: 'Mod+V' },
+  { id: 'canvas.duplicate', scope: 'whiteboard', label: 'Duplicate selection', group: 'Whiteboard editing', binding: 'Mod+D' },
+  { id: 'canvas.selectAll', scope: 'whiteboard', label: 'Select all', group: 'Whiteboard editing', binding: 'Mod+A' },
+  { id: 'tasks.new', scope: 'tasks', label: 'New task', group: 'Tasks', binding: 'C' },
+  { id: 'tasks.next', scope: 'tasks', label: 'Next task', group: 'Tasks', binding: 'Down' },
+  { id: 'tasks.prev', scope: 'tasks', label: 'Previous task', group: 'Tasks', binding: 'Up' },
+  { id: 'tasks.open', scope: 'tasks', label: 'Open selected task', group: 'Tasks', binding: 'Enter' },
+  { id: 'tasks.close', scope: 'tasks', label: 'Close task details', group: 'Tasks', binding: 'Esc' }
 ]
 
 for (const c of COMMANDS) c.binding = normalize(c.binding)
 
 export const COMMAND_BY_ID = Object.fromEntries(COMMANDS.map((c) => [c.id, c]))
+
+/** Two commands clash only if they can be active at the same time (same scope, or either is app-wide). */
+export const scopesOverlap = (a: CommandDef, b: CommandDef): boolean => !a.scope || !b.scope || a.scope === b.scope
 
 export function useBindings(): Record<string, string> {
   const overrides = useAppSelector((s) => s.settings.shortcuts)

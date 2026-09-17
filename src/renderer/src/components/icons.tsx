@@ -2,7 +2,7 @@
  * App icon set (Obra Icons). Import icons from here, never from an icon package directly,
  * so the whole app stays visually consistent and can be re-skinned in one place.
  */
-import type { ComponentType, SVGProps } from 'react'
+import type { ComponentType, ReactNode, SVGProps } from 'react'
 import {
   IconAdd,
   IconAddRoundrect,
@@ -119,7 +119,17 @@ import {
   IconPalette,
   IconFolder,
   IconFolderFill,
-  IconFolderAdd
+  IconFolderAdd,
+  IconFilter,
+  IconLayers,
+  IconSliders,
+  IconInbox,
+  IconUserEncircled,
+  IconCalendarCheck,
+  IconClock3,
+  IconHistory,
+  IconExternalLink,
+  IconThreeRows
 } from 'obra-icons-react'
 
 export type AppIcon = ComponentType<SVGProps<SVGSVGElement> & { size?: number }>
@@ -278,3 +288,70 @@ const turnArrow = (flip: boolean): AppIcon =>
   }
 export const Undo2 = turnArrow(false)
 export const Redo2 = turnArrow(true)
+
+// Tasks
+export const Filter = IconFilter
+export const Layers = IconLayers
+export const SlidersHorizontal = IconSliders
+export const Inbox = IconInbox
+export const UserCircle = IconUserEncircled
+export const CalendarCheck = IconCalendarCheck
+export const Clock = IconClock3
+export const History = IconHistory
+export const ExternalLink = IconExternalLink
+export const Rows = IconThreeRows
+
+type GlyphProps = SVGProps<SVGSVGElement> & { size?: number }
+const glyph = (name: string, draw: () => ReactNode): AppIcon => {
+  function Glyph({ size = 16, className, style }: GlyphProps) {
+    return (
+      <svg width={size} height={size} viewBox="0 0 16 16" className={className} style={style} fill="none" aria-hidden>
+        {draw()}
+      </svg>
+    )
+  }
+  Glyph.displayName = name
+  return Glyph
+}
+
+/** Task status glyphs (Linear-style rings) — 16px grid, color via currentColor. */
+export const StatusTodo = glyph('StatusTodo', () => <circle cx="8" cy="8" r="6" stroke="currentColor" strokeWidth="1.5" strokeDasharray="2.2 1.9" />)
+export const StatusInProgress = glyph('StatusInProgress', () => (
+  <>
+    <circle cx="8" cy="8" r="6" stroke="currentColor" strokeWidth="1.5" />
+    <path d="M8 4.5a3.5 3.5 0 0 1 0 7z" fill="currentColor" />
+  </>
+))
+export const StatusDone = glyph('StatusDone', () => (
+  <>
+    <circle cx="8" cy="8" r="6.75" fill="currentColor" />
+    <path d="m5.3 8.2 1.8 1.8 3.6-3.8" stroke="var(--background, #fff)" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+  </>
+))
+
+/** Priority glyphs: signal bars, dashes for none, filled badge for urgent. */
+const bars = (name: string, level: number): AppIcon =>
+  glyph(name, () => (
+    <>
+      {[0, 1, 2].map((i) => (
+        <rect key={i} x={2.5 + i * 4} y={10 - i * 3} width="3" height={4 + i * 3} rx="1" fill="currentColor" opacity={i < level ? 1 : 0.28} />
+      ))}
+    </>
+  ))
+export const PriorityNone = glyph('PriorityNone', () => (
+  <>
+    {[0, 1, 2].map((i) => (
+      <rect key={i} x={2.5 + i * 4} y="7.25" width="3" height="1.5" rx=".75" fill="currentColor" opacity=".55" />
+    ))}
+  </>
+))
+export const PriorityLow = bars('PriorityLow', 1)
+export const PriorityMedium = bars('PriorityMedium', 2)
+export const PriorityHigh = bars('PriorityHigh', 3)
+export const PriorityUrgent = glyph('PriorityUrgent', () => (
+  <>
+    <rect x="1.5" y="1.5" width="13" height="13" rx="3.5" fill="currentColor" />
+    <path d="M8 4.5v4.25" stroke="var(--background, #fff)" strokeWidth="1.75" strokeLinecap="round" />
+    <circle cx="8" cy="11.25" r="1" fill="var(--background, #fff)" />
+  </>
+))
