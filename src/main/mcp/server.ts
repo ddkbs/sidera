@@ -4,6 +4,8 @@ import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/
 import type { Services } from '../services'
 import { createMcpServer, type ToolCallListener } from './tools'
 
+const MAX_BODY_BYTES = 10 * 1024 * 1024
+
 /** Stateless Streamable-HTTP MCP endpoint bound to localhost only. */
 export function startHttpMcp(api: Services, version: string, onCall?: ToolCallListener, port = Number(process.env.CANVASCL_MCP_PORT ?? 3845)): Promise<{ url: string; server: Server } | null> {
   const http = createServer(async (req, res) => {
@@ -25,9 +27,22 @@ export function startHttpMcp(api: Services, version: string, onCall?: ToolCallLi
       res.writeHead(405, { Allow: 'POST' }).end()
       return
     }
+    if (Number(req.headers['content-length'] ?? 0) > MAX_BODY_BYTES) {
+      res.writeHead(413, { Connection: 'close' }).end('Payload too large')
+      return
+    }
     try {
       const chunks: Buffer[] = []
-      for await (const c of req) chunks.push(c as Buffer)
+      let size = 0
+      for await (const c of req) {
+        size += (c as Buffer).byteLength
+        if (size > MAX_BODY_BYTES) {
+          res.writeHead(413).end('Payload too large')
+          req.destroy()
+          return
+        }
+        chunks.push(c as Buffer)
+      }
       const body = JSON.parse(Buffer.concat(chunks).toString('utf8') || 'null')
       const server = createMcpServer(api, version, onCall)
       const transport = new StreamableHTTPServerTransport({ sessionIdGenerator: undefined, enableJsonResponse: true })
