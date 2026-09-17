@@ -14,7 +14,7 @@ const call = async <K extends keyof Api>(name: K, ...args: Arg<K>): Promise<{ da
   }
 }
 
-export const TAGS = ['Card', 'CardList', 'Tag', 'Whiteboard', 'Journal', 'Kanban', 'Task'] as const
+export const TAGS = ['Card', 'CardList', 'Tag', 'Whiteboard', 'Journal', 'Kanban', 'Task', 'TaskComment'] as const
 
 export const api = createApi({
   reducerPath: 'data',
@@ -151,6 +151,27 @@ export const api = createApi({
       invalidatesTags: (r) => ['Task', 'CardList', { type: 'Journal' as const }, ...(r ? [{ type: 'Card' as const, id: r.cardId }] : [])]
     }),
 
+    // task comments
+    listTaskComments: b.query<Res<'listTaskComments'>, { cardId: string; taskId: string }>({
+      queryFn: ({ cardId, taskId }) => call('listTaskComments', cardId, taskId),
+      providesTags: (_r, _e, { taskId }) => [{ type: 'TaskComment', id: taskId }]
+    }),
+    addTaskComment: b.mutation<Res<'addTaskComment'>, Arg<'addTaskComment'>[0]>({
+      queryFn: (input) => call('addTaskComment', input),
+      invalidatesTags: (_r, _e, { taskId }) => [{ type: 'TaskComment', id: taskId }, 'Task']
+    }),
+    updateTaskComment: b.mutation<Res<'updateTaskComment'>, Arg<'updateTaskComment'>[0] & { taskId: string }>({
+      queryFn: ({ id, body }) => call('updateTaskComment', { id, body }),
+      invalidatesTags: (_r, _e, { taskId }) => [{ type: 'TaskComment', id: taskId }]
+    }),
+    deleteTaskComment: b.mutation<void, { id: string; taskId: string }>({
+      queryFn: ({ id }) => call('deleteTaskComment', id),
+      invalidatesTags: (_r, _e, { taskId }) => [{ type: 'TaskComment', id: taskId }, 'Task']
+    }),
+    importFileData: b.mutation<Res<'importFileData'>, Arg<'importFileData'>[0]>({
+      queryFn: (input) => call('importFileData', input)
+    }),
+
     // search & meta
     search: b.query<Res<'search'>, string>({
       queryFn: (q) => call('search', q, 30),
@@ -169,10 +190,10 @@ export const api = createApi({
 
 /** Map main-process change scopes (e.g. MCP writes) to cache invalidation. */
 export const scopeTags: Record<DbChangeScope, (typeof TAGS)[number][]> = {
-  cards: ['Card', 'CardList', 'Kanban', 'Whiteboard', 'Task'],
+  cards: ['Card', 'CardList', 'Kanban', 'Whiteboard', 'Task', 'TaskComment'],
   tags: ['Tag', 'Kanban', 'Card'],
   whiteboards: ['Whiteboard'],
-  journal: ['Journal', 'Task'],
+  journal: ['Journal', 'Task', 'TaskComment'],
   all: [...TAGS]
 }
 
@@ -207,6 +228,11 @@ export const {
   useListTasksQuery,
   useSetTaskCheckedMutation,
   useAddTaskMutation,
+  useListTaskCommentsQuery,
+  useAddTaskCommentMutation,
+  useUpdateTaskCommentMutation,
+  useDeleteTaskCommentMutation,
+  useImportFileDataMutation,
   useSearchQuery,
   useGetMcpInfoQuery,
   useClipUrlMutation
