@@ -34,6 +34,7 @@ import {
   useCreateWhiteboardMutation,
   useListFoldersQuery,
   useListTagsQuery,
+  useListTasksQuery,
   useListWhiteboardsQuery,
   useMoveFolderMutation,
   useMoveWhiteboardToFolderMutation,
@@ -59,6 +60,8 @@ export function Sidebar() {
   const dispatch = useAppDispatch()
   const view = useAppSelector((s) => s.ui.view)
   const { data: boards = [] } = useListWhiteboardsQuery()
+  // same cache entry as the Tasks view, so the badge costs no extra query when both are mounted
+  const { openTasks = 0 } = useListTasksQuery({ status: 'all' }, { selectFromResult: ({ data }) => ({ openTasks: data?.filter((t) => t.status !== 'done').length }) })
   const { data: folders = [] } = useListFoldersQuery()
   const { data: tags = [] } = useListTagsQuery()
   const [createWhiteboard] = useCreateWhiteboardMutation()
@@ -215,7 +218,12 @@ export function Sidebar() {
           <NavItem icon={<Home className="size-4" />} active={view.type === 'home'} onClick={(e) => go({ type: 'home' }, e)}>
             Home
           </NavItem>
-          <NavItem icon={<ListChecks className="size-4" />} active={view.type === 'tasks'} onClick={(e) => go({ type: 'tasks' }, e)}>
+          <NavItem
+            icon={<ListChecks className="size-4" />}
+            active={view.type === 'tasks'}
+            onClick={(e) => go({ type: 'tasks' }, e)}
+            badge={openTasks > 0 ? (openTasks > 99 ? '99+' : String(openTasks)) : undefined}
+          >
             Tasks
           </NavItem>
           <NavItem
@@ -540,7 +548,7 @@ function BoardItem({ board, tree, depth }: { board: Whiteboard; tree: Map<string
   )
 }
 
-function NavItem(props: { icon: ReactNode; active?: boolean; onClick: (e: React.MouseEvent) => void; children: ReactNode; className?: string }) {
+function NavItem(props: { icon: ReactNode; active?: boolean; onClick: (e: React.MouseEvent) => void; children: ReactNode; className?: string; badge?: string }) {
   return (
     <button
       onClick={props.onClick}
@@ -552,6 +560,11 @@ function NavItem(props: { icon: ReactNode; active?: boolean; onClick: (e: React.
     >
       <span className="shrink-0 text-muted-foreground">{props.icon}</span>
       <span className="truncate">{props.children}</span>
+      {props.badge && (
+        <span className="ml-auto pr-0.5 text-[11px] font-medium text-muted-foreground tabular-nums" aria-label={`${props.badge} open`}>
+          {props.badge}
+        </span>
+      )}
     </button>
   )
 }

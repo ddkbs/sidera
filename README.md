@@ -9,7 +9,7 @@ A free, open-source, local-first visual knowledge base — whiteboards, a card l
 - **Cards** — rich text (Tiptap) with `/` commands, `@` links and backlinks; edit inline on the canvas or in the side panel; one card can live on many whiteboards.
 - **PDF reading** — select text in a PDF and turn it into a quote card linked to the source.
 - **Tags as databases** — table view with typed properties, kanban boards (drag & drop), list view.
-- **Tasks** — to-do checkboxes on any card, collected in one Tasks view; tasks added without a card go to an "Inbox" card.
+- **Tasks** — to-do checkboxes on any card, collected in a Tasks area with list & board views, status / priority / assignee / due date, filters, grouping and an activity timeline with comments; tasks added without a card go to an "Inbox" card.
 - **Search** — SQLite FTS5 across cards and whiteboards (⌘K).
 - **MCP-first** — local MCP server (HTTP + stdio) with 32 tools, live activity feed, and a built-in Claude assistant that uses the same tools.
 - **Tabs & settings** — open several whiteboards in tabs (⌘T, ⌘-click); settings for theme, font (Jost/Futura/Geist/SF), editor, MCP and fully rebindable shortcuts (⌘,).
