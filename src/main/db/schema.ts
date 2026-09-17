@@ -97,3 +97,18 @@ export const files = sqliteTable('files', {
   size: integer('size').notNull(),
   createdAt: integer('created_at').notNull()
 })
+
+export const taskComments = sqliteTable('task_comments', {
+  id: text('id').primaryKey(),
+  cardId: text('card_id').notNull(),
+  taskId: text('task_id').notNull(),
+  body: text('body').notNull().default(''),
+  createdAt: integer('created_at').notNull(),
+  updatedAt: integer('updated_at').notNull()
+})
+
+export const taskCommentFiles = sqliteTable(
+  'task_comment_files',
+  { commentId: text('comment_id').notNull(), fileId: text('file_id').notNull() },
+  (t) => [primaryKey({ columns: [t.commentId, t.fileId] })]
+)
