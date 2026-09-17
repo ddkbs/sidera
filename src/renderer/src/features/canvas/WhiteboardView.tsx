@@ -496,7 +496,10 @@ function Canvas({ detail }: { detail: WhiteboardDetail }) {
       if (c.resizing && n && !resizeBefore.current.has(c.id))
         resizeBefore.current.set(c.id, { id: c.id, x: n.position.x, y: n.position.y, width: n.width ?? n.measured?.width, height: n.height ?? n.measured?.height })
       if (c.resizing === false) {
-        patches.push({ id: c.id, width: c.dimensions.width, height: c.dimensions.height, ...(n ? { x: n.position.x, y: n.position.y } : {}) })
+        // a manual resize pins a card's height (cards otherwise grow with their content)
+        const o = n?.data.object
+        const pin = o && o.kind === 'card' && o.data?.autoSize !== false ? { data: { ...(o.data ?? {}), autoSize: false } } : {}
+        patches.push({ id: c.id, width: c.dimensions.width, height: c.dimensions.height, ...(n ? { x: n.position.x, y: n.position.y } : {}), ...pin })
       }
     }
     if (patches.length) {

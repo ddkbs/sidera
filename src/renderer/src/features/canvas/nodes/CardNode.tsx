@@ -1,5 +1,5 @@
 import { recordCardPatch } from '@/lib/undo-actions'
-import { type NodeProps } from '@xyflow/react'
+import { useReactFlow, type NodeProps } from '@xyflow/react'
 import { CardIcon } from '@/components/CardIcon'
 import { color as paletteColor } from '@/lib/colors'
 import { Expand, FileText } from '@/components/icons'
@@ -10,18 +10,41 @@ import { useGetCardQuery, useUpdateCardMutation } from '@/store/api'
 import { openCard } from '@/store/ui'
 import { CardEditor } from '@/features/card/CardEditor'
 import { TagBadge } from '@/features/card/TagBadge'
-import type { ObjectNode } from '../types'
+import { persist, type ObjectNode } from '../types'
 import { Handles, Resizer } from './NodeChrome'
 
-export const CardNode = memo(function CardNode({ data, selected }: NodeProps<ObjectNode>) {
+const MIN_H = 90
+const MAX_H = 520
+
+export const CardNode = memo(function CardNode({ id, data, selected }: NodeProps<ObjectNode>) {
   const dispatch = useAppDispatch()
   const card = data.card
+  const rf = useReactFlow()
   const isOpen = useAppSelector((s) => s.ui.openCardId === card?.id)
   const [editing, setEditing] = useState(false)
   const tint = card?.color ? paletteColor(card.color) : null
   const root = useRef<HTMLDivElement>(null)
   const editTimer = useRef<ReturnType<typeof setTimeout>>(undefined)
   useEffect(() => () => clearTimeout(editTimer.current), [])
+
+  // Cards grow with their content until the user resizes one by hand (that pins the height).
+  const content = useRef<HTMLDivElement>(null)
+  const autoSize = data.object.data?.autoSize !== false
+  useEffect(() => {
+    const el = content.current
+    if (!autoSize || editing || !el) return
+    const fit = (): void => {
+      const next = Math.min(Math.max(Math.ceil(el.scrollHeight) + 2, MIN_H), MAX_H)
+      const current = rf.getNode(id)?.height
+      if (current !== undefined && Math.abs(next - current) < 4) return
+      rf.setNodes((ns) => ns.map((n) => (n.id === id ? { ...n, height: next } : n)))
+      persist([{ id, height: next }])
+    }
+    fit()
+    const ro = new ResizeObserver(fit)
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [autoSize, editing, id, rf, card?.excerpt, card?.title, card?.tags.length])
 
   useEffect(() => {
     if (!editing) return
@@ -62,7 +85,7 @@ export const CardNode = memo(function CardNode({ data, selected }: NodeProps<Obj
           dispatch(openCard(card.id))
         }}
         className={cn(
-          'group relative flex h-full w-full flex-col overflow-hidden rounded-xl border bg-card text-card-foreground shadow-[0_1px_2px_rgba(0,0,0,0.04),0_4px_16px_-4px_rgba(0,0,0,0.08)] transition-shadow',
+          'group relative flex h-full w-full flex-col overflow-hidden rounded-lg border bg-card text-card-foreground shadow-[0_1px_2px_rgba(0,0,0,0.04),0_4px_16px_-4px_rgba(0,0,0,0.08)] transition-shadow',
           selected && 'ring-2 ring-brand/70',
           (isOpen || editing) && 'ring-2 ring-brand'
         )}
@@ -84,7 +107,7 @@ export const CardNode = memo(function CardNode({ data, selected }: NodeProps<Obj
         ) : editing ? (
           <InlineEditor cardId={card.id} />
         ) : (
-          <div className="flex min-h-0 flex-1 flex-col gap-1.5 p-4">
+          <div ref={content} className={cn('flex flex-col gap-1.5 p-4', autoSize ? 'shrink-0' : 'min-h-0 flex-1')}>
             <div className="flex items-start gap-1.5 pr-6">
               <CardIcon icon={card.icon} className="mt-0.5 size-[18px] text-[16px]" />
               <div className="line-clamp-2 text-[15px] leading-snug font-semibold tracking-tight">
@@ -98,7 +121,14 @@ export const CardNode = memo(function CardNode({ data, selected }: NodeProps<Obj
                 ))}
               </div>
             )}
-            <p className="min-h-0 flex-1 overflow-hidden text-[13px] leading-relaxed whitespace-pre-line text-muted-foreground [mask-image:linear-gradient(to_bottom,black_70%,transparent)]">
+            <p
+              className={cn(
+                'text-[13px] leading-relaxed whitespace-pre-line text-muted-foreground',
+                autoSize
+                  ? 'line-clamp-[12]'
+                  : 'min-h-0 flex-1 overflow-hidden [mask-image:linear-gradient(to_bottom,black_70%,transparent)]'
+              )}
+            >
               {card.excerpt}
             </p>
           </div>
