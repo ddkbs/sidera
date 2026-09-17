@@ -1,11 +1,13 @@
-import { BookOpen, CalendarDays, ChevronLeft, ChevronRight, Hash, Home, LayoutDashboard, ListChecks, PanelLeft, Plus, X } from '@/components/icons'
+import { BookOpen, CalendarDays, Redo2, Undo2, Hash, Home, LayoutDashboard, ListChecks, PanelLeft, Plus, X } from '@/components/icons'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { AppActions } from './AppActions'
 import { formatBinding, useBinding } from '@/lib/shortcuts'
+import { useUndoState } from '@/lib/undo'
+import { redoWithToast, undoWithToast } from '@/lib/undo-actions'
 import { cn } from '@/lib/utils'
 import { useAppDispatch, useAppSelector } from '@/store'
 import { useListTagsQuery, useListWhiteboardsQuery } from '@/store/api'
-import { back, closeTab, forward, moveTab, openTab, selectTab, toggleSidebar, type View } from '@/store/ui'
+import { closeTab, moveTab, openTab, selectTab, toggleSidebar, type View } from '@/store/ui'
 
 /** Human title + icon for any view (used by tabs). */
 export function useViewLabel(view: View): { title: string; Icon: typeof Home } {
@@ -74,10 +76,13 @@ function TabItem({ id, view, index, active, closable }: { id: string; view: View
 export function TabBar() {
   const dispatch = useAppDispatch()
   const { tabs, activeTabId, sidebarOpen } = useAppSelector((s) => s.ui)
-  const activeTab = tabs.find((t) => t.id === activeTabId)
+  const undoState = useUndoState()
+  const undoKey = formatBinding(useBinding('edit.undo'))
+  const redoKey = formatBinding(useBinding('edit.redo'))
   const newTabKey = formatBinding(useBinding('tab.new'))
 
-  const navBtn = 'no-drag grid size-7 place-items-center rounded-md text-muted-foreground transition hover:bg-accent hover:text-foreground disabled:opacity-30 disabled:hover:bg-transparent'
+  const navBtn =
+    'no-drag grid size-7 place-items-center rounded-md text-muted-foreground transition hover:bg-accent hover:text-foreground disabled:opacity-30 disabled:hover:bg-transparent'
   return (
     <div data-tour="tab-bar" className={cn('drag-region flex h-10 shrink-0 items-stretch border-b bg-sidebar', !sidebarOpen && 'pl-20')}>
       <div className="flex items-center gap-0.5 px-2">
@@ -86,20 +91,38 @@ export function TabBar() {
             <PanelLeft className="size-4" />
           </button>
         )}
-        <button className={navBtn} disabled={!activeTab?.back.length} onClick={() => dispatch(back())} aria-label="Back">
-          <ChevronLeft className="size-4" />
-        </button>
-        <button className={navBtn} disabled={!activeTab?.forward.length} onClick={() => dispatch(forward())} aria-label="Forward">
-          <ChevronRight className="size-4" />
-        </button>
-      </div>
-      <div className="flex min-w-0 flex-1 items-stretch overflow-x-auto border-l [scrollbar-width:none]">
-          {tabs.map((t, i) => (
-            <TabItem key={t.id} id={t.id} view={t.view} index={i} active={t.id === activeTabId} closable={tabs.length > 1} />
-          ))}
         <Tooltip>
           <TooltipTrigger asChild>
-            <button className="no-drag grid w-9 shrink-0 place-items-center text-muted-foreground transition hover:text-foreground" onClick={() => dispatch(openTab(undefined))} aria-label="New tab">
+            <button className={navBtn} disabled={!undoState.undo} onClick={() => void undoWithToast()} aria-label="Undo">
+              <Undo2 className="size-4" />
+            </button>
+          </TooltipTrigger>
+          <TooltipContent>
+            {undoState.undo ? `Undo ${undoState.undo}` : 'Nothing to undo'} {undoKey}
+          </TooltipContent>
+        </Tooltip>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <button className={navBtn} disabled={!undoState.redo} onClick={() => void redoWithToast()} aria-label="Redo">
+              <Redo2 className="size-4" />
+            </button>
+          </TooltipTrigger>
+          <TooltipContent>
+            {undoState.redo ? `Redo ${undoState.redo}` : 'Nothing to redo'} {redoKey}
+          </TooltipContent>
+        </Tooltip>
+      </div>
+      <div className="flex min-w-0 flex-1 items-stretch overflow-x-auto border-l [scrollbar-width:none]">
+        {tabs.map((t, i) => (
+          <TabItem key={t.id} id={t.id} view={t.view} index={i} active={t.id === activeTabId} closable={tabs.length > 1} />
+        ))}
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <button
+              className="no-drag grid w-9 shrink-0 place-items-center text-muted-foreground transition hover:text-foreground"
+              onClick={() => dispatch(openTab(undefined))}
+              aria-label="New tab"
+            >
               <Plus className="size-4" />
             </button>
           </TooltipTrigger>

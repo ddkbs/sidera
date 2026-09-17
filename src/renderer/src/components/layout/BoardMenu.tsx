@@ -1,3 +1,4 @@
+import { recordDelete } from '@/lib/undo-actions'
 import { LayoutDashboard, Pencil, Plus, Sparkles, Trash2 } from '@/components/icons'
 import { useState, type ReactElement } from 'react'
 import { toast } from 'sonner'
@@ -95,7 +96,7 @@ export function BoardMenu({ board, children }: { board: Whiteboard; children: Re
                     setDialog(null)
                     if (view.type === 'whiteboard' && view.id === board.id) dispatch(navigate({ type: 'home' }))
                     await remove(board.id)
-                    toast('Whiteboard deleted')
+                    recordDelete('whiteboard', board.id)
                   }}
                 >
                   Delete

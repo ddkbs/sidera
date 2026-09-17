@@ -1,3 +1,4 @@
+import { recordCardPatch } from '@/lib/undo-actions'
 import { NodeToolbar, Position, type NodeProps } from '@xyflow/react'
 import { CardIcon } from '@/components/CardIcon'
 import { PALETTE, color as paletteColor } from '@/lib/colors'
@@ -50,14 +51,20 @@ export const CardNode = memo(function CardNode({ data, selected }: NodeProps<Obj
           <div className="flex items-center gap-1 rounded-full border bg-popover p-1 shadow-md">
             <button
               aria-label="Default color"
-              onClick={() => updateCard({ id: card.id, color: null })}
+              onClick={() => {
+                updateCard({ id: card.id, color: null })
+                recordCardPatch(card.id, 'Change card color', { color: card.color }, { color: null })
+              }}
               className={cn('size-5 rounded-full border bg-card', !card.color && 'ring-2 ring-foreground/40')}
             />
             {CARD_COLORS.map((c) => (
               <button
                 key={c}
                 aria-label={c}
-                onClick={() => updateCard({ id: card.id, color: c })}
+                onClick={() => {
+                  updateCard({ id: card.id, color: c })
+                  recordCardPatch(card.id, 'Change card color', { color: card.color }, { color: c })
+                }}
                 className={cn('size-5 rounded-full border', card.color === c && 'ring-2 ring-foreground/40')}
                 style={{ background: PALETTE[c].border }}
               />
@@ -94,7 +101,9 @@ export const CardNode = memo(function CardNode({ data, selected }: NodeProps<Obj
           <div className="flex min-h-0 flex-1 flex-col gap-1.5 p-4">
             <div className="flex items-start gap-1.5 pr-6">
               <CardIcon icon={card.icon} className="mt-0.5 size-[18px] text-[16px]" />
-              <div className="line-clamp-2 text-[15px] leading-snug font-semibold tracking-tight">{card.title || <span className="text-muted-foreground">Untitled</span>}</div>
+              <div className="line-clamp-2 text-[15px] leading-snug font-semibold tracking-tight">
+                {card.title || <span className="text-muted-foreground">Untitled</span>}
+              </div>
             </div>
             {card.tags.length > 0 && (
               <div className="flex flex-wrap gap-1">
@@ -124,11 +133,21 @@ function InlineEditor({ cardId }: { cardId: string }) {
       <input
         value={title ?? card.title}
         onChange={(e) => setTitle(e.target.value)}
-        onBlur={() => title !== null && title !== card.title && update({ id: cardId, title })}
+        onBlur={() => {
+          if (title === null || title === card.title) return
+          update({ id: cardId, title })
+          recordCardPatch(cardId, 'Rename card', { title: card.title }, { title })
+        }}
         placeholder="Untitled"
         className="mb-1 bg-transparent pr-6 text-[15px] font-semibold tracking-tight outline-none"
       />
-      <CardEditor key={card.id} content={card.content} autofocus className="text-sm [&_.prose-canvas]:text-[13px]" onChange={(content) => update({ id: cardId, content })} />
+      <CardEditor
+        key={card.id}
+        content={card.content}
+        autofocus
+        className="text-sm [&_.prose-canvas]:text-[13px]"
+        onChange={(content) => update({ id: cardId, content })}
+      />
     </div>
   )
 }

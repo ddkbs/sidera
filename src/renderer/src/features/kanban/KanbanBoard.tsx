@@ -1,3 +1,4 @@
+import { record } from '@/lib/undo'
 import { CardIcon } from '@/components/CardIcon'
 import {
   DndContext,
@@ -50,7 +51,7 @@ export function KanbanBoard({ tagId, filter }: { tagId: string; filter: string }
 
   const onDragStart = (e: DragStartEvent) => {
     const col = findColumn(String(e.active.id))
-    setActive(col ? columns[col].find((c) => c.id === e.active.id) ?? null : null)
+    setActive(col ? (columns[col].find((c) => c.id === e.active.id) ?? null) : null)
   }
 
   const onDragOver = ({ active: a, over }: DragOverEvent) => {
@@ -78,11 +79,29 @@ export function KanbanBoard({ tagId, filter }: { tagId: string; filter: string }
       setColumns((cols) => ({ ...cols, [col]: list }))
     }
     const index = list.findIndex((c) => c.id === a.id)
-    void move({ cardId: String(a.id), propertyId: board.property.id, optionId: col === NONE ? null : col, index })
+    const cardId = String(a.id)
+    const propertyId = board.property.id
+    const optionId = col === NONE ? null : col
+    const origin = board.columns.find((c) => c.cards.some((x) => x.id === cardId))
+    const prev = origin && { optionId: origin.option?.id ?? null, index: origin.cards.findIndex((x) => x.id === cardId) }
+    void move({ cardId, propertyId, optionId, index })
+    if (prev && (prev.optionId !== optionId || prev.index !== index))
+      record({
+        label: `Move “${active?.title || 'card'}”`,
+        undo: () => window.api.moveKanbanItem({ cardId, propertyId, ...prev }),
+        redo: () => window.api.moveKanbanItem({ cardId, propertyId, optionId, index })
+      })
   }
 
   return (
-    <DndContext sensors={sensors} collisionDetection={closestCorners} onDragStart={onDragStart} onDragOver={onDragOver} onDragEnd={onDragEnd} onDragCancel={() => setActive(null)}>
+    <DndContext
+      sensors={sensors}
+      collisionDetection={closestCorners}
+      onDragStart={onDragStart}
+      onDragOver={onDragOver}
+      onDragEnd={onDragEnd}
+      onDragCancel={() => setActive(null)}
+    >
       <div className="flex h-full gap-3 overflow-x-auto px-8 pb-6">
         {board.columns.map((column) => {
           const key = column.option?.id ?? NONE

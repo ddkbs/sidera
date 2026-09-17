@@ -243,3 +243,16 @@ export const Coffee = ObraCoffee
 export const Music = ObraMusic
 export const Lock = ObraLock
 export const Bug = ObraBug
+
+/** Obra has no undo/redo glyph — drawn in the same 24px, 1.5-stroke style. */
+const turnArrow = (flip: boolean): AppIcon =>
+  function TurnArrowIcon({ size = 24, className, style }) {
+    return (
+      <svg width={size} height={size} viewBox="0 0 24 24" className={className} style={{ ...style, transform: flip ? 'scaleX(-1)' : undefined }} fill="none" stroke="currentColor" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round">
+        <path d="M9 14 4 9l5-5" />
+        <path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11" />
+      </svg>
+    )
+  }
+export const Undo2 = turnArrow(false)
+export const Redo2 = turnArrow(true)

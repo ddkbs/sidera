@@ -1,3 +1,5 @@
+import { recordCardPatch } from '@/lib/undo-actions'
+import { recordDelete } from '@/lib/undo-actions'
 import { ArrowUpRight, Link2, LayoutDashboard, MoreHorizontal, Trash2, X } from '@/components/icons'
 import { DropdownMenuSeparator, DropdownMenuSub, DropdownMenuSubContent, DropdownMenuSubTrigger } from '@/components/ui/dropdown-menu'
 import { motion } from 'motion/react'
@@ -95,7 +97,7 @@ export function CardPanel({ cardId }: { cardId: string }) {
               onClick={async () => {
                 close()
                 await remove(cardId)
-                toast('Card deleted')
+                recordDelete('card', cardId)
               }}
             >
               <Trash2 /> Delete card
@@ -118,13 +120,27 @@ export function CardPanel({ cardId }: { cardId: string }) {
             {card.color && <div className="-mx-8 -mt-6 mb-5 h-1.5" style={{ background: paletteColor(card.color).border }} />}
             <div className="group/appearance mb-1 flex min-h-7 items-end gap-1">
               {card.icon && (
-                <AppearancePicker color={card.color} icon={card.icon} onChange={(p) => update({ id: card.id, ...p })}>
+                <AppearancePicker
+                  color={card.color}
+                  icon={card.icon}
+                  onChange={(p) => {
+                    update({ id: card.id, ...p })
+                    recordCardPatch(card.id, 'Change card appearance', { color: card.color, icon: card.icon }, { color: card.color, icon: card.icon, ...p })
+                  }}
+                >
                   <button className="-ml-1 grid size-12 place-items-center rounded-lg text-4xl transition hover:bg-accent" aria-label="Change icon">
                     <CardIcon icon={card.icon} className="size-9" />
                   </button>
                 </AppearancePicker>
               )}
-              <AppearancePicker color={card.color} icon={card.icon} onChange={(p) => update({ id: card.id, ...p })}>
+              <AppearancePicker
+                color={card.color}
+                icon={card.icon}
+                onChange={(p) => {
+                  update({ id: card.id, ...p })
+                  recordCardPatch(card.id, 'Change card appearance', { color: card.color, icon: card.icon }, { color: card.color, icon: card.icon, ...p })
+                }}
+              >
                 <button className="h-7 rounded-md px-2 text-xs text-muted-foreground opacity-0 transition group-hover/appearance:opacity-100 hover:bg-accent hover:text-foreground focus-visible:opacity-100">
                   {card.icon ? 'Change color' : 'Add icon & color'}
                 </button>
@@ -139,7 +155,11 @@ export function CardPanel({ cardId }: { cardId: string }) {
                 e.target.style.height = 'auto'
                 e.target.style.height = e.target.scrollHeight + 'px'
               }}
-              onBlur={() => title !== card.title && update({ id: card.id, title })}
+              onBlur={() => {
+                if (title === card.title) return
+                update({ id: card.id, title })
+                recordCardPatch(card.id, 'Rename card', { title: card.title }, { title })
+              }}
               onKeyDown={(e) => {
                 if (e.key === 'Enter') {
                   e.preventDefault()

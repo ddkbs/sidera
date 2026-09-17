@@ -1,6 +1,6 @@
+import { recordDelete } from '@/lib/undo-actions'
 import { Expand, Trash2 } from '@/components/icons'
 import type { ReactNode } from 'react'
-import { toast } from 'sonner'
 import { ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuSeparator, ContextMenuTrigger } from '@/components/ui/context-menu'
 import { useAppDispatch } from '@/store'
 import { useDeleteCardMutation } from '@/store/api'
@@ -23,7 +23,7 @@ export function CardRowMenu({ cardId, children }: { cardId: string; children: Re
           variant="destructive"
           onSelect={async () => {
             await remove(cardId)
-            toast('Card deleted')
+            recordDelete('card', cardId)
           }}
         >
           <Trash2 /> Delete card

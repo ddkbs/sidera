@@ -1,3 +1,4 @@
+import { recordDelete } from '@/lib/undo-actions'
 import {
   Background,
   BackgroundVariant,
@@ -43,7 +44,8 @@ import { CARD_MIME, CardDrawer } from './CardDrawer'
 import { FileViewer } from './FileViewer'
 import { BoardBreadcrumb } from './BoardBreadcrumb'
 import { FindOnBoard } from './FindOnBoard'
-import { History, invert, type HistoryOp } from './history'
+import { invert, opLabel, type HistoryOp } from './history'
+import { record } from '@/lib/undo'
 import { CanvasToolbar, TOOLS, type OverflowAction } from './CanvasToolbar'
 import { edgeTypes } from './FloatingEdge'
 import { NodeMenu, type NodeMenuAction } from './NodeMenu'
@@ -121,9 +123,16 @@ function Canvas({ detail }: { detail: WhiteboardDetail }) {
   const connectFrom = useRef<string | null>(null)
   const sectionDrag = useRef<{ start: { x: number; y: number }; children: Map<string, { x: number; y: number }> } | null>(null)
   const wrapper = useRef<HTMLDivElement>(null)
-  const history = useRef(new History())
   const dragBefore = useRef<ObjectPatch[]>([])
   const resizeBefore = useRef(new Map<string, ObjectPatch>())
+  /** Push a canvas operation (already applied) onto the global undo stack. */
+  const trackRef = useRef<(op: HistoryOp) => void>(() => {})
+  trackRef.current = (op: HistoryOp) => {
+    if (op.type === 'patch' && JSON.stringify(op.before) === JSON.stringify(op.after)) return
+    record({ label: opLabel(op), undo: () => applyOp(invert(op)), redo: () => applyOp(op) })
+  }
+  const track = (op: HistoryOp): void => trackRef.current(op)
+
 
   const [addObject] = useAddObjectMutation()
   const [removeObjects] = useRemoveObjectsMutation()
@@ -154,7 +163,7 @@ function Canvas({ detail }: { detail: WhiteboardDetail }) {
       else if (a === 'remove') void rf.deleteElements({ nodes: [{ id: node.id }] })
       else if (a === 'delete-card' && o.refId) {
         await deleteCard(o.refId)
-        toast('Card deleted')
+        recordDelete('card', o.refId)
       } else if (a === 'front' || a === 'back') {
         const zs = rf.getNodes().map((n) => n.data.object.z)
         const z = a === 'front' ? Math.max(...zs) + 1 : Math.min(...zs) - 1
@@ -184,7 +193,7 @@ function Canvas({ detail }: { detail: WhiteboardDetail }) {
     async (kind: ObjectKind, pos: { x: number; y: number }, extra: { refId?: string; data?: Record<string, unknown>; color?: string; width?: number; height?: number } = {}) => {
       const res = await addObject({ whiteboardId: boardId, kind, x: pos.x, y: pos.y, ...extra })
       if ('error' in res) toast.error('Could not add to whiteboard')
-      if ('data' in res && res.data) history.current.push({ type: 'add', objects: [res.data], connections: [] })
+      if ('data' in res && res.data) track({ type: 'add', objects: [res.data], connections: [] })
       return 'data' in res ? res.data : undefined
     },
     [addObject, boardId]
@@ -204,7 +213,7 @@ function Canvas({ detail }: { detail: WhiteboardDetail }) {
           const o = await place('card', { x, y }, { refId: res.data.id, width: 300, height: 200 })
           if (o) {
             const conn = await addConnection({ whiteboardId: boardId, sourceId: nodeId, targetId: o.id })
-            if ('data' in conn && conn.data) history.current.push({ type: 'add', objects: [], connections: [conn.data] })
+            if ('data' in conn && conn.data) track({ type: 'add', objects: [], connections: [conn.data] })
           }
           toast.success('Saved as card')
         } catch {
@@ -252,7 +261,7 @@ function Canvas({ detail }: { detail: WhiteboardDetail }) {
   const applyOp = useCallback(
     async (op: HistoryOp) => {
       if (op.type === 'patch') {
-        persist(op.after)
+        await window.api.updateObjects(op.after)
         const byId = new Map(op.after.map((p) => [p.id, p]))
         setNodes((ns) =>
           ns.map((n) => {
@@ -297,7 +306,7 @@ function Canvas({ detail }: { detail: WhiteboardDetail }) {
         })
         if ('data' in res && res.data) created.push(res.data)
       }
-      if (created.length) history.current.push({ type: 'add', objects: created, connections: [] })
+      if (created.length) track({ type: 'add', objects: created, connections: [] })
     },
     [addObject, boardId]
   )
@@ -305,14 +314,6 @@ function Canvas({ detail }: { detail: WhiteboardDetail }) {
   const selectedObjects = () => rf.getNodes().filter((n) => n.selected).map((n) => ({ ...n.data.object, x: n.position.x, y: n.position.y }))
 
   useCommands({
-    'canvas.undo': () => {
-      const op = history.current.undo()
-      if (op) void applyOp(invert(op))
-    },
-    'canvas.redo': () => {
-      const op = history.current.redo()
-      if (op) void applyOp(op)
-    },
     'canvas.copy': () => {
       const selected = selectedObjects()
       if (!selected.length) return false
@@ -371,7 +372,7 @@ function Canvas({ detail }: { detail: WhiteboardDetail }) {
     }
     if (patches.length) {
       const before = patches.map((p) => resizeBefore.current.get(p.id)).filter((p): p is ObjectPatch => !!p)
-      if (before.length === patches.length) history.current.push({ type: 'patch', before, after: patches })
+      if (before.length === patches.length) track({ type: 'patch', before, after: patches })
       patches.forEach((p) => resizeBefore.current.delete(p.id))
     }
     persist(patches)
@@ -413,7 +414,7 @@ function Canvas({ detail }: { detail: WhiteboardDetail }) {
     sectionDrag.current?.children.forEach((_p, id) => moved.add(id))
     sectionDrag.current = null
     const patches = rf.getNodes().filter((n) => moved.has(n.id)).map((n) => ({ id: n.id, x: n.position.x, y: n.position.y }))
-    history.current.push({ type: 'patch', before: dragBefore.current, after: patches })
+    track({ type: 'patch', before: dragBefore.current, after: patches })
     persist(patches)
   }, [rf])
 
@@ -422,7 +423,7 @@ function Canvas({ detail }: { detail: WhiteboardDetail }) {
       if (source === target) return
       if (edges.some((e) => e.source === source && e.target === target)) return
       const res = await addConnection({ whiteboardId: boardId, sourceId: source, targetId: target })
-      if ('data' in res && res.data) history.current.push({ type: 'add', objects: [], connections: [res.data] })
+      if ('data' in res && res.data) track({ type: 'add', objects: [], connections: [res.data] })
     },
     [addConnection, boardId, edges]
   )
@@ -594,7 +595,7 @@ function Canvas({ detail }: { detail: WhiteboardDetail }) {
         onDelete={({ nodes: ns, edges: es }) => {
           const objects = ns.map((n) => n.data.object)
           const connections = detail.connections.filter((c) => es.some((e) => e.id === c.id))
-          if (objects.length || connections.length) history.current.push({ type: 'remove', objects, connections })
+          if (objects.length || connections.length) track({ type: 'remove', objects, connections })
           if (objects.length) void removeObjects({ whiteboardId: boardId, ids: objects.map((o) => o.id) })
           const loose = connections.filter((c) => !objects.some((o) => o.id === c.sourceId || o.id === c.targetId))
           if (loose.length) void removeConnections({ whiteboardId: boardId, ids: loose.map((c) => c.id) })
@@ -695,7 +696,7 @@ function Canvas({ detail }: { detail: WhiteboardDetail }) {
           const o = await place('card', { x, y }, { refId: res.data.id, width: 300, height: 180 })
           if (o && fileNode) {
             const conn = await addConnection({ whiteboardId: boardId, sourceId: fileNode.id, targetId: o.id })
-            if ('data' in conn && conn.data) history.current.push({ type: 'add', objects: [], connections: [conn.data] })
+            if ('data' in conn && conn.data) track({ type: 'add', objects: [], connections: [conn.data] })
           }
           toast.success('Card created from highlight')
         }}

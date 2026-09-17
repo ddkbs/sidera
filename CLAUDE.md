@@ -28,6 +28,7 @@ Navigate by writing `localStorage['canvascl.ui'] = {sidebarOpen, chatOpen, tabs:
 - `src/main/settings.ts` (settings.json in data dir) + `src/main/integrations.ts` (Claude Desktop/Code connect).
 - `src/preload/` — exposes `window.api: CanvasApi`, `window.app` (settings, data dir, integrations), `window.chat`, `window.events`.
 - Keyboard: every shortcut is a command in `renderer/src/lib/shortcuts.ts` (`COMMANDS`); register handlers with `useCommands()`, never raw keydown listeners. Pure key parsing in `lib/keys.ts`.
+- Undo: every user action goes through `lib/undo.ts` (`record({label, undo, redo})`, global ⌘Z/⇧⌘Z + tab-bar arrows); deletes are soft (`restoreCard`/`restoreWhiteboard`), use `recordDelete`/`recordCardPatch` from `lib/undo-actions.ts`. Navigation back/forward = ⌘[ / ⌘].
 - Canvas node editing: use `features/canvas/nodes/useEditMode.ts` (double-click to edit, outside click/Esc to finish).
 - `src/renderer/src/` — React. `store/` (RTK + RTK Query `api.ts` wrapping window.api), `features/<canvas|library|kanban|journal|palette|card>`, `components/ui` (shadcn), `components/layout`.
 

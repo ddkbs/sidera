@@ -1,3 +1,4 @@
+import { redoWithToast, undoWithToast } from '@/lib/undo-actions'
 import { AnimatePresence, motion } from 'motion/react'
 import { CardPanel } from '@/features/card/CardPanel'
 import { WhiteboardView } from '@/features/canvas/WhiteboardView'
@@ -26,6 +27,8 @@ export function AppShell() {
     'settings.open': () => dispatch(openSettings(undefined)),
     'sidebar.toggle': () => dispatch(toggleSidebar()),
     'chat.toggle': () => dispatch(setChatOpen(!store.getState().ui.chatOpen)),
+    'edit.undo': () => void undoWithToast(),
+    'edit.redo': () => void redoWithToast(),
     'nav.back': () => dispatch(back()),
     'nav.forward': () => dispatch(forward()),
     'nav.journal': () => dispatch(navigate({ type: 'journal' })),
