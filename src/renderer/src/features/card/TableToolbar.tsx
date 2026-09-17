@@ -38,7 +38,7 @@ export function TableToolbar({ editor }: { editor: Editor }) {
         <ArrowRight className="size-4" />
       </Btn>
       <Btn label="Delete column" onClick={() => c().deleteColumn().run()}>
-        <Minus className="size-4" />
+        <Minus className="size-4 rotate-90" />
       </Btn>
       <Sep />
       <Btn label="Insert row above" onClick={() => c().addRowBefore().run()}>
@@ -48,7 +48,7 @@ export function TableToolbar({ editor }: { editor: Editor }) {
         <ArrowDown className="size-4" />
       </Btn>
       <Btn label="Delete row" onClick={() => c().deleteRow().run()}>
-        <Minus className="size-4 rotate-90" />
+        <Minus className="size-4" />
       </Btn>
       <Sep />
       <Btn label="Toggle header row" onClick={() => c().toggleHeaderRow().run()}>

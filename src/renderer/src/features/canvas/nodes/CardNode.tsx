@@ -22,6 +22,8 @@ export const CardNode = memo(function CardNode({ data, selected }: NodeProps<Obj
   const [updateCard] = useUpdateCardMutation()
   const tint = card?.color ? paletteColor(card.color) : null
   const root = useRef<HTMLDivElement>(null)
+  const editTimer = useRef<ReturnType<typeof setTimeout>>(undefined)
+  useEffect(() => () => clearTimeout(editTimer.current), [])
 
   useEffect(() => {
     if (!editing) return
@@ -74,10 +76,16 @@ export const CardNode = memo(function CardNode({ data, selected }: NodeProps<Obj
       )}
       <div
         ref={root}
-        /* single click on a selected card types inline, double-click opens the big card window */
-        onClick={() => card && selected && setEditing(true)}
+        /* single click on a selected card types inline, double-click opens the big card window;
+           entering edit mode is deferred so the second click of a double-click is not swallowed */
+        onClick={() => {
+          if (!card || !selected) return
+          clearTimeout(editTimer.current)
+          editTimer.current = setTimeout(() => setEditing(true), 220)
+        }}
         onDoubleClick={() => {
           if (!card) return
+          clearTimeout(editTimer.current)
           setEditing(false)
           dispatch(openCard(card.id))
         }}
