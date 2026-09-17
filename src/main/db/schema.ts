@@ -51,10 +51,20 @@ export const backlinks = sqliteTable(
   (t) => [primaryKey({ columns: [t.sourceCardId, t.targetCardId] })]
 )
 
+export const folders = sqliteTable('folders', {
+  id: text('id').primaryKey(),
+  name: text('name').notNull(),
+  parentId: text('parent_id'),
+  position: real('position').notNull().default(0),
+  createdAt: integer('created_at').notNull(),
+  updatedAt: integer('updated_at').notNull()
+})
+
 export const whiteboards = sqliteTable('whiteboards', {
   id: text('id').primaryKey(),
   name: text('name').notNull(),
   parentId: text('parent_id'),
+  folderId: text('folder_id'),
   viewport: text('viewport').notNull(),
   createdAt: integer('created_at').notNull(),
   updatedAt: integer('updated_at').notNull(),
