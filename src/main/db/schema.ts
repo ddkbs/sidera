@@ -158,3 +158,15 @@ export const taskActivity = sqliteTable('task_activity', {
   toValue: text('to_value'),
   createdAt: integer('created_at').notNull()
 })
+
+export const pdfHighlights = sqliteTable('pdf_highlights', {
+  id: text('id').primaryKey(),
+  fileId: text('file_id').notNull(),
+  page: integer('page').notNull().default(1),
+  color: text('color').notNull().default('yellow'),
+  text: text('text').notNull().default(''),
+  note: text('note'),
+  rects: text('rects').notNull().default('[]'),
+  createdAt: integer('created_at').notNull(),
+  updatedAt: integer('updated_at').notNull()
+})

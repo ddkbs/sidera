@@ -10,9 +10,20 @@ export const store = configureStore({
 })
 
 store.subscribe(() => {
-  const { sidebarOpen, tabs, activeTabId, chatOpen } = store.getState().ui
+  const { sidebarOpen, tabs, activeTabId, chatOpen, pdf, pdfWidth, pdfListOpen } = store.getState().ui
   try {
-    localStorage.setItem('canvascl.ui', JSON.stringify({ sidebarOpen, tabs: tabs.map(({ id, view }) => ({ id, view })), activeTabId, chatOpen }))
+    localStorage.setItem(
+      'canvascl.ui',
+      JSON.stringify({
+        sidebarOpen,
+        tabs: tabs.map(({ id, view }) => ({ id, view })),
+        activeTabId,
+        chatOpen,
+        pdf: pdf && { fileId: pdf.fileId, name: pdf.name },
+        pdfWidth,
+        pdfListOpen
+      })
+    )
   } catch {
     /* ignore */
   }

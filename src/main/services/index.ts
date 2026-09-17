@@ -12,6 +12,8 @@ import type {
   DocJSON,
   FileRecord,
   Folder,
+  HighlightRect,
+  PdfHighlight,
   Profile,
   ProfileRef,
   KanbanBoard,
@@ -118,6 +120,17 @@ export function createServices(
     updatedAt: r.updatedAt
   })
   const toTag = (r: typeof s.tags.$inferSelect): Tag => ({ id: r.id, name: r.name, color: r.color })
+  const toHighlight = (r: typeof s.pdfHighlights.$inferSelect): PdfHighlight => ({
+    id: r.id,
+    fileId: r.fileId,
+    page: r.page,
+    color: r.color,
+    text: r.text,
+    note: r.note,
+    rects: json<HighlightRect[]>(r.rects, []),
+    createdAt: r.createdAt,
+    updatedAt: r.updatedAt
+  })
   const toProp = (r: typeof s.tagProperties.$inferSelect): TagProperty => ({
     id: r.id,
     tagId: r.tagId,
@@ -1250,6 +1263,48 @@ export function createServices(
     },
     getFile(id) {
       return db.select().from(s.files).where(eq(s.files.id, id)).get() ?? null
+    },
+
+    // ---------- pdf highlights ----------
+    listHighlights(fileId) {
+      return db
+        .select()
+        .from(s.pdfHighlights)
+        .where(eq(s.pdfHighlights.fileId, fileId))
+        .all()
+        .map(toHighlight)
+        // page order, then top-to-bottom on the page
+        .sort((a, b) => a.page - b.page || (a.rects[0]?.y ?? 0) - (b.rects[0]?.y ?? 0))
+    },
+    createHighlight({ fileId, page, text, rects, color, note }) {
+      if (!db.select().from(s.files).where(eq(s.files.id, fileId)).get()) throw new Error(`File not found: ${fileId}`)
+      const at = now()
+      const row = {
+        id: nanoid(),
+        fileId,
+        page: Math.max(1, Math.round(page)),
+        color: color ?? 'yellow',
+        text,
+        note: note ?? null,
+        rects: JSON.stringify(rects ?? []),
+        createdAt: at,
+        updatedAt: at
+      }
+      db.insert(s.pdfHighlights).values(row).run()
+      onChange('files')
+      return toHighlight(row)
+    },
+    updateHighlight({ id, color, note }) {
+      const row = db.select().from(s.pdfHighlights).where(eq(s.pdfHighlights.id, id)).get()
+      if (!row) throw new Error(`Highlight not found: ${id}`)
+      const next = { ...row, color: color ?? row.color, note: note === undefined ? row.note : note, updatedAt: now() }
+      db.update(s.pdfHighlights).set(next).where(eq(s.pdfHighlights.id, id)).run()
+      onChange('files')
+      return toHighlight(next)
+    },
+    deleteHighlight(id) {
+      db.delete(s.pdfHighlights).where(eq(s.pdfHighlights.id, id)).run()
+      onChange('files')
     },
     purgeDeleted(olderThan) {
       const cutoff = now() - olderThan

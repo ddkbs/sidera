@@ -13,5 +13,5 @@
     "baseUrl": ".",
     "paths": { "@shared/*": ["src/shared/*"] }
   },
-  "include": ["electron.vite.config.ts", "vitest.config.ts", "drizzle.config.ts", "src/main/**/*", "src/preload/**/*", "src/shared/**/*", "src/renderer/src/features/canvas/history.ts", "src/renderer/src/features/canvas/arrange.ts", "src/renderer/src/lib/keys.ts", "src/renderer/src/lib/undo.ts", "src/renderer/src/features/canvas/mindmap.ts", "src/renderer/src/features/canvas/mermaidEdit.ts", "src/renderer/src/features/onboarding/geometry.ts", "src/renderer/src/features/chat/askUserQuestionsHelpers.ts", "src/renderer/src/features/tasks/model.ts", "tests/**/*"]
+  "include": ["electron.vite.config.ts", "vitest.config.ts", "drizzle.config.ts", "src/main/**/*", "src/preload/**/*", "src/shared/**/*", "src/renderer/src/features/canvas/history.ts", "src/renderer/src/features/canvas/arrange.ts", "src/renderer/src/lib/keys.ts", "src/renderer/src/lib/undo.ts", "src/renderer/src/features/canvas/mindmap.ts", "src/renderer/src/features/canvas/mermaidEdit.ts", "src/renderer/src/features/onboarding/geometry.ts", "src/renderer/src/features/chat/askUserQuestionsHelpers.ts", "src/renderer/src/features/tasks/model.ts", "src/renderer/src/features/pdf/highlight.ts", "tests/**/*"]
 }

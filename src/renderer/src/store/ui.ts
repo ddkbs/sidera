@@ -11,6 +11,18 @@ export type View =
 type LegacyView = View | { type: 'journal' }
 const migrateView = (v: LegacyView | undefined): View => (v && v.type !== 'journal' ? v : HOME)
 
+/** The PDF docked in the split-screen reader on the right. */
+export interface PdfReaderState {
+  fileId: string
+  name: string
+  /** page to scroll to once the document is ready (cleared after the jump) */
+  jumpTo?: number
+}
+
+export const PDF_MIN_WIDTH = 360
+export const PDF_MAX_WIDTH = 1100
+export const PDF_DEFAULT_WIDTH = 560
+
 export type CanvasTool = 'select' | 'card' | 'import' | 'connector' | 'text' | 'section' | 'search'
 
 export interface Tab {
@@ -37,6 +49,12 @@ export interface UiState {
   shortcutsOpen: boolean
   /** profile create/edit dialog: `id` null = new profile */
   profileDialog: { id: string | null } | null
+  /** PDF reader docked on the right half of the window (null = closed) */
+  pdf: PdfReaderState | null
+  /** width of the PDF reader in px (persisted) */
+  pdfWidth: number
+  /** list of all highlights of the open PDF, shown next to the pages */
+  pdfListOpen: boolean
   /** resolved from settings.theme + OS appearance */
   theme: 'light' | 'dark'
   activity: McpActivity[]
@@ -68,6 +86,9 @@ const initialState: UiState = {
   openCardId: null,
   paletteOpen: false,
   chatOpen: stored.chatOpen ?? false,
+  pdf: stored.pdf ?? null,
+  pdfWidth: Math.min(PDF_MAX_WIDTH, Math.max(PDF_MIN_WIDTH, stored.pdfWidth ?? PDF_DEFAULT_WIDTH)),
+  pdfListOpen: stored.pdfListOpen ?? false,
   queuedChatMessage: null,
   settingsOpen: false,
   settingsSection: 'general',
@@ -154,6 +175,15 @@ export const ui = createSlice({
     openCard: (s, a: PayloadAction<string | null>) => void (s.openCardId = a.payload),
     setPaletteOpen: (s, a: PayloadAction<boolean>) => void (s.paletteOpen = a.payload),
     setChatOpen: (s, a: PayloadAction<boolean>) => void (s.chatOpen = a.payload),
+    /** Dock a PDF in the reader; passing the file that is already open just jumps to the page. */
+    openPdf: (s, a: PayloadAction<PdfReaderState>) => void (s.pdf = { ...s.pdf, ...a.payload }),
+    closePdf: (s) => void (s.pdf = null),
+    clearPdfJump: (s) => {
+      if (s.pdf) s.pdf = { fileId: s.pdf.fileId, name: s.pdf.name }
+    },
+    setPdfWidth: (s, a: PayloadAction<number>) =>
+      void (s.pdfWidth = Math.min(PDF_MAX_WIDTH, Math.max(PDF_MIN_WIDTH, Math.round(a.payload)))),
+    setPdfListOpen: (s, a: PayloadAction<boolean>) => void (s.pdfListOpen = a.payload),
     /** Opens the chat panel and queues a message for it to send once mounted. */
     queueChatMessage: (s, a: PayloadAction<string>) => {
       s.chatOpen = true
@@ -188,6 +218,11 @@ export const {
   openCard,
   setPaletteOpen,
   setChatOpen,
+  openPdf,
+  closePdf,
+  clearPdfJump,
+  setPdfWidth,
+  setPdfListOpen,
   queueChatMessage,
   clearQueuedChatMessage,
   openSettings,

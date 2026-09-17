@@ -198,5 +198,19 @@ export const migrations: string[] = [
   ALTER TABLE connections ADD COLUMN color TEXT;
   ALTER TABLE connections ADD COLUMN line_style TEXT NOT NULL DEFAULT 'solid';
   ALTER TABLE connections ADD COLUMN arrows TEXT NOT NULL DEFAULT 'end';
+  `,
+  /* 9: pdf highlights */ `
+  CREATE TABLE pdf_highlights (
+    id TEXT PRIMARY KEY,
+    file_id TEXT NOT NULL REFERENCES files(id) ON DELETE CASCADE,
+    page INTEGER NOT NULL DEFAULT 1,
+    color TEXT NOT NULL DEFAULT 'yellow',
+    text TEXT NOT NULL DEFAULT '',
+    note TEXT,
+    rects TEXT NOT NULL DEFAULT '[]',
+    created_at INTEGER NOT NULL,
+    updated_at INTEGER NOT NULL
+  );
+  CREATE INDEX pdf_highlights_file_idx ON pdf_highlights(file_id, page);
   `
 ]
