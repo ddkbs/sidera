@@ -3,10 +3,31 @@ out
 dist
 *.log
 .DS_Store
-*.db
-*.db-wal
-*.db-shm
-.env
 *.tsbuildinfo
 src/renderer/public/excalidraw
 .claude/worktrees/
+
+# Local data (databases, encrypted key store, scratch data dirs)
+*.db
+*.db-*
+*.sqlite
+*.sqlite3
+ai-keys.bin
+anthropic-key.bin
+/data/
+/scratch/
+
+# Secrets: env files (only the empty template is tracked)
+.env
+.env.*
+!.env.example
+
+# Code-signing / notarization material
+*.p12
+*.pfx
+*.pem
+*.key
+*.cer
+*.crt
+*.mobileprovision
+*.provisionprofile
