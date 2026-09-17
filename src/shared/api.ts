@@ -7,6 +7,7 @@ import type {
   Connection,
   DocJSON,
   FileRecord,
+  Folder,
   ID,
   JournalDay,
   KanbanBoard,
@@ -55,9 +56,17 @@ export interface CanvasApi {
   // whiteboards
   listWhiteboards(): Promise<Whiteboard[]>
   getWhiteboard(id: ID): Promise<WhiteboardDetail | null>
-  createWhiteboard(input: { name: string; parentId?: ID | null }): Promise<Whiteboard>
+  createWhiteboard(input: { name: string; parentId?: ID | null; folderId?: ID | null }): Promise<Whiteboard>
   updateWhiteboard(input: { id: ID; name?: string; viewport?: Whiteboard['viewport'] }): Promise<Whiteboard>
   deleteWhiteboard(id: ID): Promise<void>
+  moveWhiteboardToFolder(whiteboardId: ID, folderId: ID | null): Promise<void>
+
+  // folders
+  listFolders(): Promise<Folder[]>
+  createFolder(input: { name: string; parentId?: ID | null }): Promise<Folder>
+  renameFolder(id: ID, name: string): Promise<Folder>
+  deleteFolder(id: ID): Promise<void>
+  moveFolder(id: ID, parentId: ID | null): Promise<void>
   addObject(input: {
     whiteboardId: ID
     kind: ObjectKind
@@ -118,7 +127,8 @@ export const API_METHODS: ApiMethod[] = [
   'listTags', 'createTag', 'updateTag', 'deleteTag', 'setCardTags',
   'listProperties', 'createProperty', 'updateProperty', 'setPropertyValue',
   'getKanban', 'moveKanbanItem',
-  'listWhiteboards', 'getWhiteboard', 'createWhiteboard', 'updateWhiteboard', 'deleteWhiteboard',
+  'listWhiteboards', 'getWhiteboard', 'createWhiteboard', 'updateWhiteboard', 'deleteWhiteboard', 'moveWhiteboardToFolder',
+  'listFolders', 'createFolder', 'renameFolder', 'deleteFolder', 'moveFolder',
   'addObject', 'updateObjects', 'removeObjects', 'restoreObjects', 'addConnection', 'updateConnection', 'removeConnections', 'organizeBoard',
   'getJournal', 'listJournal',
   'listTasks', 'setTaskChecked', 'addTask',
