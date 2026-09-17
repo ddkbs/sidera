@@ -20,6 +20,8 @@ export const CardNode = memo(function CardNode({ data, selected }: NodeProps<Obj
   const [editing, setEditing] = useState(false)
   const tint = card?.color ? paletteColor(card.color) : null
   const root = useRef<HTMLDivElement>(null)
+  const editTimer = useRef<ReturnType<typeof setTimeout>>(undefined)
+  useEffect(() => () => clearTimeout(editTimer.current), [])
 
   useEffect(() => {
     if (!editing) return
@@ -46,7 +48,19 @@ export const CardNode = memo(function CardNode({ data, selected }: NodeProps<Obj
       <Resizer selected={selected} minWidth={180} minHeight={80} />
       <div
         ref={root}
-        onDoubleClick={() => card && setEditing(true)}
+        /* single click on a selected card types inline, double-click opens the big card window;
+           entering edit mode is deferred so the second click of a double-click is not swallowed */
+        onClick={() => {
+          if (!card || !selected) return
+          clearTimeout(editTimer.current)
+          editTimer.current = setTimeout(() => setEditing(true), 220)
+        }}
+        onDoubleClick={() => {
+          if (!card) return
+          clearTimeout(editTimer.current)
+          setEditing(false)
+          dispatch(openCard(card.id))
+        }}
         className={cn(
           'group relative flex h-full w-full flex-col overflow-hidden rounded-xl border bg-card text-card-foreground shadow-[0_1px_2px_rgba(0,0,0,0.04),0_4px_16px_-4px_rgba(0,0,0,0.08)] transition-shadow',
           selected && 'ring-2 ring-brand/70',
