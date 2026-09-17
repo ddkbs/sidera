@@ -664,6 +664,7 @@ export function createMcpServer(api: Services, version: string, onCall?: ToolCal
         api.listTaskComments(card_id, task_id).map((c) => ({
           id: c.id,
           body: c.body,
+          author: c.author?.name ?? null,
           files: c.files.map((f) => f.name),
           created_at: c.createdAt,
           updated_at: c.updatedAt
@@ -674,13 +675,14 @@ export function createMcpServer(api: Services, version: string, onCall?: ToolCal
   server.registerTool(
     'add_task_comment',
     {
-      description: "Add a text comment to a to-do item (card_id + task_id from list_tasks). File uploads aren't supported over MCP.",
+      description:
+        "Add a text comment to a to-do item (card_id + task_id from list_tasks). It is authored by the app's active profile. File uploads aren't supported over MCP.",
       inputSchema: { card_id: z.string(), task_id: z.string(), body: z.string().min(1) }
     },
     async ({ card_id, task_id, body }) => {
       if (!api.getCard(card_id)) return { ...ok(`Card ${card_id} not found`), isError: true }
       const comment = api.addTaskComment({ cardId: card_id, taskId: task_id, body })
-      return ok({ id: comment.id })
+      return ok({ id: comment.id, author: comment.author?.name ?? null })
     }
   )
 

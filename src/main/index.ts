@@ -47,8 +47,14 @@ const emit = (scope: DbChangeScope): void => {
 }
 
 const db = openDatabase(join(dataDir, 'canvascl.db'))
-const services = createServices(db, emit)
 const settings = new SettingsStore(dataDir)
+const services = createServices(db, emit, {
+  get: () => settings.get().activeProfileId,
+  set: (id) => {
+    if (settings.get().activeProfileId === id) return
+    win?.webContents.send(SETTINGS_CHANGED, settings.set({ activeProfileId: id }))
+  }
+})
 // deleted cards/whiteboards stay restorable (undo) for 30 days
 services.purgeDeleted(30 * 24 * 60 * 60 * 1000)
 

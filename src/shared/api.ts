@@ -21,6 +21,7 @@ import type {
   TagProperty,
   Task,
   TaskComment,
+  Profile,
   Whiteboard,
   WhiteboardDetail,
   WhiteboardObject
@@ -110,6 +111,16 @@ export interface CanvasApi {
   updateTaskComment(input: { id: ID; body: string }): Promise<TaskComment>
   deleteTaskComment(id: ID): Promise<void>
 
+  // profiles
+  listProfiles(): Promise<Profile[]>
+  createProfile(input: { name: string; email?: string | null; color?: string; avatarFileId?: ID | null }): Promise<Profile>
+  /** avatarFileId must reference an imported image file (null removes the avatar). */
+  updateProfile(input: { id: ID; name?: string; email?: string | null; color?: string; avatarFileId?: ID | null }): Promise<Profile>
+  /** Refuses to delete the last or the active profile. */
+  deleteProfile(id: ID): Promise<void>
+  getActiveProfile(): Promise<Profile>
+  setActiveProfile(id: ID): Promise<Profile>
+
   // search
   search(query: string, limit?: number): Promise<SearchHit[]>
 
@@ -144,6 +155,7 @@ export const API_METHODS: ApiMethod[] = [
   'getJournal', 'listJournal',
   'listTasks', 'setTaskChecked', 'addTask',
   'listTaskComments', 'addTaskComment', 'updateTaskComment', 'deleteTaskComment',
+  'listProfiles', 'createProfile', 'updateProfile', 'deleteProfile', 'getActiveProfile', 'setActiveProfile',
   'search',
   'importFiles', 'importFileData', 'getFileUrl',
   'fetchLinkPreview', 'clipUrl',
@@ -153,7 +165,7 @@ export const API_METHODS: ApiMethod[] = [
 
 /** Event pushed from main to renderer whenever data changed outside the renderer (e.g. via MCP). */
 export const DB_CHANGED = 'db:changed'
-export type DbChangeScope = 'cards' | 'tags' | 'whiteboards' | 'journal' | 'all'
+export type DbChangeScope = 'cards' | 'tags' | 'whiteboards' | 'journal' | 'profiles' | 'all'
 
 /** Event pushed to the renderer for every MCP tool call. */
 export const MCP_ACTIVITY = 'mcp:activity'

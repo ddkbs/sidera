@@ -31,6 +31,9 @@ export interface UiState {
   queuedChatMessage: string | null
   settingsOpen: boolean
   settingsSection: string
+  shortcutsOpen: boolean
+  /** profile create/edit dialog: `id` null = new profile */
+  profileDialog: { id: string | null } | null
   /** resolved from settings.theme + OS appearance */
   theme: 'light' | 'dark'
   activity: McpActivity[]
@@ -63,6 +66,8 @@ const initialState: UiState = {
   queuedChatMessage: null,
   settingsOpen: false,
   settingsSection: 'general',
+  shortcutsOpen: false,
+  profileDialog: null,
   activity: [],
   theme: matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
 }
@@ -156,6 +161,8 @@ export const ui = createSlice({
     },
     setSettingsOpen: (s, a: PayloadAction<boolean>) => void (s.settingsOpen = a.payload),
     setSettingsSection: (s, a: PayloadAction<string>) => void (s.settingsSection = a.payload),
+    setShortcutsOpen: (s, a: PayloadAction<boolean>) => void (s.shortcutsOpen = a.payload),
+    openProfileDialog: (s, a: PayloadAction<{ id: string | null } | null>) => void (s.profileDialog = a.payload),
     setResolvedTheme: (s, a: PayloadAction<'light' | 'dark'>) => void (s.theme = a.payload),
     pushActivity: (s, a: PayloadAction<McpActivity>) => void (s.activity = [a.payload, ...s.activity].slice(0, 30))
   }
@@ -181,6 +188,8 @@ export const {
   openSettings,
   setSettingsOpen,
   setSettingsSection,
+  setShortcutsOpen,
+  openProfileDialog,
   setResolvedTheme,
   pushActivity
 } = ui.actions

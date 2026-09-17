@@ -14,7 +14,7 @@ const call = async <K extends keyof Api>(name: K, ...args: Arg<K>): Promise<{ da
   }
 }
 
-export const TAGS = ['Card', 'CardList', 'Tag', 'Whiteboard', 'Journal', 'Kanban', 'Task', 'TaskComment'] as const
+export const TAGS = ['Card', 'CardList', 'Tag', 'Whiteboard', 'Journal', 'Kanban', 'Task', 'TaskComment', 'Profile'] as const
 
 export const api = createApi({
   reducerPath: 'data',
@@ -194,6 +194,31 @@ export const api = createApi({
       queryFn: ({ id }) => call('deleteTaskComment', id),
       invalidatesTags: (_r, _e, { taskId }) => [{ type: 'TaskComment', id: taskId }, 'Task']
     }),
+    // profiles
+    listProfiles: b.query<Res<'listProfiles'>, void>({
+      queryFn: () => call('listProfiles'),
+      providesTags: ['Profile']
+    }),
+    getActiveProfile: b.query<Res<'getActiveProfile'>, void>({
+      queryFn: () => call('getActiveProfile'),
+      providesTags: ['Profile']
+    }),
+    createProfile: b.mutation<Res<'createProfile'>, Arg<'createProfile'>[0]>({
+      queryFn: (input) => call('createProfile', input),
+      invalidatesTags: ['Profile']
+    }),
+    updateProfile: b.mutation<Res<'updateProfile'>, Arg<'updateProfile'>[0]>({
+      queryFn: (input) => call('updateProfile', input),
+      invalidatesTags: ['Profile', 'TaskComment']
+    }),
+    deleteProfile: b.mutation<void, string>({
+      queryFn: (id) => call('deleteProfile', id),
+      invalidatesTags: ['Profile', 'TaskComment']
+    }),
+    setActiveProfile: b.mutation<Res<'setActiveProfile'>, string>({
+      queryFn: (id) => call('setActiveProfile', id),
+      invalidatesTags: ['Profile']
+    }),
     importFileData: b.mutation<Res<'importFileData'>, Arg<'importFileData'>[0]>({
       queryFn: (input) => call('importFileData', input)
     }),
@@ -220,6 +245,7 @@ export const scopeTags: Record<DbChangeScope, (typeof TAGS)[number][]> = {
   tags: ['Tag', 'Kanban', 'Card'],
   whiteboards: ['Whiteboard'],
   journal: ['Journal', 'Task', 'TaskComment'],
+  profiles: ['Profile', 'TaskComment'],
   all: [...TAGS]
 }
 
@@ -265,6 +291,12 @@ export const {
   useUpdateTaskCommentMutation,
   useDeleteTaskCommentMutation,
   useImportFileDataMutation,
+  useListProfilesQuery,
+  useGetActiveProfileQuery,
+  useCreateProfileMutation,
+  useUpdateProfileMutation,
+  useDeleteProfileMutation,
+  useSetActiveProfileMutation,
   useSearchQuery,
   useGetMcpInfoQuery,
   useClipUrlMutation

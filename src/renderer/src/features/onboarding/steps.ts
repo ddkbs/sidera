@@ -47,8 +47,8 @@ export const TOUR_STEPS: TourStep[] = [
   },
   {
     id: 'settings',
-    title: 'Settings & MCP',
-    body: 'Connect Claude Desktop or Claude Code in one click from Settings → MCP & Claude — your local knowledge base becomes an agent tool.',
+    title: 'Profile, settings & MCP',
+    body: 'Your profile menu holds settings, theme and MCP status. Connect Claude Desktop or Claude Code in one click from Settings → MCP & Claude — your local knowledge base becomes an agent tool.',
     target: 'settings-gear'
   },
   {

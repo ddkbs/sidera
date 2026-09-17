@@ -9,19 +9,17 @@ import {
   Home,
   LayoutDashboard,
   ListChecks,
-  Moon,
   PanelLeft,
   Plus,
   Search,
-  Settings,
-  Sun
+
 } from '@/components/icons'
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { Orb } from '@/components/Orb'
 import { formatBinding, useBinding } from '@/lib/shortcuts'
-import { updateSettings } from '@/store/settings'
 import { BoardMenu } from './BoardMenu'
 import { FolderMenu } from './FolderMenu'
+import { ProfileFooter } from '@/features/profile/ProfileMenu'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuTrigger } from '@/components/ui/context-menu'
@@ -35,7 +33,6 @@ import { useAppDispatch, useAppSelector } from '@/store'
 import {
   useCreateFolderMutation,
   useCreateWhiteboardMutation,
-  useGetMcpInfoQuery,
   useListFoldersQuery,
   useListTagsQuery,
   useListWhiteboardsQuery,
@@ -43,7 +40,7 @@ import {
   useMoveWhiteboardToFolderMutation,
   useRenameFolderMutation
 } from '@/store/api'
-import { type View, navigate, openSettings, openTab, setChatOpen, setPaletteOpen, toggleSidebar } from '@/store/ui'
+import { type View, navigate, openTab, setChatOpen, setPaletteOpen, toggleSidebar } from '@/store/ui'
 import type { Folder, Whiteboard } from '@shared/types'
 
 const COLLAPSED_KEY = 'canvascl.folders.collapsed'
@@ -65,16 +62,14 @@ export function Sidebar() {
   const { data: boards = [] } = useListWhiteboardsQuery()
   const { data: folders = [] } = useListFoldersQuery()
   const { data: tags = [] } = useListTagsQuery()
-  const { data: mcp } = useGetMcpInfoQuery()
   const [createWhiteboard] = useCreateWhiteboardMutation()
   const [createFolder] = useCreateFolderMutation()
   const [moveWhiteboardToFolder] = useMoveWhiteboardToFolderMutation()
   const [moveFolder] = useMoveFolderMutation()
   const last = useAppSelector((s) => s.ui.activity[0])
-  const { theme, chatOpen } = useAppSelector((s) => s.ui)
+  const chatOpen = useAppSelector((s) => s.ui.chatOpen)
   const searchKey = formatBinding(useBinding('palette.open'))
   const chatKey = formatBinding(useBinding('chat.toggle'))
-  const settingsKey = formatBinding(useBinding('settings.open'))
   const [agentBusy, setAgentBusy] = useState(false)
   const [collapsed, setCollapsed] = useState<Set<string>>(loadCollapsed)
   const [draftFolder, setDraftFolder] = useState<{ parentId: string | null; name: string } | null>(null)
@@ -321,32 +316,7 @@ export function Sidebar() {
           {!tags.length && <p className="px-2 py-1 text-xs text-muted-foreground">Tag cards to build databases</p>}
         </nav>
       </ScrollArea>
-      <div className="flex items-center gap-1 border-t border-sidebar-border p-2">
-        <button
-          onClick={() => dispatch(openSettings('mcp'))}
-          className="flex min-w-0 flex-1 items-center gap-2 rounded-md px-2 py-1.5 text-xs text-muted-foreground transition hover:bg-sidebar-accent hover:text-foreground"
-          title="MCP & Claude settings"
-        >
-          <span className={cn('size-1.5 shrink-0 rounded-full', mcp?.running ? 'bg-emerald-500' : 'bg-muted-foreground/40')} />
-          <span className="truncate">{agentBusy && last ? `Agent: ${last.tool}` : `MCP ${mcp?.running ? 'ready' : 'offline'}`}</span>
-        </button>
-        <button
-          onClick={() => dispatch(updateSettings({ theme: theme === 'dark' ? 'light' : 'dark' }))}
-          className="grid size-7 place-items-center rounded-md text-muted-foreground transition hover:bg-sidebar-accent hover:text-foreground"
-          aria-label="Toggle theme"
-        >
-          {theme === 'dark' ? <Sun className="size-4" /> : <Moon className="size-4" />}
-        </button>
-        <button
-          data-tour="settings-gear"
-          onClick={() => dispatch(openSettings(undefined))}
-          className="grid size-7 place-items-center rounded-md text-muted-foreground transition hover:bg-sidebar-accent hover:text-foreground"
-          aria-label="Settings"
-          title={`Settings ${settingsKey}`}
-        >
-          <Settings className="size-4" />
-        </button>
-      </div>
+      <ProfileFooter status={agentBusy && last ? `Agent: ${last.tool}` : undefined} />
     </div>
   )
 }

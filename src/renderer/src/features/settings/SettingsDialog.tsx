@@ -3,7 +3,7 @@ import { toast } from 'sonner'
 import type { DataInfo, McpConnections, ProviderStatus } from '@shared/api'
 import { AI_PROVIDERS, getProviderMeta, type AiProviderId } from '@shared/ai'
 import type { FontPref, ThemePref } from '@shared/settings'
-import { AskAI, ArrowUpRight, CircleCheck, Command, Download, File, Home, KeyRound, Palette, Pencil, RotateCcw, Server, Settings, Upload } from '@/components/icons'
+import { AskAI, ArrowUpRight, CircleCheck, Command, Download, File, Home, KeyRound, Palette, Pencil, RotateCcw, Server, Settings, Upload, User, UserPlus } from '@/components/icons'
 import { Orb } from '@/components/Orb'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog'
@@ -16,13 +16,15 @@ import { FONT_STACKS } from '@/App'
 import { eventToBinding, formatBinding, shortcutRecording } from '@/lib/shortcuts'
 import { cn } from '@/lib/utils'
 import { useAppDispatch, useAppSelector } from '@/store'
-import { api, useGetMcpInfoQuery } from '@/store/api'
+import { api, useGetActiveProfileQuery, useGetMcpInfoQuery, useListProfilesQuery, useSetActiveProfileMutation } from '@/store/api'
 import { settingsLoaded, updateSettings } from '@/store/settings'
-import { setSettingsOpen, setSettingsSection } from '@/store/ui'
+import { openProfileDialog, setSettingsOpen, setSettingsSection } from '@/store/ui'
+import { ProfileAvatar } from '@/features/profile/ProfileAvatar'
 import { ShortcutsSettings } from './ShortcutsSettings'
 
 const SECTIONS = [
   { id: 'general', label: 'General', Icon: Settings },
+  { id: 'profile', label: 'Profile', Icon: User },
   { id: 'appearance', label: 'Appearance', Icon: Palette },
   { id: 'editor', label: 'Editor & canvas', Icon: Pencil },
   { id: 'shortcuts', label: 'Shortcuts', Icon: Command },
@@ -59,6 +61,7 @@ export function SettingsDialog() {
         <div className="min-w-0 flex-1 overflow-y-auto px-8 py-7">
           <h2 className="mb-6 text-lg font-semibold">{current.label}</h2>
           {current.id === 'general' && <General />}
+          {current.id === 'profile' && <ProfileSettings />}
           {current.id === 'appearance' && <Appearance />}
           {current.id === 'editor' && <EditorCanvas />}
           {current.id === 'shortcuts' && <ShortcutsSettings />}
@@ -96,6 +99,63 @@ function Segmented<T extends string>({ value, options, onChange }: { value: T; o
           {o.label}
         </button>
       ))}
+    </div>
+  )
+}
+
+function ProfileSettings() {
+  const dispatch = useAppDispatch()
+  const { data: active } = useGetActiveProfileQuery()
+  const { data: profiles = [] } = useListProfilesQuery()
+  const [setActive] = useSetActiveProfileMutation()
+  return (
+    <div>
+      {active && (
+        <div className="mb-6 flex items-center gap-4 rounded-xl border p-4">
+          <ProfileAvatar profile={active} size="lg" />
+          <div className="min-w-0 flex-1">
+            <div className="truncate font-medium">{active.name}</div>
+            <div className="truncate text-sm text-muted-foreground">{active.email ?? 'No email · local profile'}</div>
+          </div>
+          <Button variant="outline" onClick={() => dispatch(openProfileDialog({ id: active.id }))}>
+            <Pencil />
+            Edit profile
+          </Button>
+        </div>
+      )}
+      <div className="mb-2 flex items-center justify-between">
+        <div>
+          <div className="text-sm font-medium">Profiles</div>
+          <div className="text-sm text-muted-foreground">The active profile signs new task comments, including ones added over MCP.</div>
+        </div>
+        <Button variant="outline" size="sm" onClick={() => dispatch(openProfileDialog({ id: null }))}>
+          <UserPlus />
+          New profile
+        </Button>
+      </div>
+      <div className="divide-y rounded-xl border">
+        {profiles.map((p) => (
+          <div key={p.id} className="flex items-center gap-3 px-4 py-2.5">
+            <ProfileAvatar profile={p} size="sm" />
+            <div className="min-w-0 flex-1">
+              <div className="truncate text-sm">{p.name}</div>
+              {p.email && <div className="truncate text-xs text-muted-foreground">{p.email}</div>}
+            </div>
+            {p.id === active?.id ? (
+              <span className="flex items-center gap-1 text-xs text-muted-foreground">
+                <CircleCheck className="size-3.5 text-emerald-500" /> Active
+              </span>
+            ) : (
+              <Button variant="ghost" size="sm" onClick={() => void setActive(p.id)}>
+                Switch
+              </Button>
+            )}
+            <Button variant="ghost" size="sm" onClick={() => dispatch(openProfileDialog({ id: p.id }))}>
+              Edit
+            </Button>
+          </div>
+        ))}
+      </div>
     </div>
   )
 }

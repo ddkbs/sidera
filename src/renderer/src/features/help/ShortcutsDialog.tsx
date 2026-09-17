@@ -1,10 +1,9 @@
-import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Kbd } from '@/components/ui/kbd'
 import { COMMANDS, formatBinding, useBindings, useCommands } from '@/lib/shortcuts'
-import { useAppDispatch } from '@/store'
-import { openSettings } from '@/store/ui'
+import { useAppDispatch, useAppSelector } from '@/store'
+import { openSettings, setShortcutsOpen } from '@/store/ui'
 
 const FIXED: [string, string][] = [
   ['/', 'Block commands (editor)'],
@@ -16,9 +15,10 @@ const FIXED: [string, string][] = [
 
 export function ShortcutsDialog() {
   const dispatch = useAppDispatch()
-  const [open, setOpen] = useState(false)
+  const open = useAppSelector((s) => s.ui.shortcutsOpen)
+  const setOpen = (o: boolean) => dispatch(setShortcutsOpen(o))
   const bindings = useBindings()
-  useCommands({ 'shortcuts.open': () => setOpen((o) => !o) })
+  useCommands({ 'shortcuts.open': () => setOpen(!open) })
   const groups = [...new Set(COMMANDS.map((c) => c.group))]
 
   return (
