@@ -98,6 +98,10 @@ import {
   IconServer,
   IconSettings,
   IconSidebar,
+  IconSidebarFillRight,
+  IconMarker,
+  IconZoomIn,
+  IconZoomOut,
   IconSitemap,
   IconSparkles,
   IconStop,
@@ -211,6 +215,10 @@ export const MousePointer2 = IconCursor
 export const Network = IconSitemap
 export const Palette = IconPalette
 export const PanelLeft = IconSidebar
+export const PanelRight = IconSidebarFillRight
+export const Highlighter = IconMarker
+export const ZoomIn = IconZoomIn
+export const ZoomOut = IconZoomOut
 export const Paperclip = IconPaperclip
 export const PenTool = IconPen
 export const Pencil = IconPencil

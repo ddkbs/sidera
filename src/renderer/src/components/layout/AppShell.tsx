@@ -15,12 +15,13 @@ import { SettingsDialog } from '@/features/settings/SettingsDialog'
 import { Tour } from '@/features/onboarding/Tour'
 import { TabBar } from './TabBar'
 import { ChatPanel } from '@/features/chat/ChatPanel'
+import { PdfReader } from '@/features/pdf/PdfReader'
 import { ErrorBoundary } from '@/components/ErrorBoundary'
 import { Sidebar } from './Sidebar'
 
 export function AppShell() {
   const dispatch = useAppDispatch()
-  const { sidebarOpen, view, openCardId, chatOpen } = useAppSelector((s) => s.ui)
+  const { sidebarOpen, view, openCardId, chatOpen, pdf } = useAppSelector((s) => s.ui)
 
   useCommands({
     'palette.open': () => dispatch(setPaletteOpen(true)),
@@ -67,6 +68,7 @@ export function AppShell() {
             </ErrorBoundary>
             <AnimatePresence>{openCardId && <CardPanel key={openCardId} cardId={openCardId} />}</AnimatePresence>
           </div>
+          <AnimatePresence initial={false}>{pdf && <PdfReader key="pdf" />}</AnimatePresence>
           <AnimatePresence initial={false}>{chatOpen && <ChatPanel key="chat" />}</AnimatePresence>
         </div>
       </main>

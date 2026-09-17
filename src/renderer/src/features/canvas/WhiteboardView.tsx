@@ -38,10 +38,12 @@ import {
   useRemoveConnectionsMutation,
   useRemoveObjectsMutation
 } from '@/store/api'
-import { navigate, openCard, queueChatMessage, setTool, type CanvasTool } from '@/store/ui'
+import { navigate, openCard, openPdf, queueChatMessage, setTool, type CanvasTool } from '@/store/ui'
 import { AddCardDialog } from './AddCardDialog'
 import { CARD_MIME, CardDrawer } from './CardDrawer'
 import { FileViewer } from './FileViewer'
+import { HIGHLIGHT_CARD_EVENT, HIGHLIGHT_MIME, readHighlightDrag, type HighlightDrag } from '@/features/pdf/dnd'
+import { appendHighlight, highlightDoc, highlightTitle } from '@/features/pdf/highlight'
 import { BoardBreadcrumb } from './BoardBreadcrumb'
 import { FindOnBoard } from './FindOnBoard'
 import { invert, opLabel, type HistoryOp } from './history'
@@ -153,13 +155,23 @@ function Canvas({ detail }: { detail: WhiteboardDetail }) {
     return () => window.removeEventListener(EDIT_SKETCH_EVENT, onEdit)
   }, [])
 
+  /** PDFs dock in the split-screen reader; other files still open in the modal viewer. */
+  const openFileObject = useCallback(
+    (refId: string, name: string, mime: string) => {
+      if (mime === 'application/pdf') dispatch(openPdf({ fileId: refId, name }))
+      else setViewing({ refId, name, mime })
+    },
+    [dispatch]
+  )
+
   const [menu, setMenu] = useState<{ node: ObjectNode; x: number; y: number } | null>(null)
 
   const onMenuAction = useCallback(
     async (a: NodeMenuAction, node: ObjectNode) => {
       setMenu(null)
       const o = node.data.object
-      if (a === 'open' && o.refId) dispatch(node.type === 'whiteboard' ? navigate({ type: 'whiteboard', id: o.refId }) : openCard(o.refId))
+      if (a === 'open' && o.refId && node.type === 'file') openFileObject(o.refId, String(o.data.name ?? 'File'), String(o.data.mime ?? ''))
+      else if (a === 'open' && o.refId) dispatch(node.type === 'whiteboard' ? navigate({ type: 'whiteboard', id: o.refId }) : openCard(o.refId))
       else if (a === 'remove') void rf.deleteElements({ nodes: [{ id: node.id }] })
       else if (a === 'delete-card' && o.refId) {
         await deleteCard(o.refId)
@@ -226,6 +238,84 @@ function Canvas({ detail }: { detail: WhiteboardDetail }) {
     window.addEventListener(SAVE_LINK_EVENT, onSaveLink)
     return () => window.removeEventListener(SAVE_LINK_EVENT, onSaveLink)
   }, [clipUrl, rf, place, addConnection, boardId, center])
+
+  const refreshBoard = useCallback(
+    () => void dispatch(api.util.invalidateTags([{ type: 'Whiteboard' as const, id: boardId }, 'CardList', 'Card'])),
+    [dispatch, boardId]
+  )
+
+  /** Drop of a PDF highlight on empty canvas: a new card with the quote, linked to the PDF's file node. */
+  const cardFromHighlight = useCallback(
+    async (h: HighlightDrag, pos: { x: number; y: number }) => {
+      const card = await window.api.createCard({ title: highlightTitle(h.text), content: highlightDoc(h.text, h.fileName, h.page) })
+      await window.api.updateCard({ id: card.id, color: h.color })
+      const o = await window.api.addObject({ whiteboardId: boardId, kind: 'card', refId: card.id, x: pos.x - 150, y: pos.y - 40, width: 300, height: 190 })
+      const fileNode = rf.getNodes().find((n) => n.type === 'file' && n.data.object.refId === h.fileId)
+      const conn = fileNode ? await window.api.addConnection({ whiteboardId: boardId, sourceId: fileNode.id, targetId: o.id, label: `page ${h.page}` }) : null
+      refreshBoard()
+      record({
+        label: 'Card from highlight',
+        undo: async () => {
+          if (conn) await window.api.removeConnections([conn.id])
+          await window.api.removeObjects([o.id])
+          await window.api.deleteCard(card.id)
+          refreshBoard()
+        },
+        redo: async () => {
+          await window.api.restoreCard(card.id)
+          await window.api.restoreObjects([o], conn ? [conn] : [])
+          refreshBoard()
+        }
+      })
+      toast.success('Card created from highlight')
+    },
+    [boardId, rf, refreshBoard]
+  )
+
+  /** Drop of a highlight onto an existing card: append the quote instead of creating a card. */
+  const quoteIntoCard = useCallback(
+    async (h: HighlightDrag, cardId: string) => {
+      const card = await window.api.getCard(cardId)
+      if (!card) return
+      const before = card.content
+      const after = appendHighlight(before, h.text, h.fileName, h.page)
+      await window.api.updateCard({ id: cardId, content: after })
+      refreshBoard()
+      record({
+        label: 'Quote into card',
+        undo: async () => {
+          await window.api.updateCard({ id: cardId, content: before })
+          refreshBoard()
+        },
+        redo: async () => {
+          await window.api.updateCard({ id: cardId, content: after })
+          refreshBoard()
+        }
+      })
+      toast.success(`Quote added to “${card.title || 'card'}”`)
+    },
+    [refreshBoard]
+  )
+
+  const dropHighlight = useCallback(
+    async (h: HighlightDrag, pos: { x: number; y: number }, ontoNodeId?: string) => {
+      const onto = ontoNodeId ? rf.getNode(ontoNodeId) : undefined
+      if (onto?.type === 'card' && onto.data.object.refId) await quoteIntoCard(h, onto.data.object.refId)
+      else await cardFromHighlight(h, pos)
+    },
+    [rf, quoteIntoCard, cardFromHighlight]
+  )
+
+  // "Create card" in the reader's selection bar: handle it here so the card lands on the open board.
+  useEffect(() => {
+    const onHighlightCard = (e: Event) => {
+      const ev = e as CustomEvent<HighlightDrag>
+      ev.preventDefault()
+      void cardFromHighlight(ev.detail, center())
+    }
+    window.addEventListener(HIGHLIGHT_CARD_EVENT, onHighlightCard)
+    return () => window.removeEventListener(HIGHLIGHT_CARD_EVENT, onHighlightCard)
+  }, [cardFromHighlight, center])
 
   const newCardAt = useCallback(
     async (pos: { x: number; y: number }, title = '') => {
@@ -552,13 +642,25 @@ function Canvas({ detail }: { detail: WhiteboardDetail }) {
       ref={wrapper}
       className={cn('canvas-root relative h-full w-full bg-canvas', `tool-${tool}`)}
       onDragOver={(e) => {
-        if (e.dataTransfer.types.includes(CARD_MIME) || e.dataTransfer.types.includes('Files') || e.dataTransfer.types.includes('text/uri-list')) {
+        if (
+          e.dataTransfer.types.includes(CARD_MIME) ||
+          e.dataTransfer.types.includes(HIGHLIGHT_MIME) ||
+          e.dataTransfer.types.includes('Files') ||
+          e.dataTransfer.types.includes('text/uri-list')
+        ) {
           e.preventDefault()
           e.dataTransfer.dropEffect = 'copy'
         }
       }}
       onDrop={async (e) => {
         const pos = rf.screenToFlowPosition({ x: e.clientX, y: e.clientY })
+        const highlight = readHighlightDrag(e.dataTransfer)
+        if (highlight) {
+          e.preventDefault()
+          const onto = (e.target as HTMLElement).closest('.react-flow__node')?.getAttribute('data-id')
+          await dropHighlight(highlight, pos, onto ?? undefined)
+          return
+        }
         const cardId = e.dataTransfer.getData(CARD_MIME)
         if (cardId) {
           e.preventDefault()
@@ -605,7 +707,7 @@ function Canvas({ detail }: { detail: WhiteboardDetail }) {
         onNodeClick={onNodeClick}
         onNodeDoubleClick={(_e, node) => {
           const o = node.data.object
-          if (node.type === 'file' && o.refId) setViewing({ refId: o.refId, name: String(o.data.name ?? 'File'), mime: String(o.data.mime ?? '') })
+          if (node.type === 'file' && o.refId) openFileObject(o.refId, String(o.data.name ?? 'File'), String(o.data.mime ?? ''))
         }}
         onEdgeDoubleClick={(e, edge) => {
           const r = wrapper.current!.getBoundingClientRect()
