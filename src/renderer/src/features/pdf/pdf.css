@@ -1,4 +1,4 @@
-/* PDF reader: the text layer must stay invisible but selectable, and sit above highlights. */
+/* PDF reader: the invisible text layer stays selectable and sits above the highlight overlay. */
 .pdf-reader .react-pdf__Page {
   position: relative;
 }
@@ -7,11 +7,6 @@
   width: 100% !important;
   height: auto !important;
 }
-.pdf-reader .react-pdf__Page__textContent {
+.pdf-reader .textLayer {
   z-index: 3;
-}
-.pdf-reader .react-pdf__Page__textContent ::selection,
-.pdf-reader .react-pdf__Page__textContent span::selection {
-  background: var(--brand, #6366f1);
-  opacity: 0.3;
 }
