@@ -4,7 +4,7 @@ import { copyFile, mkdir, readFile, stat, writeFile } from 'node:fs/promises'
 import { basename, dirname, extname, join } from 'node:path'
 import { app, BrowserWindow, dialog, ipcMain, net, protocol, shell } from 'electron'
 import { nanoid } from 'nanoid'
-import { CHAT_EVENT, DB_CHANGED, MCP_ACTIVITY, type DbChangeScope } from '@shared/api'
+import { CHAT_EVENT, DB_CHANGED, MCP_ACTIVITY, type AskUserAnswer, type DbChangeScope } from '@shared/api'
 import { getProviderMeta, resolveBaseUrl, type AiProviderId } from '@shared/ai'
 import { withSourceHeader } from '@shared/html'
 import { SETTINGS_CHANGED, type SettingsPatch } from '@shared/settings'
@@ -201,6 +201,8 @@ async function bootstrap(): Promise<void> {
     }))
   )
   ipcMain.handle('chat:setProviderKey', (_e, provider: AiProviderId, key: string | null) => keys.set(provider, key))
+  ipcMain.handle('chat:answerQuestions', (_e, requestId: string, answers: AskUserAnswer[]) => chat.answerQuestions(requestId, answers))
+  ipcMain.handle('chat:skipQuestions', (_e, requestId: string) => chat.skipQuestions(requestId))
   ipcMain.handle('chat:listModels', async (_e, provider: AiProviderId, baseUrl?: string) => {
     if (provider === 'anthropic') {
       const client = new (await import('@anthropic-ai/sdk')).default({ apiKey: keys.resolve('anthropic') ?? undefined })
