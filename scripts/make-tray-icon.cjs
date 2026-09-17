@@ -4,13 +4,10 @@ const { app, BrowserWindow } = require('electron')
 const { writeFileSync } = require('node:fs')
 const { join } = require('node:path')
 
-// two linked cards — the app logo reduced to strokes
-const svg = (s) => `<svg xmlns="http://www.w3.org/2000/svg" width="${s}" height="${s}" viewBox="0 0 18 18" fill="none" stroke="#000" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-  <rect x="1.75" y="2.75" width="8.5" height="6" rx="1.6"/>
-  <rect x="7.75" y="9.25" width="8.5" height="6" rx="1.6"/>
-  <path d="M6 8.75v1.5a2 2 0 0 0 1.75 1.99"/>
-  <path d="M4.25 5.25h3.5" stroke-width="1.3"/>
-  <path d="M10.25 11.75h3.5" stroke-width="1.3"/>
+// the app mark: "C" frame + node
+const svg = (s) => `<svg xmlns="http://www.w3.org/2000/svg" width="${s}" height="${s}" viewBox="0 0 18 18" fill="none">
+  <path d="M12.6 3.4H6.1a2.7 2.7 0 0 0-2.7 2.7v5.8a2.7 2.7 0 0 0 2.7 2.7h6.5" stroke="#000" stroke-width="1.9" stroke-linecap="round"/>
+  <circle cx="12.7" cy="9" r="1.9" fill="#000"/>
 </svg>`
 
 async function render(win, size) {
