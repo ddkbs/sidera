@@ -171,10 +171,34 @@ export interface McpActivity {
   at: number
 }
 
+/** A choice offered to the user by the `ask_user_questions` chat-local tool. */
+export interface AskUserOption {
+  label: string
+  description?: string
+}
+
+/** One clarifying question the assistant wants answered before it continues. */
+export interface AskUserQuestion {
+  id: string
+  question: string
+  type: 'single' | 'multi' | 'text'
+  /** Present (non-empty) for 'single'/'multi'; absent for 'text'. */
+  options?: AskUserOption[]
+}
+
+/** The user's response to one question: selected option label(s), or free text for 'text'. */
+export interface AskUserAnswer {
+  id: string
+  values: string[]
+}
+
 /** Streaming events from the in-app chat agent. */
 export type ChatEvent =
   | { type: 'text'; delta: string }
   | { type: 'tool'; name: string }
+  /** The model called `ask_user_questions`. The renderer shows the Questionnaire and the loop pauses until
+   *  `ChatBridge.answerQuestions`/`skipQuestions` resolves this `requestId`. */
+  | { type: 'ask'; requestId: string; questions: AskUserQuestion[] }
   | { type: 'error'; message: string }
   | { type: 'done' }
 
@@ -201,6 +225,10 @@ export interface ChatBridge {
   setProviderKey(provider: AiProviderId, key: string | null): Promise<void>
   /** Fetch the live model list for a provider ("Load models"). baseUrl override for ollama/custom. */
   listModels(provider: AiProviderId, baseUrl?: string): Promise<string[]>
+  /** Resolve a pending `ask` event with the user's answers. */
+  answerQuestions(requestId: string, answers: AskUserAnswer[]): Promise<void>
+  /** Resolve a pending `ask` event as skipped — the model is told to proceed with its best judgement. */
+  skipQuestions(requestId: string): Promise<void>
   onEvent(cb: (e: ChatEvent) => void): () => void
 }
 

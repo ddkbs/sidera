@@ -1,17 +1,20 @@
 import Anthropic from '@anthropic-ai/sdk'
 import { Client } from '@modelcontextprotocol/sdk/client/index.js'
 import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js'
-import type { ChatEvent } from '@shared/api'
+import { nanoid } from 'nanoid'
+import type { AskUserAnswer, ChatEvent } from '@shared/api'
 import { resolveBaseUrl, type AiProviderId } from '@shared/ai'
 import { todayISO } from '@shared/util'
 import type { Services } from '../services'
 import { createMcpServer, type ToolCallListener } from '../mcp/tools'
+import { ASK_USER_TOOL_NAME, answersToToolResult, askUserAnthropicTool, askUserOaTool, parseAskUserInput } from './askUser'
 import { OpenAiCompatibleAgent, type OaToolDef } from './openaiCompatible'
 
 const MAX_TURNS = 20
 
 const SYSTEM = `You are the assistant built into CanvasCL, a local-first visual knowledge base (cards, whiteboards, tags with table/kanban views).
 You act on the user's knowledge base through the provided tools. Search before creating to avoid duplicates. When you create or change something, say briefly what you did and name the cards or whiteboards involved.
+Use ask_user_questions when a request is ambiguous and a few choices would clarify it; don't overuse it.
 Keep answers concise and use Markdown.`
 
 type Emit = (event: ChatEvent) => void
@@ -39,6 +42,10 @@ export class ChatAgent {
   private oa: OpenAiCompatibleAgent | null = null
   private lastProvider: AiProviderId | null = null
   private lastModel: string | null = null
+  /** Resolvers for `ask_user_questions` calls currently paused, waiting on the renderer. */
+  private pendingAsks = new Map<string, (outcome: AskUserAnswer[] | 'skipped') => void>()
+  /** The `emit` of the in-flight `send()` call — used by paused tool calls, which can outlive a single send(). */
+  private currentEmit: Emit | null = null
 
   constructor(
     private api: Services,
@@ -49,13 +56,43 @@ export class ChatAgent {
 
   reset(): void {
     this.abort?.abort()
+    this.releasePendingAsks()
     this.messages = []
     this.oa?.reset()
   }
 
   stop(): void {
     this.abort?.abort()
+    this.releasePendingAsks()
     this.oa?.stop()
+  }
+
+  /** The renderer answered a pending `ask` event. */
+  answerQuestions(requestId: string, answers: AskUserAnswer[]): void {
+    this.pendingAsks.get(requestId)?.(answers)
+  }
+
+  /** The renderer skipped a pending `ask` event. */
+  skipQuestions(requestId: string): void {
+    this.pendingAsks.get(requestId)?.('skipped')
+  }
+
+  /** Unblock any tool calls still waiting on an answer (stop/reset/abort) so the loop can't hang forever. */
+  private releasePendingAsks(): void {
+    for (const resolve of this.pendingAsks.values()) resolve('skipped')
+    this.pendingAsks.clear()
+  }
+
+  /** Emits an `ask` event and pauses until the renderer answers or skips, returning the tool result text. */
+  private async askUser(questions: ReturnType<typeof parseAskUserInput>): Promise<string> {
+    if (questions.length === 0) return answersToToolResult(questions, 'skipped')
+    const requestId = nanoid()
+    const outcome = await new Promise<AskUserAnswer[] | 'skipped'>((resolve) => {
+      this.pendingAsks.set(requestId, resolve)
+      this.currentEmit?.({ type: 'ask', requestId, questions })
+    })
+    this.pendingAsks.delete(requestId)
+    return answersToToolResult(questions, outcome)
   }
 
   private async connect(): Promise<void> {
@@ -65,14 +102,17 @@ export class ChatAgent {
     const [a, b] = InMemoryTransport.createLinkedPair()
     await Promise.all([server.connect(a), client.connect(b)])
     const { tools } = await client.listTools()
-    this.tools = tools.map((t) => ({
-      name: t.name,
-      description: t.description ?? '',
-      input_schema: t.inputSchema as Anthropic.Beta.BetaTool.InputSchema,
-      // Inputs stream as generated; the MCP server validates them with zod before running.
-      eager_input_streaming: true
-    }))
-    this.oaTools = tools.map((t) => ({ name: t.name, description: t.description ?? '', inputSchema: t.inputSchema as Record<string, unknown> }))
+    this.tools = [
+      ...tools.map((t) => ({
+        name: t.name,
+        description: t.description ?? '',
+        input_schema: t.inputSchema as Anthropic.Beta.BetaTool.InputSchema,
+        // Inputs stream as generated; the MCP server validates them with zod before running.
+        eager_input_streaming: true
+      })),
+      askUserAnthropicTool
+    ]
+    this.oaTools = [...tools.map((t) => ({ name: t.name, description: t.description ?? '', inputSchema: t.inputSchema as Record<string, unknown> })), askUserOaTool]
     this.mcp = client
   }
 
@@ -89,11 +129,13 @@ export class ChatAgent {
       return
     }
     await this.connect()
+    this.currentEmit = emit
 
     if (cfg.provider === 'anthropic') {
       return this.sendAnthropic(cfg, text, emit)
     }
     this.oa ??= new OpenAiCompatibleAgent(this.oaTools!, async (name, args) => {
+      if (name === ASK_USER_TOOL_NAME) return { content: await this.askUser(parseAskUserInput(args)), isError: false }
       this.onCall?.(name, args)
       const res = await this.mcp!.callTool({ name, arguments: args })
       const content = (res.content as { type: string; text?: string }[]).map((c) => (c.type === 'text' ? (c.text ?? '') : '')).join('\n')
@@ -156,6 +198,10 @@ export class ChatAgent {
           toolUses.map(async (tool): Promise<Anthropic.Beta.BetaToolResultBlockParam> => {
             emit({ type: 'tool', name: tool.name })
             try {
+              if (tool.name === ASK_USER_TOOL_NAME) {
+                const content = await this.askUser(parseAskUserInput(tool.input))
+                return { type: 'tool_result', tool_use_id: tool.id, content }
+              }
               const res = await this.mcp!.callTool({ name: tool.name, arguments: (tool.input ?? {}) as Record<string, unknown> })
               const content = (res.content as { type: string; text?: string }[])
                 .map((c) => (c.type === 'text' ? (c.text ?? '') : ''))
