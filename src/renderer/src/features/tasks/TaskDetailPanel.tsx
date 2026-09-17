@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog'
 import { ScrollArea } from '@/components/ui/scroll-area'
+import { ProfileAvatar } from '@/features/profile/ProfileAvatar'
 import { cn } from '@/lib/utils'
 import { useAppDispatch } from '@/store'
 import {
@@ -154,12 +155,16 @@ function CommentRow({ comment }: { comment: TaskComment }) {
     )
 
   return (
-    <div className="group/comment">
-      <div className="flex items-start justify-between gap-2">
-        {comment.body && <p className="min-w-0 flex-1 whitespace-pre-wrap text-sm">{comment.body}</p>}
-        <div className="flex shrink-0 items-center gap-1.5 pl-2">
-          <span className="text-[11px] text-muted-foreground">{relTime(comment.updatedAt)}</span>
-          <div className="hidden items-center gap-0.5 group-hover/comment:flex">
+    <div className="group/comment flex gap-2.5">
+      <ProfileAvatar profile={comment.author} size="sm" className="mt-0.5" />
+      <div className="min-w-0 flex-1">
+        <div className="flex h-6 items-center gap-1.5">
+          <span className="truncate text-sm font-medium">{comment.author?.name ?? 'Deleted profile'}</span>
+          <span className="shrink-0 text-xs text-muted-foreground" title={new Date(comment.createdAt).toLocaleString()}>
+            {relTime(comment.createdAt)}
+            {comment.updatedAt - comment.createdAt > 1000 && ' · edited'}
+          </span>
+          <div className="ml-auto hidden items-center gap-0.5 group-hover/comment:flex">
             <button onClick={() => setEditing(true)} className="rounded p-1 text-muted-foreground transition hover:bg-accent hover:text-foreground">
               <Pencil className="size-3.5" />
             </button>
@@ -171,14 +176,15 @@ function CommentRow({ comment }: { comment: TaskComment }) {
             </button>
           </div>
         </div>
+        {comment.body && <p className="whitespace-pre-wrap text-sm">{comment.body}</p>}
+        {comment.files.length > 0 && (
+          <div className="mt-1.5 flex flex-wrap gap-1.5">
+            {comment.files.map((f) => (
+              <FileChip key={f.id} file={f} />
+            ))}
+          </div>
+        )}
       </div>
-      {comment.files.length > 0 && (
-        <div className="mt-1.5 flex flex-wrap gap-1.5">
-          {comment.files.map((f) => (
-            <FileChip key={f.id} file={f} />
-          ))}
-        </div>
-      )}
     </div>
   )
 }
