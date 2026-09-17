@@ -1,3 +1,4 @@
+import { record } from '@/lib/undo'
 import { recordDelete } from '@/lib/undo-actions'
 import { Folder as FolderIcon, LayoutDashboard, Pencil, Plus, Sparkles, Trash2 } from '@/components/icons'
 import { useState, type ReactElement } from 'react'
@@ -44,6 +45,11 @@ export function BoardMenu({ board, children }: { board: Whiteboard; children: Re
   const [remove] = useDeleteWhiteboardMutation()
   const [create] = useCreateWhiteboardMutation()
   const [moveToFolder] = useMoveWhiteboardToFolderMutation()
+  const moveBoard = async (folderId: string | null) => {
+    const prev = board.folderId ?? null
+    await moveToFolder({ whiteboardId: board.id, folderId })
+    record({ label: 'Move whiteboard', undo: () => window.api.moveWhiteboardToFolder(board.id, prev), redo: () => window.api.moveWhiteboardToFolder(board.id, folderId) })
+  }
   const { data: folders = [] } = useListFoldersQuery()
   const [dialog, setDialog] = useState<'rename' | 'delete' | null>(null)
   const [name, setName] = useState(board.name)
@@ -78,7 +84,7 @@ export function BoardMenu({ board, children }: { board: Whiteboard; children: Re
               <FolderIcon /> Move to folder
             </ContextMenuSubTrigger>
             <ContextMenuSubContent className="w-48">
-              <ContextMenuItem disabled={!board.folderId} onSelect={() => void moveToFolder({ whiteboardId: board.id, folderId: null })}>
+              <ContextMenuItem disabled={!board.folderId} onSelect={() => moveBoard(null)}>
                 No folder
               </ContextMenuItem>
               {folders.length > 0 && <ContextMenuSeparator />}
@@ -86,7 +92,7 @@ export function BoardMenu({ board, children }: { board: Whiteboard; children: Re
                 <ContextMenuItem
                   key={f.id}
                   disabled={board.folderId === f.id}
-                  onSelect={() => void moveToFolder({ whiteboardId: board.id, folderId: f.id })}
+                  onSelect={() => moveBoard(f.id)}
                 >
                   <FolderIcon /> {f.name}
                 </ContextMenuItem>

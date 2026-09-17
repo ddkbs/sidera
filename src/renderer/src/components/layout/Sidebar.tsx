@@ -1,3 +1,4 @@
+import { record } from '@/lib/undo'
 import {
   BookOpen,
   CalendarDays,
@@ -160,10 +161,24 @@ export function Sidebar() {
     const boardId = e.dataTransfer.getData(WHITEBOARD_DND)
     const draggedFolderId = e.dataTransfer.getData(FOLDER_DND)
     if (boardId) {
+      const prev = boards.find((b) => b.id === boardId)?.folderId ?? null
+      if (prev === folderId) return
       await moveWhiteboardToFolder({ whiteboardId: boardId, folderId })
+      record({
+        label: 'Move whiteboard',
+        undo: () => window.api.moveWhiteboardToFolder(boardId, prev),
+        redo: () => window.api.moveWhiteboardToFolder(boardId, folderId)
+      })
     } else if (draggedFolderId && draggedFolderId !== folderId) {
+      const prev = folders.find((f) => f.id === draggedFolderId)?.parentId ?? null
       const res = await moveFolder({ id: draggedFolderId, parentId: folderId })
       if ('error' in res) toast.error(String(res.error))
+      else
+        record({
+          label: 'Move folder',
+          undo: () => window.api.moveFolder(draggedFolderId, prev),
+          redo: () => window.api.moveFolder(draggedFolderId, folderId)
+        })
     }
   }
 
