@@ -66,8 +66,6 @@ describe('mcp', () => {
     const shipped = await call('get_card', { card_id: card.id })
     expect(shipped.backlinks).toEqual([{ cardId: linked.id, title: 'Follow-up' }])
     expect((await call('get_card', { card_id: linked.id })).markdown).toBe('See [[Ship MCP]] and [[Nope]]')
-    await call('append_to_journal', { markdown: '- did a thing', date: '2026-09-16' })
-    expect((await call('get_journal', { date: '2026-09-16' })).markdown).toBe('- did a thing')
   })
 
   it('lists and completes tasks', async () => {
@@ -75,18 +73,18 @@ describe('mcp', () => {
     const card = await call('create_card', { title: 'Todos', markdown: '- [ ] one\n- [ ] two' })
     const open = await call('list_tasks', { status: 'open' })
     expect(open).toEqual([
-      { card_id: card.id, card_title: 'Todos', is_journal: false, journal_date: null, task_id: expect.any(String), index: 0, text: 'one', checked: false, comment_count: 0 },
-      { card_id: card.id, card_title: 'Todos', is_journal: false, journal_date: null, task_id: expect.any(String), index: 1, text: 'two', checked: false, comment_count: 0 }
+      { card_id: card.id, card_title: 'Todos', task_id: expect.any(String), index: 0, text: 'one', checked: false, comment_count: 0 },
+      { card_id: card.id, card_title: 'Todos', task_id: expect.any(String), index: 1, text: 'two', checked: false, comment_count: 0 }
     ])
     expect(open[0].task_id).not.toBe(open[1].task_id)
     const added = await call('add_task', { text: 'three', card_id: card.id })
     expect(added.index).toBe(2)
-    const journalTask = await call('add_task', { text: 'journal todo', date: '2026-09-17' })
-    expect(journalTask.journal_date).toBe('2026-09-17')
+    const inboxTask = await call('add_task', { text: 'inbox todo' })
+    expect(inboxTask.card_id).not.toBe(card.id)
     await call('complete_task', { card_id: card.id, index: 2 })
     await call('complete_task', { card_id: card.id, index: 1 })
     await call('complete_task', { card_id: card.id, index: 0 })
-    expect((await call('list_tasks', { status: 'open' })).map((t: { text: string }) => t.text)).toEqual(['journal todo'])
+    expect((await call('list_tasks', { status: 'open' })).map((t: { text: string }) => t.text)).toEqual(['inbox todo'])
     expect((await call('list_tasks', { status: 'done' })).map((t: { text: string }) => t.text).sort()).toEqual(['one', 'three', 'two'])
   })
 

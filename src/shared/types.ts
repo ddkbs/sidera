@@ -146,11 +146,6 @@ export interface SearchHit {
   kind: 'card' | 'whiteboard'
 }
 
-export interface JournalDay {
-  date: string // YYYY-MM-DD
-  card: Card
-}
-
 export interface FileRecord {
   id: ID
   name: string
@@ -167,8 +162,6 @@ export type ObjectPatch = Partial<Pick<WhiteboardObject, 'x' | 'y' | 'width' | '
 export interface Task {
   cardId: ID
   cardTitle: string
-  isJournal: boolean
-  journalDate: string | null
   /** stable id on the taskItem node, survives reordering/insertion (unlike `index`) */
   taskId: string
   /** position among taskItems in the card's content, depth-first */

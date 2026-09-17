@@ -120,13 +120,41 @@ describe('whiteboards', () => {
   })
 })
 
-describe('journal', () => {
-  it('creates one card per day, idempotently', () => {
-    const d1 = api.getJournal('2026-09-16')
-    const d2 = api.getJournal('2026-09-16')
-    expect(d1.card.id).toBe(d2.card.id)
-    expect(api.listJournal()).toHaveLength(1)
-    expect(api.listCards()).toHaveLength(0)
+describe('inbox', () => {
+  it('finds or creates a single "Inbox" card, idempotently', () => {
+    const c1 = api.getInboxCard()
+    const c2 = api.getInboxCard()
+    expect(c1.id).toBe(c2.id)
+    expect(c1.title).toBe('Inbox')
+    expect(api.listCards()).toHaveLength(1)
+  })
+})
+
+describe('migrations', () => {
+  it('a former journal card survives the journal_entries drop and shows up in listCards', async () => {
+    const Database = (await import('better-sqlite3')).default
+    const { drizzle } = await import('drizzle-orm/better-sqlite3')
+    const { migrations } = await import('../src/main/db/migrations')
+    const schema = await import('../src/main/db/schema')
+
+    const sqlite = new Database(':memory:')
+    sqlite.pragma('foreign_keys = ON')
+    // Apply migrations up through "task comments" (index 3, the last one before the journal removal),
+    // while journal_entries still exists, and seed a journal day the old way.
+    for (let i = 0; i <= 3; i++) sqlite.exec(migrations[i])
+    const t = Date.now()
+    sqlite.prepare(`INSERT INTO cards (id, title, content, content_text, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)`).run('c1', '2026-09-16', '{"type":"doc","content":[]}', '', t, t)
+    sqlite.prepare(`INSERT INTO journal_entries (date, card_id) VALUES (?, ?)`).run('2026-09-16', 'c1')
+
+    // Now run the remaining migrations, including the journal_entries drop.
+    for (let i = 4; i < migrations.length; i++) {
+      if (migrations[i].trim()) sqlite.exec(migrations[i])
+    }
+    sqlite.pragma(`user_version = ${migrations.length}`)
+
+    const db = drizzle(sqlite, { schema })
+    const migrated = createServices(db as unknown as Parameters<typeof createServices>[0])
+    expect(migrated.listCards().map((c) => c.id)).toContain('c1')
   })
 })
 
@@ -135,7 +163,6 @@ describe('markdown export/import', () => {
     const { exportCards, importCards } = await import('../src/main/services/markdown')
     const tag = api.createTag({ name: 'Ideas' })
     api.createCard({ title: 'A/B test', markdown: '- one\n- two', tagIds: [tag.id] })
-    api.getJournal('2026-01-01')
     const files = exportCards(api)
     expect(files).toHaveLength(1)
     expect(files[0].name).toBe('A-B test.md')

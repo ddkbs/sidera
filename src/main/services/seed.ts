@@ -41,6 +41,6 @@ export function seedWelcome(api: Services): boolean {
     tagIds: [tag.id]
   })
   api.addObject({ whiteboardId: w, kind: 'card', refId: mcp.id, x: 1180, y: 0, width: 360, height: 320 })
-  api.addObject({ whiteboardId: w, kind: 'mindmap', x: 0, y: 400, width: 520, height: 300, data: { source: 'CanvasCL\n  - Cards\n    - Backlinks\n  - Whiteboards\n    - Sections\n  - Tags\n    - Table\n    - Kanban\n  - Journal' } })
+  api.addObject({ whiteboardId: w, kind: 'mindmap', x: 0, y: 400, width: 520, height: 300, data: { source: 'CanvasCL\n  - Cards\n    - Backlinks\n  - Whiteboards\n    - Sections\n  - Tags\n    - Table\n    - Kanban' } })
   return true
 }

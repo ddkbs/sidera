@@ -163,5 +163,8 @@ export const migrations: string[] = [
 
   ALTER TABLE task_comments ADD COLUMN author_id TEXT REFERENCES profiles(id) ON DELETE SET NULL;
   CREATE INDEX task_comments_author_idx ON task_comments(author_id);
+  `,
+  /* 6: remove journal */ `
+  DROP TABLE journal_entries;
   `
 ]

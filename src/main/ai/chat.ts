@@ -10,7 +10,7 @@ import { OpenAiCompatibleAgent, type OaToolDef } from './openaiCompatible'
 
 const MAX_TURNS = 20
 
-const SYSTEM = `You are the assistant built into CanvasCL, a local-first visual knowledge base (cards, whiteboards, tags with table/kanban views, daily journal).
+const SYSTEM = `You are the assistant built into CanvasCL, a local-first visual knowledge base (cards, whiteboards, tags with table/kanban views).
 You act on the user's knowledge base through the provided tools. Search before creating to avoid duplicates. When you create or change something, say briefly what you did and name the cards or whiteboards involved.
 Keep answers concise and use Markdown.`
 

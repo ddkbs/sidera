@@ -1,5 +1,5 @@
 import { ThinkingOrb } from 'thinking-orbs'
-import { ArrowRight, BookOpen, CalendarDays, LayoutDashboard, Plus } from '@/components/icons'
+import { ArrowRight, BookOpen, LayoutDashboard, Plus } from '@/components/icons'
 import { CardIcon } from '@/components/CardIcon'
 import { motion } from 'motion/react'
 import { Button } from '@/components/ui/button'
@@ -34,7 +34,7 @@ export function HomeView() {
           </div>
         </div>
 
-        <div className="mt-8 grid grid-cols-3 gap-3">
+        <div className="mt-8 grid grid-cols-2 gap-3">
           <QuickAction
             icon={<LayoutDashboard className="size-4" />}
             title="New whiteboard"
@@ -51,7 +51,6 @@ export function HomeView() {
               if ('data' in r && r.data) dispatch(openCard(r.data.id))
             }}
           />
-          <QuickAction icon={<CalendarDays className="size-4" />} title="Today's journal" onClick={() => dispatch(navigate({ type: 'journal' }))} />
         </div>
 
         <Section title="Whiteboards" onMore={boards.length ? undefined : undefined}>

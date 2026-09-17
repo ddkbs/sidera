@@ -283,7 +283,7 @@ function EditorCanvas() {
   const s = useAppSelector((st) => st.settings)
   return (
     <div>
-      <Row title="Spell check" description="Underline misspelled words in cards and the journal.">
+      <Row title="Spell check" description="Underline misspelled words in cards.">
         <Switch checked={s.editor.spellcheck} onCheckedChange={(v) => dispatch(updateSettings({ editor: { spellcheck: v } }))} />
       </Row>
       <Row title="Show minimap" description="Show the minimap on whiteboards by default.">
@@ -301,7 +301,7 @@ const TOOL_NAMES = [
   'list_whiteboards', 'get_whiteboard', 'create_whiteboard', 'add_card_to_whiteboard', 'add_section', 'organize_board', 'connect_objects',
   'list_folders', 'create_folder', 'move_whiteboard_to_folder',
   'add_chart', 'update_chart', 'add_mindmap', 'add_flowchart', 'update_diagram',
-  'get_kanban', 'move_kanban_item', 'get_journal', 'append_to_journal', 'list_tasks', 'add_task', 'complete_task',
+  'get_kanban', 'move_kanban_item', 'list_tasks', 'add_task', 'complete_task',
   'list_task_comments', 'add_task_comment'
 ]
 
@@ -627,7 +627,7 @@ function DataSettings() {
         <code className="mt-2 block rounded bg-muted px-2 py-1.5 font-mono text-xs break-all">{info?.dataDir ?? '…'}</code>
         <ul className="mt-3 space-y-1 text-sm text-muted-foreground">
           <li>
-            <code className="font-mono text-xs text-foreground">canvascl.db</code> — cards, whiteboards, tags, journal (SQLite){info && ` · ${bytes(info.dbBytes)}`}
+            <code className="font-mono text-xs text-foreground">canvascl.db</code> — cards, whiteboards, tags (SQLite){info && ` · ${bytes(info.dbBytes)}`}
           </li>
           <li>
             <code className="font-mono text-xs text-foreground">files/</code> — imported PDFs and images{info && ` · ${info.fileCount} files`}
@@ -640,7 +640,7 @@ function DataSettings() {
           Show in Finder
         </Button>
       </div>
-      <Row title="Export as Markdown" description="One .md file per card with tags in front matter, plus a journal folder.">
+      <Row title="Export as Markdown" description="One .md file per card with tags in front matter.">
         <Button
           variant="outline"
           onClick={async () => {

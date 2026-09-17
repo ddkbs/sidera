@@ -26,7 +26,7 @@ const SUGGESTIONS = [
   'What did I work on this week?',
   'Summarize my #Research cards',
   'Create a whiteboard that groups my cards by topic',
-  'Add a to-do for tomorrow to my journal'
+  'Add a to-do for tomorrow to my Inbox'
 ]
 
 export function ChatPanel() {
@@ -67,7 +67,7 @@ export function ChatPanel() {
         })
         if (e.type === 'done' || e.type === 'error') {
           setBusy(false)
-          dispatch(api.util.invalidateTags(['Card', 'CardList', 'Tag', 'Whiteboard', 'Journal', 'Kanban']))
+          dispatch(api.util.invalidateTags(['Card', 'CardList', 'Tag', 'Whiteboard', 'Kanban']))
         }
       }),
     [dispatch]

@@ -1,4 +1,3 @@
-import { todayISO } from '@shared/util'
 import { toast } from 'sonner'
 import { record, redo, undo, type UndoResult } from './undo'
 
@@ -38,7 +37,7 @@ export function recordTaskToggle(cardId: string, index: number, checked: boolean
 
 /** Adds a task and records it by snapshotting the target card's content before/after. */
 export async function addTaskUndoable(add: () => Promise<{ cardId: string } | undefined>, cardId?: string): Promise<boolean> {
-  const target = cardId ? await window.api.getCard(cardId) : (await window.api.getJournal(todayISO())).card
+  const target = cardId ? await window.api.getCard(cardId) : await window.api.getInboxCard()
   const task = await add()
   if (!task || !target) return !!task
   const after = await window.api.getCard(task.cardId)

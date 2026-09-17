@@ -14,7 +14,6 @@ import type {
   Folder,
   Profile,
   ProfileRef,
-  JournalDay,
   KanbanBoard,
   SearchHit,
   SelectOption,
@@ -26,7 +25,7 @@ import type {
   WhiteboardDetail,
   WhiteboardObject
 } from '@shared/types'
-import { between, now, TAG_COLORS, todayISO } from '@shared/util'
+import { between, now, TAG_COLORS } from '@shared/util'
 import type { DB } from '../db/client'
 import * as s from '../db/schema'
 import { layoutGroups } from './organize'
@@ -283,6 +282,13 @@ export function createServices(
     return toCard(r)
   }
 
+  /** Default target for `addTask` when no card is given: find a non-deleted card titled exactly "Inbox", else create one. */
+  const getOrCreateInboxCard = (): Card => {
+    const row = sql.prepare(`SELECT id FROM cards WHERE title = 'Inbox' AND deleted_at IS NULL LIMIT 1`).get() as { id: string } | undefined
+    if (row) return requireCard(row.id)
+    return api.createCard({ title: 'Inbox' })
+  }
+
   const ensureStatusProperty = (tagId: string): TagProperty => {
     const existing = db
       .select()
@@ -313,14 +319,14 @@ export function createServices(
             .prepare(
               `SELECT c.id, c.title, c.content_text AS contentText, c.color, c.icon, c.updated_at AS updatedAt FROM cards c
                JOIN card_tags ct ON ct.card_id = c.id
-               WHERE ct.tag_id = ? AND c.deleted_at IS NULL AND c.id NOT IN (SELECT card_id FROM journal_entries)
+               WHERE ct.tag_id = ? AND c.deleted_at IS NULL
                ORDER BY c.updated_at DESC LIMIT ? OFFSET ?`
             )
             .all(opts.tagId, limit, offset) as CardSummaryRow[])
         : (sql
             .prepare(
               `SELECT id, title, content_text AS contentText, color, icon, updated_at AS updatedAt FROM cards
-               WHERE deleted_at IS NULL AND id NOT IN (SELECT card_id FROM journal_entries)
+               WHERE deleted_at IS NULL
                ORDER BY updated_at DESC LIMIT ? OFFSET ?`
             )
             .all(limit, offset) as CardSummaryRow[])
@@ -417,6 +423,11 @@ export function createServices(
     restoreCard(id) {
       db.update(s.cards).set({ deletedAt: null }).where(eq(s.cards.id, id)).run()
       onChange('all')
+    },
+
+    /** Find a non-deleted card titled exactly "Inbox", or create one. Idempotent. */
+    getInboxCard() {
+      return getOrCreateInboxCard()
     },
 
     // ---------- tags ----------
@@ -810,40 +821,16 @@ export function createServices(
       return result
     },
 
-    // ---------- journal ----------
-    getJournal(date) {
-      if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) throw new Error(`Invalid date: ${date}`)
-      const entry = db.select().from(s.journalEntries).where(eq(s.journalEntries.date, date)).get()
-      if (entry) {
-        const r = getCardRow(entry.cardId)
-        if (r) return { date, card: toCard(r) }
-      }
-      const card = tx(() => {
-        const c = api.createCard({ title: date })
-        db.insert(s.journalEntries).values({ date, cardId: c.id }).onConflictDoUpdate({ target: s.journalEntries.date, set: { cardId: c.id } }).run()
-        return c
-      })
-      onChange('journal')
-      return { date, card }
-    },
-
-    listJournal(limit = 30) {
-      const rows = sql
-        .prepare(`SELECT j.date, c.* FROM journal_entries j JOIN cards c ON c.id = j.card_id ORDER BY j.date DESC LIMIT ?`)
-        .all(limit) as (RawCard & { date: string })[]
-      return rows.map((r): JournalDay => ({ date: r.date, card: toCard(fromRaw(r)) }))
-    },
-
     // ---------- tasks ----------
     listTasks(opts = {}) {
       const status = opts.status ?? 'all'
       const rows = sql
         .prepare(
-          `SELECT c.id, c.title, c.content, c.updated_at AS updatedAt, j.date AS journalDate
-           FROM cards c LEFT JOIN journal_entries j ON j.card_id = c.id
+          `SELECT c.id, c.title, c.content, c.updated_at AS updatedAt
+           FROM cards c
            WHERE c.deleted_at IS NULL AND c.content LIKE '%taskItem%'`
         )
-        .all() as { id: string; title: string; content: string; updatedAt: number; journalDate: string | null }[]
+        .all() as { id: string; title: string; content: string; updatedAt: number }[]
       const counts = sql.prepare(`SELECT card_id AS cardId, task_id AS taskId, COUNT(*) AS n FROM task_comments GROUP BY card_id, task_id`).all() as {
         cardId: string
         taskId: string
@@ -859,8 +846,6 @@ export function createServices(
           out.push({
             cardId: r.id,
             cardTitle: r.title,
-            isJournal: !!r.journalDate,
-            journalDate: r.journalDate,
             taskId: t.taskId,
             index: t.index,
             text: t.text,
@@ -878,19 +863,16 @@ export function createServices(
       api.updateCard({ id: cardId, content: applyTaskChecked(card.content, index, checked) })
     },
 
-    addTask({ text, cardId, date }) {
+    addTask({ text, cardId }) {
       const clean = text.trim()
       if (!clean) throw new Error('Task text is empty')
-      const journal = cardId ? null : api.getJournal(date ?? todayISO())
-      const card = journal ? journal.card : requireCard(cardId!)
+      const card = cardId ? requireCard(cardId) : getOrCreateInboxCard()
       const { doc, index } = appendTask(card.content, clean)
       const saved = api.updateCard({ id: card.id, content: doc })
       const taskId = collectTasks(saved.content)[index]?.taskId ?? ''
       return {
         cardId: card.id,
         cardTitle: saved.title,
-        isJournal: !!journal,
-        journalDate: journal?.date ?? null,
         taskId,
         index,
         text: clean,
@@ -1006,7 +988,7 @@ export function createServices(
       if (!q) {
         return summarize(
           sql
-            .prepare(`SELECT id, title, content_text AS contentText, color, icon, updated_at AS updatedAt FROM cards WHERE deleted_at IS NULL AND NOT (content_text = '' AND id IN (SELECT card_id FROM journal_entries)) ORDER BY updated_at DESC LIMIT ?`)
+            .prepare(`SELECT id, title, content_text AS contentText, color, icon, updated_at AS updatedAt FROM cards WHERE deleted_at IS NULL ORDER BY updated_at DESC LIMIT ?`)
             .all(limit) as CardSummaryRow[]
         ).map((c): SearchHit => ({ id: c.id, title: c.title, snippet: c.excerpt.slice(0, 120), kind: 'card' }))
       }
@@ -1073,25 +1055,3 @@ interface CardSummaryRow {
   icon?: string | null
   updatedAt: number
 }
-interface RawCard {
-  id: string
-  title: string
-  content: string
-  content_text: string
-  color: string | null
-  icon: string | null
-  created_at: number
-  updated_at: number
-  deleted_at: number | null
-}
-const fromRaw = (r: RawCard): typeof s.cards.$inferSelect => ({
-  id: r.id,
-  title: r.title,
-  content: r.content,
-  contentText: r.content_text,
-  color: r.color,
-  icon: r.icon,
-  createdAt: r.created_at,
-  updatedAt: r.updated_at,
-  deletedAt: r.deleted_at
-})

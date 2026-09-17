@@ -94,11 +94,6 @@ export const connections = sqliteTable('connections', {
   data: text('data').notNull().default('{}')
 })
 
-export const journalEntries = sqliteTable('journal_entries', {
-  date: text('date').primaryKey(),
-  cardId: text('card_id').notNull()
-})
-
 export const files = sqliteTable('files', {
   id: text('id').primaryKey(),
   name: text('name').notNull(),

@@ -14,7 +14,7 @@ const call = async <K extends keyof Api>(name: K, ...args: Arg<K>): Promise<{ da
   }
 }
 
-export const TAGS = ['Card', 'CardList', 'Tag', 'Whiteboard', 'Journal', 'Kanban', 'Task', 'TaskComment', 'Profile'] as const
+export const TAGS = ['Card', 'CardList', 'Tag', 'Whiteboard', 'Kanban', 'Task', 'TaskComment', 'Profile'] as const
 
 export const api = createApi({
   reducerPath: 'data',
@@ -36,7 +36,7 @@ export const api = createApi({
     }),
     updateCard: b.mutation<Res<'updateCard'>, Arg<'updateCard'>[0]>({
       queryFn: (input) => call('updateCard', input),
-      invalidatesTags: (_r, _e, { content }) => ['CardList', 'Whiteboard', 'Kanban', ...(content ? [{ type: 'Journal' as const, id: 'LIST' }] : [])]
+      invalidatesTags: ['CardList', 'Whiteboard', 'Kanban']
     }),
     deleteCard: b.mutation<void, string>({
       queryFn: (id) => call('deleteCard', id),
@@ -152,16 +152,6 @@ export const api = createApi({
       invalidatesTags: (_r, _e, { whiteboardId }) => [{ type: 'Whiteboard', id: whiteboardId }]
     }),
 
-    // journal
-    getJournal: b.query<Res<'getJournal'>, string>({
-      queryFn: (date) => call('getJournal', date),
-      providesTags: (_r, _e, date) => [{ type: 'Journal', id: date }]
-    }),
-    listJournal: b.query<Res<'listJournal'>, number | void>({
-      queryFn: (limit) => call('listJournal', limit ?? 30),
-      providesTags: [{ type: 'Journal', id: 'LIST' }]
-    }),
-
     // tasks
     listTasks: b.query<Res<'listTasks'>, Arg<'listTasks'>[0] | void>({
       queryFn: (opts) => call('listTasks', opts ?? undefined),
@@ -169,12 +159,12 @@ export const api = createApi({
     }),
     setTaskChecked: b.mutation<void, { cardId: string; index: number; checked: boolean }>({
       queryFn: ({ cardId, index, checked }) => call('setTaskChecked', cardId, index, checked),
-      invalidatesTags: (_r, _e, { cardId }) => ['Task', 'CardList', { type: 'Card' as const, id: cardId }, { type: 'Journal' as const }]
+      invalidatesTags: (_r, _e, { cardId }) => ['Task', 'CardList', { type: 'Card' as const, id: cardId }]
     }),
 
     addTask: b.mutation<Res<'addTask'>, Arg<'addTask'>[0]>({
       queryFn: (input) => call('addTask', input),
-      invalidatesTags: (r) => ['Task', 'CardList', { type: 'Journal' as const }, ...(r ? [{ type: 'Card' as const, id: r.cardId }] : [])]
+      invalidatesTags: (r) => ['Task', 'CardList', ...(r ? [{ type: 'Card' as const, id: r.cardId }] : [])]
     }),
 
     // task comments
@@ -244,7 +234,6 @@ export const scopeTags: Record<DbChangeScope, (typeof TAGS)[number][]> = {
   cards: ['Card', 'CardList', 'Kanban', 'Whiteboard', 'Task', 'TaskComment'],
   tags: ['Tag', 'Kanban', 'Card'],
   whiteboards: ['Whiteboard'],
-  journal: ['Journal', 'Task', 'TaskComment'],
   profiles: ['Profile', 'TaskComment'],
   all: [...TAGS]
 }
@@ -281,8 +270,6 @@ export const {
   useRemoveObjectsMutation,
   useAddConnectionMutation,
   useRemoveConnectionsMutation,
-  useGetJournalQuery,
-  useListJournalQuery,
   useListTasksQuery,
   useSetTaskCheckedMutation,
   useAddTaskMutation,

@@ -2,7 +2,6 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { z } from 'zod'
 import { docToMarkdown, linkWikiRefs, markdownToDoc } from '@shared/doc'
 import { withSourceHeader } from '@shared/html'
-import { todayISO } from '@shared/util'
 import { CHART_DEFS, defaultChart, SHAPE_COLUMNS, vennRows, type ChartData, type ChartOptions, type ChartType } from '@shared/charts'
 import type { Services } from '../services'
 import { fetchPageForClip } from '../web'
@@ -27,7 +26,7 @@ export function createMcpServer(api: Services, version: string, onCall?: ToolCal
     {
       instructions:
         'CanvasCL is a visual knowledge base. Cards hold Markdown-like notes, whiteboards arrange cards spatially, ' +
-        'tags group cards and power kanban boards, and the journal has one card per day. ' +
+        'and tags group cards and power kanban boards. ' +
         'Search before creating to avoid duplicate cards. Link other cards by writing [[Exact card title]] in Markdown — it becomes a real link with a backlink.'
     }
   )
@@ -574,36 +573,9 @@ export function createMcpServer(api: Services, version: string, onCall?: ToolCal
   )
 
   server.registerTool(
-    'get_journal',
-    {
-      description: 'Read the journal card for a date (YYYY-MM-DD, default today) as Markdown.',
-      inputSchema: { date: z.string().optional() },
-      annotations: { readOnlyHint: true }
-    },
-    async ({ date }) => {
-      const day = api.getJournal(date ?? todayISO())
-      return ok({ date: day.date, card_id: day.card.id, markdown: docToMarkdown(day.card.content) })
-    }
-  )
-
-  server.registerTool(
-    'append_to_journal',
-    {
-      description: 'Append Markdown to the journal of a date (default today).',
-      inputSchema: { markdown: z.string(), date: z.string().optional() }
-    },
-    async ({ markdown, date }) => {
-      const day = api.getJournal(date ?? todayISO())
-      const next = toDoc(markdown)
-      api.updateCard({ id: day.card.id, content: { ...day.card.content, content: [...(day.card.content.content ?? []), ...(next.content ?? [])] } })
-      return ok({ card_id: day.card.id })
-    }
-  )
-
-  server.registerTool(
     'list_tasks',
     {
-      description: 'List to-do items (task list checkboxes) across all cards and journal days.',
+      description: 'List to-do items (task list checkboxes) across all cards.',
       inputSchema: { status: z.enum(['open', 'done', 'all']).default('open') },
       annotations: { readOnlyHint: true }
     },
@@ -612,8 +584,6 @@ export function createMcpServer(api: Services, version: string, onCall?: ToolCal
         api.listTasks({ status }).map((t) => ({
           card_id: t.cardId,
           card_title: t.cardTitle,
-          is_journal: t.isJournal,
-          journal_date: t.journalDate,
           task_id: t.taskId,
           index: t.index,
           text: t.text,
@@ -626,13 +596,13 @@ export function createMcpServer(api: Services, version: string, onCall?: ToolCal
   server.registerTool(
     'add_task',
     {
-      description: "Add a to-do (checkbox) to a card, or to the journal of a date (default today) when card_id is omitted. It appears in the Tasks view.",
-      inputSchema: { text: z.string().min(1), card_id: z.string().optional(), date: z.string().optional().describe('YYYY-MM-DD, only used without card_id') }
+      description: "Add a to-do (checkbox) to a card, or to the \"Inbox\" card (created on first use) when card_id is omitted. It appears in the Tasks view.",
+      inputSchema: { text: z.string().min(1), card_id: z.string().optional() }
     },
-    async ({ text, card_id, date }) => {
+    async ({ text, card_id }) => {
       try {
-        const task = api.addTask({ text, cardId: card_id, date })
-        return ok({ card_id: task.cardId, index: task.index, journal_date: task.journalDate })
+        const task = api.addTask({ text, cardId: card_id })
+        return ok({ card_id: task.cardId, index: task.index })
       } catch (e) {
         return { ...ok(String(e instanceof Error ? e.message : e)), isError: true }
       }

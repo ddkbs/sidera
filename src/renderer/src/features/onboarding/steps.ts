@@ -17,7 +17,7 @@ export const TOUR_STEPS: TourStep[] = [
   {
     id: 'sidebar',
     title: 'Everything lives in the sidebar',
-    body: 'Jump between Home, your Journal, the Card Library, whiteboards and tags — all your knowledge in one tree.',
+    body: 'Jump between Home, the Card Library, whiteboards and tags — all your knowledge in one tree.',
     target: 'sidebar-nav'
   },
   {
