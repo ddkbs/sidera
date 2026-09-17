@@ -16,6 +16,8 @@ export const LinkNode = memo(function LinkNode({ id, data, selected }: NodeProps
   const [preview, setPreview] = useState<Partial<LinkPreviewData>>(stored)
   const [saving, setSaving] = useState(false)
   const loading = !preview.fetchedAt
+  // previews saved before images were cached locally still point at remote URLs (blocked by CSP) → refetch once
+  const stale = /^https?:/i.test(`${stored.image ?? ''}${stored.favicon ?? ''}`)
 
   useEffect(() => setPreview(stored), [stored])
 
@@ -28,7 +30,7 @@ export const LinkNode = memo(function LinkNode({ id, data, selected }: NodeProps
   }, [id])
 
   useEffect(() => {
-    if (preview.fetchedAt) return
+    if (preview.fetchedAt && !stale) return
     let cancelled = false
     void window.api.fetchLinkPreview(stored.url).then((p) => {
       if (cancelled) return

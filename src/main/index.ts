@@ -21,7 +21,7 @@ import { startHttpMcp, startStdioMcp } from './mcp/server'
 import { createServices } from './services'
 import { exportCards, importCards } from './services/markdown'
 import { seedWelcome } from './services/seed'
-import { fetchLinkPreview, fetchPageForClip } from './web'
+import { downloadImage, fetchLinkPreview, fetchPageForClip } from './web'
 
 const STDIO = process.argv.includes('--mcp-stdio')
 // One stable data folder for dev and packaged builds: ~/Library/Application Support/CanvasCL
@@ -106,7 +106,27 @@ async function bootstrap(): Promise<void> {
       return services.getFile(id) ? `canvascl-file://files/${encodeURIComponent(id)}` : null
     },
     async fetchLinkPreview(url) {
-      return fetchLinkPreview(url)
+      const preview = await fetchLinkPreview(url)
+      // The renderer's CSP only allows local images: cache og:image and favicon in the data dir (also works offline
+      // and doesn't ping the site every time a board is opened).
+      const cache = async (remote: string | undefined, label: string): Promise<string | undefined> => {
+        if (!remote) return undefined
+        const img = await downloadImage(remote)
+        if (!img) return undefined
+        const dest = join(filesDir, nanoid() + img.ext)
+        await writeFile(dest, img.bytes)
+        const file = services.registerFile({ name: `${label}${img.ext}`, mime: img.mime, path: dest, size: img.bytes.byteLength })
+        return `canvascl-file://files/${encodeURIComponent(file.id)}`
+      }
+      const host = (() => {
+        try {
+          return new URL(url).hostname
+        } catch {
+          return 'link'
+        }
+      })()
+      const [image, favicon] = await Promise.all([cache(preview.image, `${host}-preview`), cache(preview.favicon, `${host}-favicon`)])
+      return { ...preview, image, favicon, remoteImage: preview.image, remoteFavicon: preview.favicon }
     },
     async clipUrl(input) {
       const { title, markdown } = await fetchPageForClip(input.url)

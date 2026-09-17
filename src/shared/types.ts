@@ -173,4 +173,7 @@ export interface LinkPreviewData {
   siteName?: string
   favicon?: string
   fetchedAt: number
+  /** original remote URLs (the displayed image/favicon are cached locally) */
+  remoteImage?: string
+  remoteFavicon?: string
 }
