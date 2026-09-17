@@ -149,5 +149,9 @@ export const migrations: string[] = [
     file_id TEXT NOT NULL REFERENCES files(id),
     PRIMARY KEY (comment_id, file_id)
   );
+  `,
+  /* 5: reserved (profiles, merged separately) */ '',
+  /* 6: remove journal */ `
+  DROP TABLE journal_entries;
   `
 ]

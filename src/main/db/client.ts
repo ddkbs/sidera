@@ -18,7 +18,7 @@ export function migrate(sqlite: Database.Database): void {
   const current = sqlite.pragma('user_version', { simple: true }) as number
   for (let i = current; i < migrations.length; i++) {
     sqlite.transaction(() => {
-      sqlite.exec(migrations[i])
+      if (migrations[i].trim()) sqlite.exec(migrations[i])
       sqlite.pragma(`user_version = ${i + 1}`)
     })()
   }
