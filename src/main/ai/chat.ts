@@ -3,12 +3,19 @@ import { Client } from '@modelcontextprotocol/sdk/client/index.js'
 import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js'
 import { nanoid } from 'nanoid'
 import type { AskUserAnswer, ChatEvent } from '@shared/api'
-import { resolveBaseUrl, type AiProviderId } from '@shared/ai'
+import { resolveBaseUrl, supportsWebSearch, type AiProviderId } from '@shared/ai'
 import { todayISO } from '@shared/util'
 import type { Services } from '../services'
 import { createMcpServer, type ToolCallListener } from '../mcp/tools'
 import { ASK_USER_TOOL_NAME, answersToToolResult, askUserAnthropicTool, askUserOaTool, parseAskUserInput } from './askUser'
 import { OpenAiCompatibleAgent, type OaToolDef } from './openaiCompatible'
+import {
+  ANTHROPIC_WEB_SEARCH_TOOL,
+  describeAnthropicWebSearchApiError,
+  describeWebSearchErrorCode,
+  extractAnthropicSources,
+  webSearchResultError
+} from './anthropicWebSearch'
 
 const MAX_TURNS = 20
 
@@ -16,6 +23,13 @@ const SYSTEM = `You are the assistant built into CanvasCL, a local-first visual 
 You act on the user's knowledge base through the provided tools. Search before creating to avoid duplicates. When you create or change something, say briefly what you did and name the cards or whiteboards involved.
 Use ask_user_questions when a request is ambiguous and a few choices would clarify it; don't overuse it.
 Keep answers concise and use Markdown.`
+
+const WEB_SEARCH_LINE = 'You can search the web with the web_search tool for current or external information; cite the sources you used.'
+
+/** System prompt for one request (pure — exported for tests). */
+export function systemPrompt(webSearch: boolean, today: string): string {
+  return `${SYSTEM}${webSearch ? `\n${WEB_SEARCH_LINE}` : ''}\nToday is ${today}.`
+}
 
 type Emit = (event: ChatEvent) => void
 
@@ -25,6 +39,8 @@ export interface ActiveAiConfig {
   model: string
   baseUrl?: string
   apiKey: string | null
+  /** AppSettings.ai.webSearch — only honoured for providers that support native web search. */
+  webSearch?: boolean
 }
 
 /**
@@ -130,9 +146,10 @@ export class ChatAgent {
     }
     await this.connect()
     this.currentEmit = emit
+    const webSearch = !!cfg.webSearch && supportsWebSearch(cfg.provider)
 
     if (cfg.provider === 'anthropic') {
-      return this.sendAnthropic(cfg, text, emit)
+      return this.sendAnthropic(cfg, text, emit, webSearch)
     }
     this.oa ??= new OpenAiCompatibleAgent(this.oaTools!, async (name, args) => {
       if (name === ASK_USER_TOOL_NAME) return { content: await this.askUser(parseAskUserInput(args)), isError: false }
@@ -142,10 +159,10 @@ export class ChatAgent {
       return { content, isError: res.isError === true }
     })
     const baseUrl = resolveBaseUrl(cfg.provider, cfg.baseUrl)
-    return this.oa.send({ apiKey: cfg.apiKey, baseUrl, model: cfg.model, provider: cfg.provider, system: `${SYSTEM}\nToday is ${todayISO()}.` }, text, emit)
+    return this.oa.send({ apiKey: cfg.apiKey, baseUrl, model: cfg.model, provider: cfg.provider, system: systemPrompt(webSearch, todayISO()), webSearch }, text, emit)
   }
 
-  private async sendAnthropic(cfg: ActiveAiConfig, text: string, emit: Emit): Promise<void> {
+  private async sendAnthropic(cfg: ActiveAiConfig, text: string, emit: Emit, webSearch: boolean): Promise<void> {
     const client = new Anthropic({ apiKey: cfg.apiKey! })
     this.abort = new AbortController()
     this.messages.push({ role: 'user', content: text })
@@ -160,13 +177,26 @@ export class ChatAgent {
             betas: ['server-side-fallback-2026-07-01'],
             fallbacks: 'default',
             thinking: { type: 'adaptive' },
-            system: `${SYSTEM}\nToday is ${todayISO()}.`,
-            tools: this.tools!,
+            system: systemPrompt(webSearch, todayISO()),
+            tools: webSearch ? [...this.tools!, ANTHROPIC_WEB_SEARCH_TOOL] : this.tools!,
             messages: this.messages
           },
           { signal: this.abort.signal }
         )
         stream.on('text', (delta) => emit({ type: 'text', delta }))
+        if (webSearch) {
+          stream.on('streamEvent', (ev) => {
+            if (ev.type === 'content_block_start' && ev.content_block.type === 'server_tool_use' && ev.content_block.name === 'web_search') emit({ type: 'search' })
+          })
+          stream.on('contentBlock', (block) => {
+            if (block.type === 'server_tool_use' && block.name === 'web_search') {
+              const query = (block.input as { query?: unknown }).query
+              if (typeof query === 'string' && query) emit({ type: 'search', query })
+            }
+            const code = webSearchResultError(block)
+            if (code) emit({ type: 'search', error: describeWebSearchErrorCode(code) })
+          })
+        }
 
         let message: Anthropic.Beta.BetaMessage
         try {
@@ -178,7 +208,10 @@ export class ChatAgent {
           continue
         }
 
+        // Kept unchanged — server_tool_use / web_search_tool_result blocks must be replayed as-is.
         this.messages.push({ role: 'assistant', content: message.content })
+        const sources = extractAnthropicSources(message.content)
+        if (sources.length) emit({ type: 'sources', sources })
 
         if (message.stop_reason === 'refusal') {
           emit({ type: 'error', message: 'The request was declined.' })
@@ -222,6 +255,8 @@ export class ChatAgent {
         emit({ type: 'error', message: 'Invalid Anthropic API key.' })
       } else if (err instanceof Anthropic.RateLimitError) {
         emit({ type: 'error', message: 'Rate limited — try again in a moment.' })
+      } else if (err instanceof Anthropic.APIError && webSearch && describeAnthropicWebSearchApiError(err.message)) {
+        emit({ type: 'error', message: describeAnthropicWebSearchApiError(err.message)! })
       } else if (err instanceof Anthropic.APIError) {
         emit({ type: 'error', message: `API error ${err.status ?? ''}: ${err.message}` })
       } else {

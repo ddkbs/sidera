@@ -206,9 +206,9 @@ async function bootstrap(): Promise<void> {
     win?.webContents.send(MCP_ACTIVITY, { tool, args: JSON.stringify(args).slice(0, 200), at: Date.now() })
   }
   const keys = new KeyStore(dataDir)
-  const getActiveConfig = (): { provider: AiProviderId; model: string; baseUrl?: string; apiKey: string | null } => {
+  const getActiveConfig = (): { provider: AiProviderId; model: string; baseUrl?: string; apiKey: string | null; webSearch: boolean } => {
     const ai = settings.get().ai
-    return { provider: ai.provider, model: ai.model, baseUrl: ai.baseUrl, apiKey: keys.resolve(ai.provider) }
+    return { provider: ai.provider, model: ai.model, baseUrl: ai.baseUrl, apiKey: keys.resolve(ai.provider), webSearch: ai.webSearch === true }
   }
   const chat = new ChatAgent(services, app.getVersion(), getActiveConfig, reportActivity)
   ipcMain.handle('chat:send', (_e, text: string) => chat.send(text, (ev) => win?.webContents.send(CHAT_EVENT, ev)))

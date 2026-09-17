@@ -2,6 +2,8 @@ import OpenAI, { APIError } from 'openai'
 import type { ChatCompletionMessageParam, ChatCompletionTool } from 'openai/resources/chat/completions'
 import type { ChatEvent } from '@shared/api'
 import type { AiProviderId } from '@shared/ai'
+import type { ResponseInputItem } from 'openai/resources/responses/responses'
+import { chatHistoryToResponsesInput, closeDanglingCalls, responsesInputToChatHistory, runResponsesLoop } from './openaiResponses'
 
 const MAX_TURNS = 20
 
@@ -46,6 +48,8 @@ interface PendingCall {
  */
 export class OpenAiCompatibleAgent {
   private history: ChatCompletionMessageParam[] = []
+  /** History in Responses API shape while web search is on (provider openai); converted when the toggle flips. */
+  private responsesInput: ResponseInputItem[] | null = null
   private abort: AbortController | null = null
 
   constructor(
@@ -56,6 +60,7 @@ export class OpenAiCompatibleAgent {
   reset(): void {
     this.abort?.abort()
     this.history = []
+    this.responsesInput = null
   }
 
   stop(): void {
@@ -63,12 +68,17 @@ export class OpenAiCompatibleAgent {
   }
 
   async send(
-    cfg: { apiKey: string | null; baseUrl: string; model: string; provider: AiProviderId; system: string },
+    cfg: { apiKey: string | null; baseUrl: string; model: string; provider: AiProviderId; system: string; webSearch?: boolean },
     text: string,
     emit: Emit
   ): Promise<void> {
     const client = new OpenAI({ apiKey: cfg.apiKey || 'not-needed', baseURL: cfg.baseUrl })
     this.abort = new AbortController()
+    if (cfg.webSearch && cfg.provider === 'openai') return this.sendResponses(client, cfg, text, emit)
+    if (this.responsesInput) {
+      this.history = responsesInputToChatHistory(this.responsesInput)
+      this.responsesInput = null
+    }
     this.history.push({ role: 'user', content: text })
 
     const tools: ChatCompletionTool[] = this.tools.map((t) => ({
@@ -154,13 +164,34 @@ export class OpenAiCompatibleAgent {
       this.abort = null
     }
   }
+
+  /** Web search path (provider openai only): Responses API with the hosted web_search tool. */
+  private async sendResponses(client: OpenAI, cfg: { model: string; provider: AiProviderId; system: string }, text: string, emit: Emit): Promise<void> {
+    const input = (this.responsesInput ??= chatHistoryToResponsesInput(this.history))
+    this.history = []
+    input.push({ role: 'user', content: text })
+    const signal = this.abort!.signal
+    try {
+      await runResponsesLoop({ client, model: cfg.model, instructions: cfg.system, tools: this.tools, input, callTool: this.callTool, emit, signal })
+      emit({ type: 'done' })
+    } catch (err) {
+      if (signal.aborted) emit({ type: 'done' })
+      else emit({ type: 'error', message: describeError(err, cfg.provider, true) })
+      closeDanglingCalls(input)
+    } finally {
+      this.abort = null
+    }
+  }
 }
 
-function describeError(err: unknown, provider: AiProviderId): string {
+function describeError(err: unknown, provider: AiProviderId, webSearch = false): string {
   if (err instanceof APIError) {
     if (err.status === 401) return 'Invalid API key.'
     if (err.status === 429) return 'Rate limited — try again in a moment.'
     if (err.status === 404) return 'Model not found for this provider.'
+    if (webSearch && err.status === 400 && /web_search|tool/i.test(err.message)) {
+      return `This model can't use web search — pick a model that supports it (e.g. gpt-5.1) or turn off "Allow web search". (${err.message})`
+    }
     return `API error ${err.status ?? ''}: ${err.message}`
   }
   const message = err instanceof Error ? err.message : String(err)
