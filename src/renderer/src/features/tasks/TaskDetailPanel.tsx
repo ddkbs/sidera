@@ -32,7 +32,7 @@ import {
   useListTaskCommentsQuery,
   useUpdateTaskCommentMutation
 } from '@/store/api'
-import { openCard } from '@/store/ui'
+import { openCard, openPdf } from '@/store/ui'
 import type { FileRecord, Profile, ProfileRef, Task, TaskActivity, TaskComment, TaskPriority, TaskStatus } from '@shared/types'
 import { describeDue, PRIORITY_LABEL, relativeTime, STATUS_LABEL } from './model'
 import { AssigneeAvatar, AssigneePicker, DueLabel, DuePicker, PriorityIcon, PriorityPicker, StatusIcon, StatusPicker, useTaskPatch } from './TaskProperties'
@@ -465,9 +465,11 @@ function AuthorAvatar({ author }: { author: ProfileRef | null }) {
 }
 
 function FileChip({ file }: { file: FileRecord }) {
+  const dispatch = useAppDispatch()
   const [url, setUrl] = useState<string | null>(null)
   const [open, setOpen] = useState(false)
   const isImage = file.mime.startsWith('image/') && file.mime !== 'image/svg+xml'
+  const isPdf = file.mime === 'application/pdf'
   useEffect(() => {
     if (isImage) void window.api.getFileUrl(file.id).then(setUrl)
   }, [file.id, isImage])
@@ -489,9 +491,13 @@ function FileChip({ file }: { file: FileRecord }) {
 
   return (
     <button
-      onClick={() => void window.api.openFile(file.id).catch((e: unknown) => toast.error(`Could not open ${file.name}: ${e instanceof Error ? e.message : String(e)}`))}
+      onClick={() =>
+        isPdf
+          ? dispatch(openPdf({ fileId: file.id, name: file.name }))
+          : void window.api.openFile(file.id).catch((e: unknown) => toast.error(`Could not open ${file.name}: ${e instanceof Error ? e.message : String(e)}`))
+      }
       className="flex max-w-60 items-center gap-2 rounded-md border bg-muted/40 py-1.5 pr-2.5 pl-2 text-left transition hover:bg-accent"
-      title={`Open ${file.name}`}
+      title={isPdf ? `Read ${file.name}` : `Open ${file.name}`}
     >
       <span className="grid size-7 shrink-0 place-items-center rounded bg-background">
         <File className="size-4 text-muted-foreground" />
