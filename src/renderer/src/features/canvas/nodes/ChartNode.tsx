@@ -1,4 +1,4 @@
-import { NodeToolbar, Position, type NodeProps } from '@xyflow/react'
+import { NodeToolbar, type NodeProps } from '@xyflow/react'
 import { memo, useEffect, useRef, useState } from 'react'
 import { cn } from '@/lib/utils'
 import { ChartEditor } from '@/features/charts/ChartEditor'
@@ -7,6 +7,7 @@ import { normalizeChart, type ChartData } from '@shared/charts'
 import { persist, type ObjectNode } from '../types'
 import { Handles, Resizer } from './NodeChrome'
 import { useEditMode } from './useEditMode'
+import { useEditorSide } from './useEditorSide'
 
 /** Charts & structured diagrams. Double-click opens a table editor; changes save as you type. */
 export const ChartNode = memo(function ChartNode({ id, data, selected }: NodeProps<ObjectNode>) {
@@ -29,13 +30,7 @@ export const ChartNode = memo(function ChartNode({ id, data, selected }: NodePro
   useEffect(() => () => clearTimeout(timer.current), [])
 
   // Open the editor on whichever side of the node has room on screen
-  const [side, setSide] = useState<Position>(Position.Right)
-  useEffect(() => {
-    if (!editing || !root.current) return
-    const r = root.current.getBoundingClientRect()
-    const EDITOR_W = 500
-    setSide(window.innerWidth - r.right > EDITOR_W ? Position.Right : r.left > EDITOR_W ? Position.Left : Position.Bottom)
-  }, [editing, root])
+  const toolbar = useEditorSide(editing, root)
 
   // adopt changes made elsewhere (e.g. an AI agent via MCP) unless the user is editing
   const external = JSON.stringify(data.object.data)
@@ -52,7 +47,7 @@ export const ChartNode = memo(function ChartNode({ id, data, selected }: NodePro
   return (
     <>
       <Resizer selected={selected} minWidth={220} minHeight={160} />
-      <NodeToolbar isVisible={editing} position={side} offset={12} align={side === Position.Bottom ? 'center' : 'start'}>
+      <NodeToolbar isVisible={editing} {...toolbar}>
         <ChartEditor data={chart} onChange={update} />
       </NodeToolbar>
       <div

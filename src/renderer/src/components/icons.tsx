@@ -42,6 +42,8 @@ import {
   IconLayout as IconMatrixLayout,
   IconBooleanUnion,
   IconAlignTextLeft,
+  IconArrowDown,
+  IconArrowLeft,
   IconArrowRight,
   IconArrowRightUp,
   IconArrowUp,
@@ -150,7 +152,9 @@ const heading = (level: number): AppIcon =>
   }
 
 // Semantic / legacy names used throughout the app
+export const ArrowDown = IconArrowDown
 export const ArrowDownToLine = IconVerticalAlignBottom
+export const ArrowLeft = IconArrowLeft
 export const ArrowRight = IconArrowRight
 export const ArrowUp = IconArrowUp
 export const ArrowUpRight = IconArrowRightUp
@@ -355,3 +359,47 @@ export const PriorityUrgent = glyph('PriorityUrgent', () => (
     <circle cx="8" cy="11.25" r="1" fill="var(--background, #fff)" />
   </>
 ))
+
+// Flowchart editor
+
+const stroke = { stroke: 'currentColor', strokeWidth: 1.4, strokeLinejoin: 'round' as const, strokeLinecap: 'round' as const }
+/** Node shape glyphs (16px), keyed by the shared flowchart shape names. */
+export const FlowShapeIcons: Record<string, AppIcon> = {
+  rect: glyph('ShapeRect', () => <rect x="2" y="4" width="12" height="8" rx="0.5" {...stroke} />),
+  round: glyph('ShapeRound', () => <rect x="2" y="4" width="12" height="8" rx="2.5" {...stroke} />),
+  stadium: glyph('ShapeStadium', () => <rect x="1.5" y="4" width="13" height="8" rx="4" {...stroke} />),
+  circle: glyph('ShapeCircle', () => <circle cx="8" cy="8" r="5.5" {...stroke} />),
+  diamond: glyph('ShapeDiamond', () => <path d="M8 2 14 8 8 14 2 8Z" {...stroke} />),
+  hexagon: glyph('ShapeHexagon', () => <path d="M4.5 3.5h7L14.5 8l-3 4.5h-7L1.5 8Z" {...stroke} />),
+  parallelogram: glyph('ShapeParallelogram', () => <path d="M4.5 4H15l-3.5 8H1Z" {...stroke} />),
+  database: glyph('ShapeDatabase', () => (
+    <>
+      <ellipse cx="8" cy="4" rx="5" ry="1.8" {...stroke} />
+      <path d="M3 4v8c0 1 2.2 1.8 5 1.8s5-.8 5-1.8V4" {...stroke} />
+    </>
+  )),
+  subroutine: glyph('ShapeSubroutine', () => (
+    <>
+      <rect x="1.5" y="4" width="13" height="8" {...stroke} />
+      <path d="M4 4v8M12 4v8" {...stroke} />
+    </>
+  )),
+  'parallelogram-alt': glyph('ShapeParallelogramAlt', () => <path d="M1 4h10.5L15 12H4.5Z" {...stroke} />),
+  trapezoid: glyph('ShapeTrapezoid', () => <path d="M4.5 4h7l3 8h-13Z" {...stroke} />),
+  'trapezoid-alt': glyph('ShapeTrapezoidAlt', () => <path d="M1.5 4h13l-3 8h-7Z" {...stroke} />),
+  asymmetric: glyph('ShapeFlag', () => <path d="M1.5 4H14.5v8H1.5l3-4Z" {...stroke} />),
+  'double-circle': glyph('ShapeDoubleCircle', () => (
+    <>
+      <circle cx="8" cy="8" r="6" {...stroke} />
+      <circle cx="8" cy="8" r="3.8" {...stroke} />
+    </>
+  ))
+}
+
+/** Connection line styles and arrow heads. */
+export const LineSolid = glyph('LineSolid', () => <path d="M2 8h12" {...stroke} />)
+export const LineDotted = glyph('LineDotted', () => <path d="M2 8h12" {...stroke} strokeDasharray="1.5 2.2" />)
+export const LineThick = glyph('LineThick', () => <path d="M2 8h12" {...stroke} strokeWidth={3} />)
+export const ArrowHeadNone = glyph('ArrowHeadNone', () => <path d="M2 8h12" {...stroke} />)
+export const ArrowHeadEnd = glyph('ArrowHeadEnd', () => <path d="M2 8h11.5M10 5l3.5 3-3.5 3" {...stroke} />)
+export const ArrowHeadBoth = glyph('ArrowHeadBoth', () => <path d="M2.5 8h11M6 5 2.5 8 6 11M10 5l3.5 3-3.5 3" {...stroke} />)
