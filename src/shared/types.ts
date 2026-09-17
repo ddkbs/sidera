@@ -63,7 +63,19 @@ export interface Whiteboard {
   id: ID
   name: string
   parentId: ID | null
+  /** sidebar folder this whiteboard is filed under, or null for top level */
+  folderId: ID | null
   viewport: { x: number; y: number; zoom: number }
+  createdAt: number
+  updatedAt: number
+}
+
+/** Sidebar folder for organizing whiteboards. Folders can nest inside other folders. */
+export interface Folder {
+  id: ID
+  name: string
+  parentId: ID | null
+  position: number
   createdAt: number
   updatedAt: number
 }

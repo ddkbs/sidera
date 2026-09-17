@@ -221,8 +221,40 @@ export function createMcpServer(api: Services, version: string, onCall?: ToolCal
 
   server.registerTool(
     'list_whiteboards',
-    { description: 'List all whiteboards with their parent ids (nesting).', inputSchema: {}, annotations: { readOnlyHint: true } },
-    async () => ok(api.listWhiteboards().map(({ id, name, parentId }) => ({ id, name, parentId })))
+    {
+      description: 'List all whiteboards with their parent ids (nesting) and sidebar folder id.',
+      inputSchema: {},
+      annotations: { readOnlyHint: true }
+    },
+    async () => ok(api.listWhiteboards().map(({ id, name, parentId, folderId }) => ({ id, name, parentId, folderId })))
+  )
+
+  server.registerTool(
+    'list_folders',
+    { description: 'List all sidebar folders (used to organize whiteboards), with their parent ids (nesting).', inputSchema: {}, annotations: { readOnlyHint: true } },
+    async () => ok(api.listFolders())
+  )
+
+  server.registerTool(
+    'create_folder',
+    {
+      description: 'Create a sidebar folder to organize whiteboards. If parent_id is given it is nested inside that folder.',
+      inputSchema: { name: z.string(), parent_id: z.string().optional() }
+    },
+    async ({ name, parent_id }) => ok(api.createFolder({ name, parentId: parent_id ?? null }))
+  )
+
+  server.registerTool(
+    'move_whiteboard_to_folder',
+    {
+      description: 'Move a whiteboard into a sidebar folder (folder_id from list_folders), or to the top level when folder_id is omitted/null.',
+      inputSchema: { whiteboard_id: z.string(), folder_id: z.string().nullable().optional() }
+    },
+    async ({ whiteboard_id, folder_id }) => {
+      if (!api.getWhiteboard(whiteboard_id)) return { ...ok(`Whiteboard ${whiteboard_id} not found`), isError: true }
+      api.moveWhiteboardToFolder(whiteboard_id, folder_id ?? null)
+      return ok('Moved')
+    }
   )
 
   server.registerTool(
@@ -246,11 +278,13 @@ export function createMcpServer(api: Services, version: string, onCall?: ToolCal
   server.registerTool(
     'create_whiteboard',
     {
-      description: 'Create a whiteboard. If parent_id is given it is nested and placed on the parent board.',
-      inputSchema: { name: z.string(), parent_id: z.string().optional() }
+      description:
+        'Create a whiteboard. If parent_id is given it is nested and placed on the parent board. ' +
+        'folder_id (from list_folders) files it into a sidebar folder.',
+      inputSchema: { name: z.string(), parent_id: z.string().optional(), folder_id: z.string().optional() }
     },
-    async ({ name, parent_id }) => {
-      const wb = api.createWhiteboard({ name, parentId: parent_id ?? null })
+    async ({ name, parent_id, folder_id }) => {
+      const wb = api.createWhiteboard({ name, parentId: parent_id ?? null, folderId: folder_id ?? null })
       if (parent_id) api.addObject({ whiteboardId: parent_id, kind: 'whiteboard', refId: wb.id, ...freeSpot(api, parent_id) })
       return ok({ id: wb.id, name: wb.name })
     }

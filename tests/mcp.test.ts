@@ -166,6 +166,36 @@ describe('mcp charts & diagrams', () => {
   })
 })
 
+describe('mcp folders', () => {
+  it('creates folders and files whiteboards into them', async () => {
+    const { api, call } = await connect()
+    const folder = await call('create_folder', { name: 'XY GmbH' })
+    expect(folder.name).toBe('XY GmbH')
+    const sub = await call('create_folder', { name: 'Q1', parent_id: folder.id })
+    expect(sub.parentId).toBe(folder.id)
+
+    const wb = await call('create_whiteboard', { name: 'Kickoff', folder_id: folder.id })
+    const listed = await call('list_whiteboards')
+    expect(listed.find((w: { id: string }) => w.id === wb.id)).toMatchObject({ folderId: folder.id })
+
+    await call('move_whiteboard_to_folder', { whiteboard_id: wb.id, folder_id: null })
+    const after = await call('list_whiteboards')
+    expect(after.find((w: { id: string }) => w.id === wb.id)).toMatchObject({ folderId: null })
+
+    const folders = await call('list_folders')
+    expect(folders.map((f: { id: string }) => f.id)).toEqual(expect.arrayContaining([folder.id, sub.id]))
+
+    expect(api.listFolders()).toHaveLength(2)
+  })
+
+  it('errors when moving a whiteboard that does not exist', async () => {
+    const { call } = await connect()
+    const folder = await call('create_folder', { name: 'X' })
+    const res = await call('move_whiteboard_to_folder', { whiteboard_id: 'nope', folder_id: folder.id })
+    expect(String(res)).toContain('not found')
+  })
+})
+
 describe('mcp http transport', () => {
   it('serves tools over stateless streamable HTTP', async () => {
     const { startHttpMcp } = await import('../src/main/mcp/server')

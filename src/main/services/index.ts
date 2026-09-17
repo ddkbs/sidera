@@ -10,6 +10,7 @@ import type {
   Connection,
   DocJSON,
   FileRecord,
+  Folder,
   JournalDay,
   KanbanBoard,
   SearchHit,
@@ -92,7 +93,16 @@ export function createServices(db: DB, onChange: (scope: DbChangeScope) => void 
     id: r.id,
     name: r.name,
     parentId: r.parentId,
+    folderId: r.folderId,
     viewport: json(r.viewport, { x: 0, y: 0, zoom: 1 }),
+    createdAt: r.createdAt,
+    updatedAt: r.updatedAt
+  })
+  const toFolder = (r: typeof s.folders.$inferSelect): Folder => ({
+    id: r.id,
+    name: r.name,
+    parentId: r.parentId,
+    position: r.position,
     createdAt: r.createdAt,
     updatedAt: r.updatedAt
   })
@@ -482,9 +492,9 @@ export function createServices(db: DB, onChange: (scope: DbChangeScope) => void 
       return { whiteboard: toBoard(row), breadcrumb, objects, connections, cards, children }
     },
 
-    createWhiteboard({ name, parentId = null }) {
+    createWhiteboard({ name, parentId = null, folderId = null }) {
       const t = now()
-      const row = { id: nanoid(), name, parentId, viewport: JSON.stringify({ x: 0, y: 0, zoom: 1 }), createdAt: t, updatedAt: t, deletedAt: null }
+      const row = { id: nanoid(), name, parentId, folderId, viewport: JSON.stringify({ x: 0, y: 0, zoom: 1 }), createdAt: t, updatedAt: t, deletedAt: null }
       db.insert(s.whiteboards).values(row).run()
       onChange('whiteboards')
       return toBoard(row)
@@ -507,6 +517,62 @@ export function createServices(db: DB, onChange: (scope: DbChangeScope) => void 
 
     restoreWhiteboard(id) {
       db.update(s.whiteboards).set({ deletedAt: null }).where(eq(s.whiteboards.id, id)).run()
+      onChange('whiteboards')
+    },
+
+    moveWhiteboardToFolder(whiteboardId, folderId) {
+      db.update(s.whiteboards).set({ folderId, updatedAt: now() }).where(eq(s.whiteboards.id, whiteboardId)).run()
+      onChange('whiteboards')
+    },
+
+    // ---------- folders ----------
+    listFolders() {
+      return db.select().from(s.folders).orderBy(s.folders.position, s.folders.name).all().map(toFolder)
+    },
+
+    createFolder({ name, parentId = null }) {
+      const t = now()
+      const pos = (
+        sql.prepare('SELECT COALESCE(MAX(position), 0) + 1 AS p FROM folders WHERE parent_id IS ?').get(parentId) as { p: number }
+      ).p
+      const row = { id: nanoid(), name: name.trim() || 'Untitled folder', parentId, position: pos, createdAt: t, updatedAt: t }
+      db.insert(s.folders).values(row).run()
+      onChange('whiteboards')
+      return toFolder(row)
+    },
+
+    renameFolder(id, name) {
+      db.update(s.folders).set({ name: name.trim() || 'Untitled folder', updatedAt: now() }).where(eq(s.folders.id, id)).run()
+      onChange('whiteboards')
+      return toFolder(db.select().from(s.folders).where(eq(s.folders.id, id)).get()!)
+    },
+
+    deleteFolder(id) {
+      const row = db.select().from(s.folders).where(eq(s.folders.id, id)).get()
+      const parentId = row?.parentId ?? null
+      tx(() => {
+        // promote children (whiteboards + subfolders) to the parent level, then drop the folder
+        db.update(s.whiteboards).set({ folderId: parentId }).where(eq(s.whiteboards.folderId, id)).run()
+        db.update(s.folders).set({ parentId }).where(eq(s.folders.parentId, id)).run()
+        db.delete(s.folders).where(eq(s.folders.id, id)).run()
+      })
+      onChange('whiteboards')
+    },
+
+    moveFolder(id, parentId) {
+      if (parentId !== null) {
+        // prevent cycles: parentId can't be id itself or any of its descendants
+        let cursor: string | null = parentId
+        const seen = new Set<string>()
+        while (cursor) {
+          if (cursor === id) throw new Error('Cannot move a folder into its own descendant')
+          if (seen.has(cursor)) break
+          seen.add(cursor)
+          const row: { parentId: string | null } | undefined = db.select().from(s.folders).where(eq(s.folders.id, cursor)).get()
+          cursor = row?.parentId ?? null
+        }
+      }
+      db.update(s.folders).set({ parentId, updatedAt: now() }).where(eq(s.folders.id, id)).run()
       onChange('whiteboards')
     },
 

@@ -118,5 +118,19 @@ export const migrations: string[] = [
   /* 2: card appearance */ `
   ALTER TABLE cards ADD COLUMN color TEXT;
   ALTER TABLE cards ADD COLUMN icon TEXT;
+  `,
+  /* 3: whiteboard folders */ `
+  CREATE TABLE folders (
+    id TEXT PRIMARY KEY,
+    name TEXT NOT NULL,
+    parent_id TEXT REFERENCES folders(id) ON DELETE CASCADE,
+    position REAL NOT NULL DEFAULT 0,
+    created_at INTEGER NOT NULL,
+    updated_at INTEGER NOT NULL
+  );
+  CREATE INDEX folders_parent_idx ON folders(parent_id);
+
+  ALTER TABLE whiteboards ADD COLUMN folder_id TEXT REFERENCES folders(id) ON DELETE SET NULL;
+  CREATE INDEX whiteboards_folder_idx ON whiteboards(folder_id);
   `
 ]
