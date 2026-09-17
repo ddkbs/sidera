@@ -8,7 +8,7 @@ export interface MdFile {
 
 const safe = (s: string) => s.replace(/[/\\?%*:|"<>\n\r]/g, '-').trim().slice(0, 120) || 'Untitled'
 
-/** Every card as a Markdown file with YAML front matter (id, tags). Journal days go to `journal/`. */
+/** Every card as a Markdown file with YAML front matter (id, tags). */
 export function exportCards(api: Services): MdFile[] {
   const files: MdFile[] = []
   const used = new Set<string>()
@@ -25,10 +25,6 @@ export function exportCards(api: Services): MdFile[] {
     if (card.tags.length) front.push(`tags: [${card.tags.map((t) => JSON.stringify(t.name)).join(', ')}]`)
     front.push(`updated: ${new Date(card.updatedAt).toISOString()}`, '---', '')
     files.push({ name: unique(`${safe(card.title)}.md`), content: front.join('\n') + docToMarkdown(card.content) + '\n' })
-  }
-  for (const day of api.listJournal(100_000)) {
-    if (!day.card.contentText.trim()) continue
-    files.push({ name: `journal/${day.date}.md`, content: docToMarkdown(day.card.content) + '\n' })
   }
   return files
 }

@@ -9,7 +9,6 @@ import type {
   FileRecord,
   Folder,
   ID,
-  JournalDay,
   KanbanBoard,
   LinkPreviewData,
   ObjectKind,
@@ -39,6 +38,8 @@ export interface CanvasApi {
   updateCard(input: { id: ID; title?: string; content?: DocJSON; color?: string | null; icon?: string | null }): Promise<Card>
   deleteCard(id: ID): Promise<void>
   restoreCard(id: ID): Promise<void>
+  /** Find-or-create the "Inbox" card used as the default target for tasks added without a card. */
+  getInboxCard(): Promise<Card>
 
   // tags & properties
   listTags(): Promise<Tag[]>
@@ -94,15 +95,11 @@ export interface CanvasApi {
     removeExistingSections?: boolean
   }): Promise<{ sections: { id: ID; title: string; objectCount: number }[]; unsorted: number }>
 
-  // journal
-  getJournal(date: string): Promise<JournalDay>
-  listJournal(limit?: number): Promise<JournalDay[]>
-
   // tasks
   listTasks(opts?: { status?: 'open' | 'done' | 'all' }): Promise<Task[]>
   setTaskChecked(cardId: ID, index: number, checked: boolean): Promise<void>
-  /** Add a to-do to a card, or to today's (or the given day's) journal when no card is given. */
-  addTask(input: { text: string; cardId?: ID; date?: string }): Promise<Task>
+  /** Add a to-do to a card, or to the "Inbox" card (created on first use) when no card is given. */
+  addTask(input: { text: string; cardId?: ID }): Promise<Task>
 
   // task comments
   listTaskComments(cardId: ID, taskId: string): Promise<TaskComment[]>
@@ -134,14 +131,13 @@ export interface CanvasApi {
 export type ApiMethod = keyof CanvasApi
 
 export const API_METHODS: ApiMethod[] = [
-  'listCards', 'getCard', 'createCard', 'updateCard', 'deleteCard', 'restoreCard',
+  'listCards', 'getCard', 'createCard', 'updateCard', 'deleteCard', 'restoreCard', 'getInboxCard',
   'listTags', 'createTag', 'updateTag', 'deleteTag', 'setCardTags',
   'listProperties', 'createProperty', 'updateProperty', 'setPropertyValue',
   'getKanban', 'moveKanbanItem',
   'listWhiteboards', 'getWhiteboard', 'createWhiteboard', 'updateWhiteboard', 'deleteWhiteboard', 'restoreWhiteboard', 'moveWhiteboardToFolder',
   'listFolders', 'createFolder', 'renameFolder', 'deleteFolder', 'moveFolder',
   'addObject', 'updateObjects', 'removeObjects', 'restoreObjects', 'addConnection', 'updateConnection', 'removeConnections', 'organizeBoard',
-  'getJournal', 'listJournal',
   'listTasks', 'setTaskChecked', 'addTask',
   'listTaskComments', 'addTaskComment', 'updateTaskComment', 'deleteTaskComment',
   'search',
@@ -153,7 +149,7 @@ export const API_METHODS: ApiMethod[] = [
 
 /** Event pushed from main to renderer whenever data changed outside the renderer (e.g. via MCP). */
 export const DB_CHANGED = 'db:changed'
-export type DbChangeScope = 'cards' | 'tags' | 'whiteboards' | 'journal' | 'all'
+export type DbChangeScope = 'cards' | 'tags' | 'whiteboards' | 'all'
 
 /** Event pushed to the renderer for every MCP tool call. */
 export const MCP_ACTIVITY = 'mcp:activity'
