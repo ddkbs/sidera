@@ -5,6 +5,7 @@ import Markdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { toast } from 'sonner'
 import { AI_PROVIDERS, getProviderMeta } from '@shared/ai'
+import type { AskUserAnswer, AskUserQuestion } from '@shared/api'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
@@ -14,11 +15,19 @@ import { useAppDispatch, useAppSelector } from '@/store'
 import { api } from '@/store/api'
 import { updateSettings } from '@/store/settings'
 import { clearQueuedChatMessage, setChatOpen, setSettingsOpen, setSettingsSection } from '@/store/ui'
+import { AskUserQuestions } from './AskUserQuestions'
+
+interface AskEntry {
+  requestId: string
+  questions: AskUserQuestion[]
+  answers?: AskUserAnswer[] | 'skipped'
+}
 
 interface Msg {
   role: 'user' | 'assistant'
   text: string
   tools: string[]
+  asks: AskEntry[]
   error?: string
 }
 
@@ -43,6 +52,16 @@ export function ChatPanel() {
 
   useEffect(() => void window.chat.hasKey().then(setHasKey), [ai.provider, ai.model, ai.baseUrl])
 
+  // Dev-only: lets devShot scripts render `ask_user_questions` without a real model call —
+  // `window.__devAskUser(questions)` injects a fake `ask` event into the message stream.
+  useEffect(() => {
+    if (!import.meta.env.DEV) return
+    ;(window as unknown as { __devAskUser?: (questions: AskUserQuestion[]) => void }).__devAskUser = (questions) => {
+      setHasKey(true)
+      setMessages((ms) => [...ms, { role: 'assistant', text: '', tools: [], asks: [{ requestId: `dev-${ms.length}`, questions }] }])
+    }
+  }, [])
+
   // Switching provider starts a new conversation (the main-process agent resets its own history too).
   useEffect(() => {
     if (prevProvider.current === ai.provider) return
@@ -62,6 +81,7 @@ export function ChatPanel() {
           const next = { ...last }
           if (e.type === 'text') next.text += e.delta
           else if (e.type === 'tool') next.tools = [...next.tools, e.name]
+          else if (e.type === 'ask') next.asks = [...next.asks, { requestId: e.requestId, questions: e.questions }]
           else if (e.type === 'error') next.error = e.message
           return [...ms.slice(0, -1), next]
         })
@@ -82,8 +102,22 @@ export function ChatPanel() {
     if (!t || busy) return
     setInput('')
     setBusy(true)
-    setMessages((ms) => [...ms, { role: 'user', text: t, tools: [] }, { role: 'assistant', text: '', tools: [] }])
+    setMessages((ms) => [...ms, { role: 'user', text: t, tools: [], asks: [] }, { role: 'assistant', text: '', tools: [], asks: [] }])
     void window.chat.send(t)
+  }
+
+  const setAskAnswers = (requestId: string, answers: AskEntry['answers']) => {
+    setMessages((ms) => ms.map((m) => (m.asks.some((a) => a.requestId === requestId) ? { ...m, asks: m.asks.map((a) => (a.requestId === requestId ? { ...a, answers } : a)) } : m)))
+  }
+
+  const submitAnswers = (requestId: string, answers: AskUserAnswer[]) => {
+    setAskAnswers(requestId, answers)
+    void window.chat.answerQuestions(requestId, answers)
+  }
+
+  const skipAnswers = (requestId: string) => {
+    setAskAnswers(requestId, 'skipped')
+    void window.chat.skipQuestions(requestId)
   }
 
   // Consume a message queued by another part of the app (e.g. "Organize with AI") once we can actually send it.
@@ -220,7 +254,10 @@ export function ChatPanel() {
                         <Markdown remarkPlugins={[remarkGfm]}>{m.text}</Markdown>
                       </div>
                     )}
-                    {!m.text && !m.error && busy && i === messages.length - 1 && (
+                    {m.asks.map((a) => (
+                      <AskUserQuestions key={a.requestId} requestId={a.requestId} questions={a.questions} answers={a.answers} onSubmit={submitAnswers} onSkip={skipAnswers} />
+                    ))}
+                    {!m.text && !m.asks.length && !m.error && busy && i === messages.length - 1 && (
                       <div className="flex gap-1 py-1">
                         {[0, 1, 2].map((d) => (
                           <motion.span key={d} className="size-1.5 rounded-full bg-muted-foreground/60" animate={{ opacity: [0.3, 1, 0.3] }} transition={{ repeat: Infinity, duration: 1, delay: d * 0.15 }} />
