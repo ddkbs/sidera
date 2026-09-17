@@ -24,7 +24,7 @@ Navigate by writing `localStorage['canvascl.ui'] = {sidebarOpen, chatOpen, tabs:
 - `src/main/services/index.ts` — ALL business logic, synchronous, used by IPC **and** MCP. Call `onChange(scope)` after mutations.
 - `src/main/ipc.ts` — generic: every `API_METHODS` entry → `ipcMain.handle('api:<name>')`.
 - `src/main/mcp/` — MCP server (Streamable HTTP on 127.0.0.1:3845 while app runs; `--mcp-stdio` headless mode).
-- `src/main/ai/chat.ts` — in-app Claude chat: manual streaming tool loop; tools = in-process MCP client over our own server (never duplicate tool definitions).
+- `src/main/ai/chat.ts` — in-app Claude chat: manual streaming tool loop; tools = in-process MCP client over our own server (never duplicate tool definitions). Native web search behind `AppSettings.ai.webSearch` (openai/anthropic only): Anthropic adds the `web_search_20250305` server tool (`ai/anthropicWebSearch.ts`); OpenAI switches to the Responses API (`ai/openaiResponses.ts`, history converted when the toggle flips). Emits `search`/`sources` chat events; devShot hook `window.__devChatMessage(user, partialAssistantMsg)`.
 - `src/main/settings.ts` (settings.json in data dir) + `src/main/integrations.ts` (Claude Desktop/Code connect).
 - `src/preload/` — exposes `window.api: CanvasApi`, `window.app` (settings, data dir, integrations), `window.chat`, `window.events`.
 - Keyboard: every shortcut is a command in `renderer/src/lib/shortcuts.ts` (`COMMANDS`); register handlers with `useCommands()`, never raw keydown listeners. Pure key parsing in `lib/keys.ts`.

@@ -35,6 +35,8 @@ Headless stdio mode: `CanvasCL --mcp-stdio`. Tools: `search_cards`, `get_card`, 
 ## In-app assistant
 Press **⌘J** (or *Ask AI*) for a chat panel powered by Claude (`claude-opus-5`, adaptive thinking, server-side refusal fallback). It uses **the same tools as the MCP server** via an in-process MCP client, so everything an external agent can do, the built-in assistant can do too. Bring your own Anthropic API key — it's stored encrypted with the macOS Keychain (`safeStorage`), or read from `ANTHROPIC_API_KEY`.
 
+**Web search (optional):** the globe button in the composer lets the assistant search the internet with the provider's native web search — Anthropic's `web_search` server tool, or OpenAI's hosted `web_search` tool (requests then go through the Responses API). Off by default because searches are billed on top of tokens; only available with OpenAI and Anthropic, and the model must support it. Cited sources are listed under the answer. For Anthropic, web search must be enabled for your organization in the Claude Console.
+
 ## Data ownership
 ⌘K → *Export all cards as Markdown* writes one `.md` file per card (front matter with id/tags). *Import Markdown files* does the reverse.
 
