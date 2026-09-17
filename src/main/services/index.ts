@@ -770,6 +770,33 @@ export function createServices(
       onChange('whiteboards')
     },
 
+    /** Shallow copy: name, objects and connections. Nested child whiteboards are not duplicated. */
+    duplicateWhiteboard(id) {
+      const row = db.select().from(s.whiteboards).where(eq(s.whiteboards.id, id)).get()
+      if (!row || row.deletedAt) throw new Error('Whiteboard not found')
+      const t = now()
+      const newBoard = { ...row, id: nanoid(), name: `${row.name} copy`, createdAt: t, updatedAt: t, deletedAt: null }
+      const objects = db.select().from(s.whiteboardObjects).where(eq(s.whiteboardObjects.whiteboardId, id)).all()
+      const connections = db.select().from(s.connections).where(eq(s.connections.whiteboardId, id)).all()
+      const idMap = new Map<string, string>()
+      tx(() => {
+        db.insert(s.whiteboards).values(newBoard).run()
+        for (const o of objects) {
+          const newId = nanoid()
+          idMap.set(o.id, newId)
+          db.insert(s.whiteboardObjects).values({ ...o, id: newId, whiteboardId: newBoard.id }).run()
+        }
+        for (const c of connections) {
+          const sourceId = idMap.get(c.sourceId)
+          const targetId = idMap.get(c.targetId)
+          if (!sourceId || !targetId) continue
+          db.insert(s.connections).values({ ...c, id: nanoid(), whiteboardId: newBoard.id, sourceId, targetId }).run()
+        }
+      })
+      onChange('whiteboards')
+      return toBoard(newBoard)
+    },
+
     // ---------- folders ----------
     listFolders() {
       return db.select().from(s.folders).orderBy(s.folders.position, s.folders.name).all().map(toFolder)

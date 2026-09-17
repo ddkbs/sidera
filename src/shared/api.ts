@@ -70,6 +70,8 @@ export interface CanvasApi {
   deleteWhiteboard(id: ID): Promise<void>
   restoreWhiteboard(id: ID): Promise<void>
   moveWhiteboardToFolder(whiteboardId: ID, folderId: ID | null): Promise<void>
+  /** Copies a whiteboard's name, objects and connections (not nested child whiteboards) into a new board next to it. */
+  duplicateWhiteboard(id: ID): Promise<Whiteboard>
 
   // folders
   listFolders(): Promise<Folder[]>
@@ -166,7 +168,7 @@ export const API_METHODS: ApiMethod[] = [
   'listTags', 'createTag', 'updateTag', 'deleteTag', 'setCardTags',
   'listProperties', 'createProperty', 'updateProperty', 'setPropertyValue',
   'getKanban', 'moveKanbanItem',
-  'listWhiteboards', 'getWhiteboard', 'createWhiteboard', 'updateWhiteboard', 'deleteWhiteboard', 'restoreWhiteboard', 'moveWhiteboardToFolder',
+  'listWhiteboards', 'getWhiteboard', 'createWhiteboard', 'updateWhiteboard', 'deleteWhiteboard', 'restoreWhiteboard', 'moveWhiteboardToFolder', 'duplicateWhiteboard',
   'listFolders', 'createFolder', 'renameFolder', 'deleteFolder', 'moveFolder',
   'addObject', 'updateObjects', 'removeObjects', 'restoreObjects', 'addConnection', 'updateConnection', 'removeConnections', 'organizeBoard',
   'listTasks', 'setTaskChecked', 'addTask', 'updateTask', 'listTaskActivity',

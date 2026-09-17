@@ -118,6 +118,25 @@ describe('whiteboards', () => {
     api.removeObjects([o1.id])
     expect(api.getCard(card.id)!.whiteboards).toHaveLength(0)
   })
+
+  it('duplicates a whiteboard with its objects and connections, remapping ids', () => {
+    const board = api.createWhiteboard({ name: 'Plan' })
+    const a = api.addObject({ whiteboardId: board.id, kind: 'text', x: 0, y: 0, data: { text: 'a' } })
+    const b = api.addObject({ whiteboardId: board.id, kind: 'text', x: 100, y: 0, data: { text: 'b' } })
+    api.addConnection({ whiteboardId: board.id, sourceId: a.id, targetId: b.id })
+
+    const copy = api.duplicateWhiteboard(board.id)
+    expect(copy.id).not.toBe(board.id)
+    expect(copy.name).toBe('Plan copy')
+
+    const detail = api.getWhiteboard(copy.id)!
+    expect(detail.objects).toHaveLength(2)
+    expect(detail.connections).toHaveLength(1)
+    expect(detail.objects.map((o) => o.id)).not.toContain(a.id)
+    expect(detail.objects.map((o) => o.id)).not.toContain(b.id)
+    // original is untouched
+    expect(api.getWhiteboard(board.id)!.objects).toHaveLength(2)
+  })
 })
 
 describe('inbox', () => {
