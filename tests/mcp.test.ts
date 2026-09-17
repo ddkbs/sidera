@@ -91,7 +91,7 @@ describe('mcp', () => {
   })
 
   it('adds and lists comments on a task via list_task_comments / add_task_comment', async () => {
-    const { call } = await connect()
+    const { api, call } = await connect()
     const card = await call('create_card', { title: 'Todos', markdown: '- [ ] one' })
     const [task] = await call('list_tasks', { status: 'open' })
     expect(await call('list_task_comments', { card_id: card.id, task_id: task.task_id })).toEqual([])
@@ -99,6 +99,7 @@ describe('mcp', () => {
     const comments = await call('list_task_comments', { card_id: card.id, task_id: task.task_id })
     expect(comments).toHaveLength(1)
     expect(comments[0].body).toBe('Looks good')
+    expect(comments[0].author).toBe(api.getActiveProfile().name)
     const [after] = await call('list_tasks', { status: 'open' })
     expect(after.comment_count).toBe(1)
   })

@@ -179,11 +179,29 @@ export interface Task {
   commentCount: number
 }
 
+/** A local person using this knowledge base (Vercel-style account row in the sidebar). */
+export interface Profile {
+  id: ID
+  name: string
+  email: string | null
+  avatarFileId: ID | null
+  /** canvascl-file:// URL of the avatar image, if any */
+  avatarUrl: string | null
+  /** TAG_COLORS key used as the initials background */
+  color: string
+  createdAt: number
+  updatedAt: number
+}
+
+export type ProfileRef = Pick<Profile, 'id' | 'name' | 'color' | 'avatarUrl'>
+
 export interface TaskComment {
   id: ID
   cardId: ID
   taskId: string
   body: string
+  /** the profile that wrote the comment (null for deleted profiles) */
+  author: ProfileRef | null
   createdAt: number
   updatedAt: number
   files: FileRecord[]

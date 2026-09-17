@@ -1,4 +1,5 @@
 import { and, desc, eq, inArray, isNull } from 'drizzle-orm'
+import { userInfo } from 'node:os'
 import { nanoid } from 'nanoid'
 import type { CanvasApi, DbChangeScope } from '@shared/api'
 import { docToText, emptyDoc, extractMentions, markdownToDoc } from '@shared/doc'
@@ -11,6 +12,8 @@ import type {
   DocJSON,
   FileRecord,
   Folder,
+  Profile,
+  ProfileRef,
   JournalDay,
   KanbanBoard,
   SearchHit,
@@ -66,7 +69,36 @@ const json = <T>(v: string | null | undefined, fallback: T): T => {
   }
 }
 
-export function createServices(db: DB, onChange: (scope: DbChangeScope) => void = () => {}): Services {
+/** Where the active profile id lives (settings.json in the app; in-memory in tests). */
+export interface ActiveProfileStore {
+  get(): string | null
+  set(id: string): void
+}
+
+export function memoryProfileStore(initial: string | null = null): ActiveProfileStore {
+  let id = initial
+  return { get: () => id, set: (v) => void (id = v) }
+}
+
+/** Name for the first profile: the macOS account name, capitalised. */
+export function defaultProfileName(): string {
+  let name = ''
+  try {
+    name = userInfo().username
+  } catch {
+    /* ignore */
+  }
+  name = name.trim() || 'Me'
+  return name.charAt(0).toUpperCase() + name.slice(1)
+}
+
+const fileUrl = (id: string): string => `canvascl-file://files/${encodeURIComponent(id)}`
+
+export function createServices(
+  db: DB,
+  onChange: (scope: DbChangeScope) => void = () => {},
+  profileStore: ActiveProfileStore = memoryProfileStore()
+): Services {
   const sql = db.$client
   const tx = <T>(fn: () => T): T => sql.transaction(fn)()
 
@@ -129,11 +161,69 @@ export function createServices(db: DB, onChange: (scope: DbChangeScope) => void 
     data: json(r.data, {})
   })
 
+  const toProfile = (r: typeof s.profiles.$inferSelect): Profile => ({
+    id: r.id,
+    name: r.name,
+    email: r.email,
+    avatarFileId: r.avatarFileId,
+    avatarUrl: r.avatarFileId ? fileUrl(r.avatarFileId) : null,
+    color: r.color,
+    createdAt: r.createdAt,
+    updatedAt: r.updatedAt
+  })
+  const profileRow = (id: string | null | undefined) => (id ? db.select().from(s.profiles).where(eq(s.profiles.id, id)).get() : undefined)
+  const authorRef = (id: string | null): ProfileRef | null => {
+    const r = profileRow(id)
+    if (!r) return null
+    const p = toProfile(r)
+    return { id: p.id, name: p.name, color: p.color, avatarUrl: p.avatarUrl }
+  }
+
+  /** Make sure a valid active profile exists: first start creates one from the macOS user and adopts old comments. */
+  const ensureActiveProfile = (): Profile => {
+    const current = profileRow(profileStore.get())
+    if (current) return toProfile(current)
+    const first = db.select().from(s.profiles).orderBy(s.profiles.createdAt).get()
+    if (first) {
+      profileStore.set(first.id)
+      return toProfile(first)
+    }
+    const t = now()
+    const row = { id: nanoid(), name: defaultProfileName(), email: null, avatarFileId: null, color: 'blue', createdAt: t, updatedAt: t }
+    tx(() => {
+      db.insert(s.profiles).values(row).run()
+      db.update(s.taskComments).set({ authorId: row.id }).where(isNull(s.taskComments.authorId)).run()
+    })
+    profileStore.set(row.id)
+    return toProfile(row)
+  }
+  ensureActiveProfile()
+
+  const cleanEmail = (email: string | null | undefined): string | null | undefined => {
+    if (email === undefined) return undefined
+    const e = email?.trim() ?? ''
+    if (!e) return null
+    if (!/^[^\s@]+@[^\s@]+$/.test(e)) throw new Error(`Invalid email: ${e}`)
+    return e
+  }
+  const cleanColor = (c: string | undefined): string | undefined => {
+    if (c === undefined) return undefined
+    if (!(TAG_COLORS as readonly string[]).includes(c)) throw new Error(`Unknown color: ${c}`)
+    return c
+  }
+  const checkAvatar = (fileId: string | null | undefined): void => {
+    if (!fileId) return
+    const f = db.select().from(s.files).where(eq(s.files.id, fileId)).get()
+    if (!f) throw new Error(`File not found: ${fileId}`)
+    if (!f.mime.startsWith('image/')) throw new Error('Avatar must be an image')
+  }
+
   const toTaskComment = (r: typeof s.taskComments.$inferSelect, files: FileRecord[]): TaskComment => ({
     id: r.id,
     cardId: r.cardId,
     taskId: r.taskId,
     body: r.body,
+    author: authorRef(r.authorId),
     createdAt: r.createdAt,
     updatedAt: r.updatedAt,
     files
@@ -823,7 +913,8 @@ export function createServices(db: DB, onChange: (scope: DbChangeScope) => void 
 
     addTaskComment({ cardId, taskId, body, fileIds = [] }) {
       const t = now()
-      const row = { id: nanoid(), cardId, taskId, body: body ?? '', createdAt: t, updatedAt: t }
+      const authorId = ensureActiveProfile().id
+      const row = { id: nanoid(), cardId, taskId, body: body ?? '', authorId, createdAt: t, updatedAt: t }
       tx(() => {
         db.insert(s.taskComments).values(row).run()
         for (const fileId of fileIds) db.insert(s.taskCommentFiles).values({ commentId: row.id, fileId }).run()
@@ -843,6 +934,70 @@ export function createServices(db: DB, onChange: (scope: DbChangeScope) => void 
     deleteTaskComment(id) {
       db.delete(s.taskComments).where(eq(s.taskComments.id, id)).run()
       onChange('cards')
+    },
+
+    // ---------- profiles ----------
+    listProfiles() {
+      return db.select().from(s.profiles).orderBy(s.profiles.createdAt).all().map(toProfile)
+    },
+
+    createProfile({ name, email, color, avatarFileId }) {
+      const n = name.trim()
+      if (!n) throw new Error('Profile name is required')
+      checkAvatar(avatarFileId)
+      const t = now()
+      const count = sql.prepare('SELECT COUNT(*) AS n FROM profiles').get() as { n: number }
+      const row = {
+        id: nanoid(),
+        name: n,
+        email: cleanEmail(email) ?? null,
+        avatarFileId: avatarFileId ?? null,
+        color: cleanColor(color) ?? TAG_COLORS.filter((c) => c !== 'gray')[count.n % (TAG_COLORS.length - 1)],
+        createdAt: t,
+        updatedAt: t
+      }
+      db.insert(s.profiles).values(row).run()
+      onChange('profiles')
+      return toProfile(row)
+    },
+
+    updateProfile({ id, name, email, color, avatarFileId }) {
+      if (!profileRow(id)) throw new Error(`Profile not found: ${id}`)
+      const patch: Partial<typeof s.profiles.$inferInsert> = { updatedAt: now() }
+      if (name !== undefined) {
+        if (!name.trim()) throw new Error('Profile name is required')
+        patch.name = name.trim()
+      }
+      if (email !== undefined) patch.email = cleanEmail(email)
+      if (color !== undefined) patch.color = cleanColor(color)
+      if (avatarFileId !== undefined) {
+        checkAvatar(avatarFileId)
+        patch.avatarFileId = avatarFileId
+      }
+      db.update(s.profiles).set(patch).where(eq(s.profiles.id, id)).run()
+      onChange('profiles')
+      return toProfile(profileRow(id)!)
+    },
+
+    deleteProfile(id) {
+      if (!profileRow(id)) return
+      if (ensureActiveProfile().id === id) throw new Error("Can't delete the active profile — switch to another profile first")
+      const count = sql.prepare('SELECT COUNT(*) AS n FROM profiles').get() as { n: number }
+      if (count.n <= 1) throw new Error("Can't delete the last profile")
+      db.delete(s.profiles).where(eq(s.profiles.id, id)).run()
+      onChange('profiles')
+    },
+
+    getActiveProfile() {
+      return ensureActiveProfile()
+    },
+
+    setActiveProfile(id) {
+      const row = profileRow(id)
+      if (!row) throw new Error(`Profile not found: ${id}`)
+      profileStore.set(id)
+      onChange('profiles')
+      return toProfile(row)
     },
 
     // ---------- search ----------

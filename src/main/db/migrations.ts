@@ -149,5 +149,19 @@ export const migrations: string[] = [
     file_id TEXT NOT NULL REFERENCES files(id),
     PRIMARY KEY (comment_id, file_id)
   );
+  `,
+  /* 5: profiles */ `
+  CREATE TABLE profiles (
+    id TEXT PRIMARY KEY,
+    name TEXT NOT NULL,
+    email TEXT,
+    avatar_file_id TEXT REFERENCES files(id) ON DELETE SET NULL,
+    color TEXT NOT NULL DEFAULT 'blue',
+    created_at INTEGER NOT NULL,
+    updated_at INTEGER NOT NULL
+  );
+
+  ALTER TABLE task_comments ADD COLUMN author_id TEXT REFERENCES profiles(id) ON DELETE SET NULL;
+  CREATE INDEX task_comments_author_idx ON task_comments(author_id);
   `
 ]

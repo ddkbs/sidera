@@ -113,6 +113,17 @@ export const taskComments = sqliteTable('task_comments', {
   cardId: text('card_id').notNull(),
   taskId: text('task_id').notNull(),
   body: text('body').notNull().default(''),
+  authorId: text('author_id'),
+  createdAt: integer('created_at').notNull(),
+  updatedAt: integer('updated_at').notNull()
+})
+
+export const profiles = sqliteTable('profiles', {
+  id: text('id').primaryKey(),
+  name: text('name').notNull(),
+  email: text('email'),
+  avatarFileId: text('avatar_file_id'),
+  color: text('color').notNull().default('blue'),
   createdAt: integer('created_at').notNull(),
   updatedAt: integer('updated_at').notNull()
 })

@@ -19,6 +19,8 @@ export interface AppSettings {
   tourCompleted: boolean
   /** Active AI provider + model for the in-app "Ask AI" assistant. */
   ai: { provider: AiProviderId; model: string; baseUrl?: string }
+  /** Profile that authors comments etc. Created on first start when null. */
+  activeProfileId: string | null
 }
 
 export const DEFAULT_SETTINGS: AppSettings = {
@@ -32,7 +34,8 @@ export const DEFAULT_SETTINGS: AppSettings = {
   shortcuts: {},
   quickCapture: { enabled: true, accelerator: 'Ctrl+Alt+Space' },
   tourCompleted: false,
-  ai: { provider: 'anthropic', model: 'claude-opus-5' }
+  ai: { provider: 'anthropic', model: 'claude-opus-5' },
+  activeProfileId: null
 }
 
 type DeepPartial<T> = { [K in keyof T]?: T[K] extends object ? (T[K] extends unknown[] ? T[K] : DeepPartial<T[K]>) : T[K] }
