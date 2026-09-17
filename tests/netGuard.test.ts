@@ -1,5 +1,14 @@
 import { describe, expect, it } from 'vitest'
-import { assertPublicHttpUrl, isBlockedAddress } from '../src/main/netGuard'
+import { assertPublicHttpUrl, isBlockedAddress, isSafeExternalUrl } from '../src/main/netGuard'
+
+describe('isSafeExternalUrl', () => {
+  it('allows only http(s) and mailto', () => {
+    expect(isSafeExternalUrl('https://example.com')).toBe(true)
+    expect(isSafeExternalUrl('mailto:a@b.c')).toBe(true)
+    for (const url of ['file:///Applications/Calculator.app', 'smb://host/share', 'canvascl-file://files/x', 'javascript:alert(1)', 'x-apple.systempreferences:', 'nonsense'])
+      expect(isSafeExternalUrl(url), url).toBe(false)
+  })
+})
 
 describe('isBlockedAddress', () => {
   it('blocks loopback, private, link-local and reserved addresses', () => {

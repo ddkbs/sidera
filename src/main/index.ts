@@ -22,6 +22,7 @@ import { createServices } from './services'
 import { exportCards, importCards } from './services/markdown'
 import { seedWelcome } from './services/seed'
 import { downloadImage, fetchLinkPreview, fetchPageForClip } from './web'
+import { hardenWindow, rendererUrl } from './windowSecurity'
 
 const STDIO = process.argv.includes('--mcp-stdio')
 // One stable data folder for dev and packaged builds: ~/Library/Application Support/CanvasCL
@@ -86,6 +87,9 @@ async function bootstrap(): Promise<void> {
     const headers = new Headers(res.headers)
     headers.set('Access-Control-Allow-Origin', '*')
     headers.set('Content-Type', f.mime)
+    // Imported/downloaded files are untrusted: never let an SVG (or sniffed HTML) run script if opened as a document.
+    headers.set('X-Content-Type-Options', 'nosniff')
+    headers.set('Content-Security-Policy', "default-src 'none'; img-src data: canvascl-file:; style-src 'unsafe-inline'; sandbox")
     return new Response(res.body, { status: res.status, headers })
   })
 
@@ -305,15 +309,19 @@ function createWindow(): void {
     titleBarStyle: 'hiddenInset',
     trafficLightPosition: { x: 14, y: 14 },
     backgroundColor: '#fafafa',
-    webPreferences: { preload: join(__dirname, '../preload/index.cjs'), sandbox: false, contextIsolation: true, backgroundThrottling: !process.env.CANVASCL_SHOT }
+    webPreferences: {
+      preload: join(__dirname, '../preload/index.cjs'),
+      sandbox: true,
+      contextIsolation: true,
+      nodeIntegration: false,
+      webSecurity: true,
+      backgroundThrottling: !process.env.CANVASCL_SHOT
+    }
   })
   win.once('ready-to-show', () => win?.show())
   if (!app.isPackaged && process.env.CANVASCL_SHOT) void devShot(win)
   win.on('closed', () => (win = null))
-  win.webContents.setWindowOpenHandler(({ url }) => {
-    void shell.openExternal(url)
-    return { action: 'deny' }
-  })
+  hardenWindow(win, rendererUrl())
   if (process.env.ELECTRON_RENDERER_URL) void win.loadURL(process.env.ELECTRON_RENDERER_URL)
   else void win.loadFile(join(__dirname, '../renderer/index.html'))
 }

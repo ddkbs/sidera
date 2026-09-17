@@ -54,3 +54,12 @@ export async function assertPublicHttpUrl(raw: string, resolve: Resolver = dnsRe
   if (!addresses.length || addresses.some(isBlockedAddress)) throw new Error('Refusing to fetch a local or private network address')
   return url
 }
+
+/** Only these schemes may be handed to the OS via shell.openExternal (no file:, smb:, custom app schemes, …). */
+export function isSafeExternalUrl(raw: string): boolean {
+  try {
+    return ['http:', 'https:', 'mailto:'].includes(new URL(raw).protocol)
+  } catch {
+    return false
+  }
+}
