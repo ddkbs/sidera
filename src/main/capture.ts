@@ -1,5 +1,6 @@
 import { join } from 'node:path'
 import { BrowserWindow, globalShortcut, screen } from 'electron'
+import { hardenWindow, rendererUrl } from './windowSecurity'
 
 const WIDTH = 560
 const HEIGHT = 220
@@ -33,8 +34,9 @@ function createCaptureWindow(): BrowserWindow {
     alwaysOnTop: true,
     roundedCorners: true,
     vibrancy: 'popover',
-    webPreferences: { preload: join(__dirname, '../preload/index.cjs'), sandbox: false, contextIsolation: true }
+    webPreferences: { preload: join(__dirname, '../preload/index.cjs'), sandbox: true, contextIsolation: true, nodeIntegration: false }
   })
+  hardenWindow(w, rendererUrl())
   w.setAlwaysOnTop(true, 'screen-saver')
   w.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true })
   w.on('blur', () => w.isVisible() && w.hide())

@@ -229,4 +229,29 @@ describe('mcp http transport', () => {
     expect(api.search('via http')).toHaveLength(1)
     started!.server.close()
   })
+
+  it('rejects DNS-rebinding hosts, foreign origins and oversized bodies', async () => {
+    const { request } = await import('node:http')
+    const { startHttpMcp } = await import('../src/main/mcp/server')
+    const api = createServices(openDatabase(':memory:'))
+    const started = await startHttpMcp(api, 'test', undefined, 0)
+    const port = (started!.server.address() as { port: number }).port
+    const send = (headers: Record<string, string>, body: string | null = '{}') =>
+      new Promise<number>((resolve) => {
+        const req = request({ host: '127.0.0.1', port, path: '/mcp', method: 'POST', headers: { 'content-type': 'application/json', ...headers } }, (res) => {
+          res.resume()
+          resolve(res.statusCode!)
+          req.destroy()
+        })
+        req.on('error', () => resolve(-1))
+        if (body === null) req.flushHeaders()
+        else req.end(body)
+      })
+    expect(await send({ host: 'evil.example.com' })).toBe(403)
+    expect(await send({ host: `127.0.0.1:${port}`, origin: 'https://evil.example.com' })).toBe(403)
+    expect(await send({ host: `127.0.0.1:${port}`, origin: 'null' })).toBe(403)
+    // declared oversized body is refused before it is read
+    expect(await send({ host: `127.0.0.1:${port}`, 'content-length': String(11 * 1024 * 1024) }, null)).toBe(413)
+    started!.server.close()
+  })
 })
