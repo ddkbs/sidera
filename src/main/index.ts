@@ -53,6 +53,15 @@ const MIME: Record<string, string> = {
   '.pdf': 'application/pdf', '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg',
   '.gif': 'image/gif', '.webp': 'image/webp', '.svg': 'image/svg+xml', '.md': 'text/markdown', '.txt': 'text/plain'
 }
+// importFileData (paste/drop of raw bytes, e.g. a clipboard image) accepts the same mimes as importFiles plus a few more image types
+const EXT_BY_MIME: Record<string, string> = {
+  ...Object.fromEntries(Object.entries(MIME).map(([ext, mime]) => [mime, ext])),
+  'image/bmp': '.bmp',
+  'image/heic': '.heic',
+  'image/heif': '.heif'
+}
+const DATA_MIME_ALLOWLIST = new Set([...Object.values(MIME), 'image/bmp', 'image/heic', 'image/heif'])
+const MAX_IMPORT_BYTES = 25 * 1024 * 1024
 
 if (STDIO) {
   app.dock?.hide()
@@ -101,6 +110,15 @@ async function bootstrap(): Promise<void> {
           return services.registerFile({ name: basename(p), mime: MIME[ext] ?? 'application/octet-stream', path: dest, size })
         })
       )
+    },
+    async importFileData({ name, mime, dataBase64 }) {
+      if (!DATA_MIME_ALLOWLIST.has(mime)) throw new Error(`Unsupported file type: ${mime}`)
+      const buf = Buffer.from(dataBase64, 'base64')
+      if (buf.length > MAX_IMPORT_BYTES) throw new Error('File too large (max 25 MB)')
+      const ext = extname(name || '').toLowerCase() || EXT_BY_MIME[mime] || ''
+      const dest = join(filesDir, nanoid() + ext)
+      await writeFile(dest, buf)
+      return services.registerFile({ name: name?.trim() || `pasted${ext}`, mime, path: dest, size: buf.length })
     },
     async getFileUrl(id) {
       return services.getFile(id) ? `canvascl-file://files/${encodeURIComponent(id)}` : null
