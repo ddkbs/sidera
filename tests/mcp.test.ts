@@ -75,9 +75,10 @@ describe('mcp', () => {
     const card = await call('create_card', { title: 'Todos', markdown: '- [ ] one\n- [ ] two' })
     const open = await call('list_tasks', { status: 'open' })
     expect(open).toEqual([
-      { card_id: card.id, card_title: 'Todos', is_journal: false, journal_date: null, index: 0, text: 'one', checked: false },
-      { card_id: card.id, card_title: 'Todos', is_journal: false, journal_date: null, index: 1, text: 'two', checked: false }
+      { card_id: card.id, card_title: 'Todos', is_journal: false, journal_date: null, task_id: expect.any(String), index: 0, text: 'one', checked: false, comment_count: 0 },
+      { card_id: card.id, card_title: 'Todos', is_journal: false, journal_date: null, task_id: expect.any(String), index: 1, text: 'two', checked: false, comment_count: 0 }
     ])
+    expect(open[0].task_id).not.toBe(open[1].task_id)
     const added = await call('add_task', { text: 'three', card_id: card.id })
     expect(added.index).toBe(2)
     const journalTask = await call('add_task', { text: 'journal todo', date: '2026-09-17' })
@@ -87,6 +88,19 @@ describe('mcp', () => {
     await call('complete_task', { card_id: card.id, index: 0 })
     expect((await call('list_tasks', { status: 'open' })).map((t: { text: string }) => t.text)).toEqual(['journal todo'])
     expect((await call('list_tasks', { status: 'done' })).map((t: { text: string }) => t.text).sort()).toEqual(['one', 'three', 'two'])
+  })
+
+  it('adds and lists comments on a task via list_task_comments / add_task_comment', async () => {
+    const { call } = await connect()
+    const card = await call('create_card', { title: 'Todos', markdown: '- [ ] one' })
+    const [task] = await call('list_tasks', { status: 'open' })
+    expect(await call('list_task_comments', { card_id: card.id, task_id: task.task_id })).toEqual([])
+    await call('add_task_comment', { card_id: card.id, task_id: task.task_id, body: 'Looks good' })
+    const comments = await call('list_task_comments', { card_id: card.id, task_id: task.task_id })
+    expect(comments).toHaveLength(1)
+    expect(comments[0].body).toBe('Looks good')
+    const [after] = await call('list_tasks', { status: 'open' })
+    expect(after.comment_count).toBe(1)
   })
 
   it('organizes a whiteboard into sections via the organize_board tool', async () => {
