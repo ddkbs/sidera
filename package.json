@@ -17,7 +17,7 @@
     "db:generate": "drizzle-kit generate",
     "mcp": "electron . --mcp-stdio",
     "icon": "electron scripts/make-icon.cjs",
-    "predev": "node scripts/copy-assets.cjs",
+    "predev": "node scripts/copy-assets.cjs && node scripts/brand-electron.cjs",
     "prebuild": "node scripts/copy-assets.cjs"
   },
   "devDependencies": {

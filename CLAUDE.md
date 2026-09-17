@@ -4,7 +4,7 @@ Free, open-source, MCP-first visual knowledge base: whiteboards, card library, k
 macOS only, local-first. Keep answers & diffs small; don't re-explore what this file already says.
 
 ## Commands
-- `npm run dev` — electron-vite dev (HMR renderer)
+- `npm run dev` — electron-vite dev (HMR renderer); `predev` brands the local Electron.app as CanvasCL (name + build/icon.png, re-signed ad hoc) via `scripts/brand-electron.cjs`
 - `npm test` — vitest, runs **inside Electron's Node** (`ELECTRON_RUN_AS_NODE`) because better-sqlite3 is built for Electron ABI
 - `npm run typecheck` — tsc for node + web projects
 - Done-criteria for any goal: `npm test && npm run typecheck` both green
