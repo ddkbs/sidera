@@ -27,3 +27,36 @@
 /* "/" command: the typed trigger + inline placeholder */
 .prose-canvas .slash-decoration { border-radius: 4px; background: var(--muted); padding: 0 2px; }
 .prose-canvas .slash-decoration.is-empty::after { content: attr(data-decoration-content); color: var(--muted-foreground); }
+
+/* Marks: text colour + highlight (values are plain CSS colours stored in the doc) */
+.prose-canvas mark { background: var(--muted); border-radius: 3px; padding: 0.05em 0.2em; color: inherit; }
+.prose-canvas u { text-underline-offset: 2px; }
+
+/* Tables */
+.prose-canvas table { width: 100%; border-collapse: collapse; table-layout: fixed; overflow: hidden; margin: 0.8em 0; }
+.prose-canvas table td, .prose-canvas table th { position: relative; min-width: 3em; border: 1px solid var(--border); padding: 0.35em 0.6em; vertical-align: top; }
+.prose-canvas table th { background: var(--muted); font-weight: 600; text-align: left; }
+.prose-canvas table p { margin: 0; }
+.prose-canvas table .selectedCell::after { content: ''; position: absolute; inset: 0; background: color-mix(in oklch, var(--brand) 14%, transparent); pointer-events: none; }
+.prose-canvas .column-resize-handle { position: absolute; top: 0; right: -2px; bottom: 0; width: 4px; background: var(--brand); pointer-events: none; }
+.prose-canvas.resize-cursor { cursor: col-resize; }
+
+/* Toggle list (Details) */
+.prose-canvas .toggle-block { display: flex; align-items: flex-start; gap: 0.35em; }
+.prose-canvas .toggle-block > button {
+  flex: 0 0 auto; display: grid; place-items: center; width: 1.3em; height: 1.55em;
+  background: none; border: 0; cursor: pointer; color: var(--muted-foreground); border-radius: 4px;
+}
+.prose-canvas .toggle-block > button:hover { background: var(--accent); color: var(--foreground); }
+.prose-canvas .toggle-block > button::before {
+  content: ''; width: 0.42em; height: 0.42em;
+  border-right: 1.8px solid currentColor; border-bottom: 1.8px solid currentColor;
+  transform: rotate(-45deg) translate(-0.06em, -0.06em); transition: transform 150ms ease;
+}
+.prose-canvas .toggle-block.is-open > button::before { transform: rotate(45deg) translate(-0.06em, -0.06em); }
+.prose-canvas .toggle-block > div { min-width: 0; flex: 1 1 auto; }
+.prose-canvas .toggle-block summary { font-weight: 500; list-style: none; }
+.prose-canvas .toggle-block summary::-webkit-details-marker { display: none; }
+.prose-canvas .toggle-block [data-type='detailsContent'] { padding-top: 0.25em; }
+.prose-canvas .toggle-block [data-type='detailsContent'] > * + * { margin-top: 0.5em; }
+.prose-canvas .toggle-block [data-type='detailsContent'][hidden] { display: none; }

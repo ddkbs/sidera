@@ -131,7 +131,13 @@ import {
   IconClock3,
   IconHistory,
   IconExternalLink,
-  IconThreeRows
+  IconThreeRows,
+  IconBold,
+  IconItalic,
+  IconUnderline,
+  IconStrikethrough,
+  IconFatMarker,
+  IconEraser
 } from 'obra-icons-react'
 
 export type AppIcon = ComponentType<SVGProps<SVGSVGElement> & { size?: number }>
@@ -240,6 +246,14 @@ export const ImageIcon = IconImage
 export const Workflow = IconWorkflow
 export const Wrench = IconWrench
 export const X = IconClose
+
+// Rich-text formatting (card editor bubble menu)
+export const Bold = IconBold
+export const Italic = IconItalic
+export const Underline = IconUnderline
+export const Strikethrough = IconStrikethrough
+export const Highlighter = IconFatMarker
+export const Eraser = IconEraser
 
 // Charts & diagrams
 export const BarChart = IconBarChart

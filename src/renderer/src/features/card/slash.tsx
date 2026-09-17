@@ -2,7 +2,8 @@ import { Extension, ReactRenderer, type Editor, type Range } from '@tiptap/react
 import Suggestion, { type SuggestionKeyDownProps, type SuggestionProps } from '@tiptap/suggestion'
 import { PluginKey } from '@tiptap/pm/state'
 import { forwardRef, useEffect, useImperativeHandle, useLayoutEffect, useRef, useState, type ReactNode } from 'react'
-import { Code, FileText, Heading1, Heading2, Heading3, List, ListChecks, ListOrdered, Minus, Quote, Text, type AppIcon } from '@/components/icons'
+import { ChevronRight, Code, FileText, Heading1, Heading2, Heading3, Highlighter, List, ListChecks, ListOrdered, Minus, Quote, Table2, Text, type AppIcon } from '@/components/icons'
+import { HIGHLIGHT_COLORS } from './marks'
 import { cn } from '@/lib/utils'
 
 interface SlashItem {
@@ -79,6 +80,16 @@ export const SLASH_ITEMS: SlashItem[] = [
     run: (e, r) => chain(e, r).toggleCodeBlock().run()
   },
   {
+    title: 'Toggle list', group: 'Basic blocks', hint: '>>', description: 'Hide content inside a collapsible block.', keywords: 'toggle collapse details accordion fold', icon: ChevronRight,
+    preview: <div className="text-[13px] leading-snug"><div className="flex items-center gap-1 font-medium"><ChevronRight className="size-3.5 rotate-90" />Details</div><div className="pl-4.5 text-muted-foreground">Everything you can hide.</div></div>,
+    run: (e, r) => chain(e, r).setDetails().run()
+  },
+  {
+    title: 'Table', group: 'Basic blocks', hint: '|||', description: 'Add a table with a header row.', keywords: 'table grid rows columns spreadsheet', icon: Table2,
+    preview: <table className="w-full border-collapse text-[11px]"><tbody><tr className="bg-muted"><th className="border px-1.5 py-0.5 text-left">Name</th><th className="border px-1.5 py-0.5 text-left">Role</th></tr><tr><td className="border px-1.5 py-0.5">Ada</td><td className="border px-1.5 py-0.5">Maths</td></tr></tbody></table>,
+    run: (e, r) => chain(e, r).insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run()
+  },
+  {
     title: 'Divider', group: 'Basic blocks', hint: '---', description: 'Visually divide blocks.', keywords: 'hr line separator rule', icon: Minus,
     preview: <><P>Above</P><hr className="my-1.5 border-border" /><P>Below</P></>,
     run: (e, r) => chain(e, r).setHorizontalRule().run()
@@ -87,6 +98,11 @@ export const SLASH_ITEMS: SlashItem[] = [
     title: 'Link to card', group: 'Insert', hint: '@', description: 'Mention another card. Creates a backlink.', keywords: 'mention card link backlink page', icon: FileText,
     preview: <P>See <span className="rounded bg-brand/10 px-1 font-medium text-brand">@Research notes</span> for details.</P>,
     run: (e, r) => chain(e, r).insertContent('@').run()
+  },
+  {
+    title: 'Highlight', group: 'Insert', description: 'Start highlighting what you type next. Pick other colors in the selection toolbar.', keywords: 'highlight marker color colour yellow mark', icon: Highlighter,
+    preview: <P>Make it <mark style={{ background: HIGHLIGHT_COLORS[3].value, borderRadius: 3, padding: '0 2px' }}>stand out</mark>.</P>,
+    run: (e, r) => chain(e, r).setHighlight({ color: HIGHLIGHT_COLORS[3].value }).run()
   }
 ]
 
