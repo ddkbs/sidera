@@ -4,14 +4,12 @@ import {
   ChevronRight,
   Folder as FolderIcon,
   FolderPlus,
-  Hash,
   Home,
   LayoutDashboard,
   ListChecks,
   PanelLeft,
   Plus,
-  Search,
-
+  Search
 } from '@/components/icons'
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { Orb } from '@/components/Orb'
@@ -25,15 +23,12 @@ import { ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuTrigger } 
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { Kbd } from '@/components/ui/kbd'
 import { ScrollArea } from '@/components/ui/scroll-area'
-import { TagMenu } from '@/features/card/TagMenu'
-import { color } from '@/lib/colors'
 import { cn } from '@/lib/utils'
 import { useAppDispatch, useAppSelector } from '@/store'
 import {
   useCreateFolderMutation,
   useCreateWhiteboardMutation,
   useListFoldersQuery,
-  useListTagsQuery,
   useListTasksQuery,
   useListWhiteboardsQuery,
   useMoveFolderMutation,
@@ -63,7 +58,6 @@ export function Sidebar() {
   // same cache entry as the Tasks view, so the badge costs no extra query when both are mounted
   const { openTasks = 0 } = useListTasksQuery({ status: 'all' }, { selectFromResult: ({ data }) => ({ openTasks: data?.filter((t) => t.status !== 'done').length }) })
   const { data: folders = [] } = useListFoldersQuery()
-  const { data: tags = [] } = useListTagsQuery()
   const [createWhiteboard] = useCreateWhiteboardMutation()
   const [createFolder] = useCreateFolderMutation()
   const [moveWhiteboardToFolder] = useMoveWhiteboardToFolderMutation()
@@ -237,6 +231,7 @@ export function Sidebar() {
           <ContextMenu>
             <ContextMenuTrigger asChild>
               <div
+                className="flex flex-1 flex-col"
                 onDragOver={(e) => {
                   if (e.dataTransfer.types.includes(WHITEBOARD_DND) || e.dataTransfer.types.includes(FOLDER_DND)) {
                     e.preventDefault()
@@ -250,7 +245,7 @@ export function Sidebar() {
                   action={
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="icon" className="size-5" aria-label="Add">
+                        <Button variant="ghost" size="icon" className="size-5" aria-label="Add to Hub">
                           <Plus className="size-3.5" />
                         </Button>
                       </DropdownMenuTrigger>
@@ -266,58 +261,55 @@ export function Sidebar() {
                   }
                   className={cn(dropTarget === 'root' && 'rounded bg-sidebar-accent ring-1 ring-inset ring-primary/40')}
                 >
-                  Whiteboards
+                  Hub
                 </SectionHeader>
+
+                {(folderTree.get(null) ?? []).map((f) => (
+                  <FolderItem
+                    key={f.id}
+                    folder={f}
+                    depth={0}
+                    folderTree={folderTree}
+                    boardsByFolder={boardsByFolder}
+                    tree={tree}
+                    allFolders={folders}
+                    collapsed={collapsed}
+                    toggleFolder={toggleFolder}
+                    draftFolder={draftFolder}
+                    setDraftFolder={setDraftFolder}
+                    confirmDraftFolder={confirmDraftFolder}
+                    renamingFolderId={renamingFolderId}
+                    setRenamingFolderId={setRenamingFolderId}
+                    dropTarget={dropTarget}
+                    setDropTarget={setDropTarget}
+                    dropOnFolder={dropOnFolder}
+                  />
+                ))}
+                {draftFolder && draftFolder.parentId === null && (
+                  <FolderDraftRow depth={0} value={draftFolder.name} onChange={(name) => setDraftFolder({ parentId: null, name })} onConfirm={confirmDraftFolder} onCancel={() => setDraftFolder(null)} />
+                )}
+                {(boardsByFolder.get(null) ?? []).map((b) => (
+                  <BoardItem key={b.id} board={b} tree={tree} depth={0} />
+                ))}
+                {!boards.length && !folders.length && !draftFolder && (
+                  <div className="mx-2 mt-1 rounded-md border border-dashed px-2.5 py-4 text-center text-xs text-muted-foreground">
+                    Your Hub is empty.
+                    <br />
+                    Right-click to add a whiteboard or folder.
+                  </div>
+                )}
+                <div className="min-h-8 flex-1" />
               </div>
             </ContextMenuTrigger>
             <ContextMenuContent className="w-48">
+              <ContextMenuItem onSelect={() => void newBoard(null)}>
+                <LayoutDashboard /> New whiteboard
+              </ContextMenuItem>
               <ContextMenuItem onSelect={() => setDraftFolder({ parentId: null, name: '' })}>
                 <FolderPlus /> New folder
               </ContextMenuItem>
             </ContextMenuContent>
           </ContextMenu>
-
-          {(folderTree.get(null) ?? []).map((f) => (
-            <FolderItem
-              key={f.id}
-              folder={f}
-              depth={0}
-              folderTree={folderTree}
-              boardsByFolder={boardsByFolder}
-              tree={tree}
-              collapsed={collapsed}
-              toggleFolder={toggleFolder}
-              draftFolder={draftFolder}
-              setDraftFolder={setDraftFolder}
-              confirmDraftFolder={confirmDraftFolder}
-              renamingFolderId={renamingFolderId}
-              setRenamingFolderId={setRenamingFolderId}
-              dropTarget={dropTarget}
-              setDropTarget={setDropTarget}
-              dropOnFolder={dropOnFolder}
-            />
-          ))}
-          {draftFolder && draftFolder.parentId === null && (
-            <FolderDraftRow depth={0} value={draftFolder.name} onChange={(name) => setDraftFolder({ parentId: null, name })} onConfirm={confirmDraftFolder} onCancel={() => setDraftFolder(null)} />
-          )}
-          {(boardsByFolder.get(null) ?? []).map((b) => (
-            <BoardItem key={b.id} board={b} tree={tree} depth={0} />
-          ))}
-          {!boards.length && !folders.length && <p className="px-2 py-1 text-xs text-muted-foreground">No whiteboards yet</p>}
-
-          <SectionHeader>Tags</SectionHeader>
-          {tags.map((t) => (
-            <TagMenu key={t.id} tag={t}>
-              <NavItem
-                icon={<Hash className="size-3.5" style={{ color: color(t.color).fg }} />}
-                active={view.type === 'library' && view.tagId === t.id}
-                onClick={(e) => go({ type: 'library', tagId: t.id, mode: view.type === 'library' ? view.mode : 'table' }, e)}
-              >
-                {t.name}
-              </NavItem>
-            </TagMenu>
-          ))}
-          {!tags.length && <p className="px-2 py-1 text-xs text-muted-foreground">Tag cards to build databases</p>}
         </nav>
       </ScrollArea>
       <ProfileFooter status={agentBusy && last ? `Agent: ${last.tool}` : undefined} />
@@ -331,6 +323,7 @@ interface FolderItemProps {
   folderTree: Map<string | null, Folder[]>
   boardsByFolder: Map<string | null, Whiteboard[]>
   tree: Map<string | null, Whiteboard[]>
+  allFolders: Folder[]
   collapsed: Set<string>
   toggleFolder: (id: string) => void
   draftFolder: { parentId: string | null; name: string } | null
@@ -350,6 +343,7 @@ function FolderItem(props: FolderItemProps) {
     folderTree,
     boardsByFolder,
     tree,
+    allFolders,
     collapsed,
     toggleFolder,
     draftFolder,
@@ -362,6 +356,7 @@ function FolderItem(props: FolderItemProps) {
     dropOnFolder
   } = props
   const [renameFolder] = useRenameFolderMutation()
+  const [moveFolder] = useMoveFolderMutation()
   const [name, setName] = useState(folder.name)
   const isOpen = !collapsed.has(folder.id)
   const subfolders = folderTree.get(folder.id) ?? []
@@ -373,6 +368,7 @@ function FolderItem(props: FolderItemProps) {
     <>
       <FolderMenu
         folder={folder}
+        allFolders={allFolders}
         onStartRename={() => {
           setName(folder.name)
           setRenamingFolderId(folder.id)
@@ -380,6 +376,12 @@ function FolderItem(props: FolderItemProps) {
         onNewSubfolder={() => {
           setDraftFolder({ parentId: folder.id, name: '' })
           if (!isOpen) toggleFolder(folder.id)
+        }}
+        onMove={async (parentId) => {
+          const prev = folder.parentId
+          const res = await moveFolder({ id: folder.id, parentId })
+          if ('error' in res) toast.error(String(res.error))
+          else record({ label: 'Move folder', undo: () => window.api.moveFolder(folder.id, prev), redo: () => window.api.moveFolder(folder.id, parentId) })
         }}
       >
         <div

@@ -1,6 +1,6 @@
 import { record } from '@/lib/undo'
 import { recordDelete } from '@/lib/undo-actions'
-import { Folder as FolderIcon, LayoutDashboard, Pencil, Plus, Sparkles, Trash2 } from '@/components/icons'
+import { Copy, Folder as FolderIcon, LayoutDashboard, Pencil, Plus, Sparkles, Trash2 } from '@/components/icons'
 import { useState, type ReactElement } from 'react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
@@ -20,6 +20,7 @@ import { useAppDispatch, useAppSelector } from '@/store'
 import {
   useCreateWhiteboardMutation,
   useDeleteWhiteboardMutation,
+  useDuplicateWhiteboardMutation,
   useListFoldersQuery,
   useMoveWhiteboardToFolderMutation,
   useUpdateWhiteboardMutation
@@ -44,6 +45,7 @@ export function BoardMenu({ board, children }: { board: Whiteboard; children: Re
   const [update] = useUpdateWhiteboardMutation()
   const [remove] = useDeleteWhiteboardMutation()
   const [create] = useCreateWhiteboardMutation()
+  const [duplicate] = useDuplicateWhiteboardMutation()
   const [moveToFolder] = useMoveWhiteboardToFolderMutation()
   const moveBoard = async (folderId: string | null) => {
     const prev = board.folderId ?? null
@@ -57,7 +59,9 @@ export function BoardMenu({ board, children }: { board: Whiteboard; children: Re
   return (
     <>
       <ContextMenu>
-        <ContextMenuTrigger asChild>{children}</ContextMenuTrigger>
+        <ContextMenuTrigger asChild onContextMenu={(e) => e.stopPropagation()}>
+          {children}
+        </ContextMenuTrigger>
         <ContextMenuContent className="w-52">
           <ContextMenuItem onSelect={() => dispatch(openTab({ type: 'whiteboard', id: board.id }))}>
             <Plus /> Open in new tab
@@ -99,6 +103,17 @@ export function BoardMenu({ board, children }: { board: Whiteboard; children: Re
               ))}
             </ContextMenuSubContent>
           </ContextMenuSub>
+          <ContextMenuItem
+            onSelect={async () => {
+              const r = await duplicate(board.id)
+              if ('data' in r && r.data) {
+                dispatch(navigate({ type: 'whiteboard', id: r.data.id }))
+                toast.success(`Duplicated “${board.name}”`)
+              } else toast.error('Could not duplicate whiteboard')
+            }}
+          >
+            <Copy /> Duplicate
+          </ContextMenuItem>
           <ContextMenuSeparator />
           <ContextMenuItem variant="destructive" onSelect={() => setDialog('delete')}>
             <Trash2 /> Delete
