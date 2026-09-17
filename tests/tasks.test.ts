@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from 'vitest'
-import { collectTasks, setTaskChecked } from '../src/shared/tasks'
+import { collectTasks, ensureTaskIds, setTaskChecked } from '../src/shared/tasks'
 import { markdownToDoc } from '../src/shared/doc'
 import { openDatabase } from '../src/main/db/client'
 import { createServices, type Services } from '../src/main/services'
@@ -9,11 +9,21 @@ describe('shared/tasks', () => {
   it('collects taskItems depth-first with their own text', () => {
     const doc = markdownToDoc('- [ ] first\n- [x] second\n\nSome paragraph\n\n- [ ] third')
     const tasks = collectTasks(doc)
-    expect(tasks).toEqual([
+    expect(tasks.map(({ index, text, checked }) => ({ index, text, checked }))).toEqual([
       { index: 0, text: 'first', checked: false },
       { index: 1, text: 'second', checked: true },
       { index: 2, text: 'third', checked: false }
     ])
+  })
+
+  it('assigns a stable, unique id to every taskItem missing one, and is idempotent', () => {
+    const doc = markdownToDoc('- [ ] first\n- [x] second')
+    const withIds = ensureTaskIds(doc)
+    const ids = collectTasks(withIds).map((t) => t.taskId)
+    expect(ids).toHaveLength(2)
+    expect(new Set(ids).size).toBe(2)
+    expect(ids.every((id) => id.length > 0)).toBe(true)
+    expect(collectTasks(ensureTaskIds(withIds)).map((t) => t.taskId)).toEqual(ids)
   })
 
   it('sets the checked state of a single task by index without touching others', () => {
@@ -48,6 +58,33 @@ describe('services: tasks', () => {
 
     expect(api.listTasks({ status: 'open' })).toHaveLength(2)
     expect(api.listTasks({ status: 'done' })).toHaveLength(1)
+  })
+
+  it('assigns stable taskIds on create and keeps them when a card is re-saved with an inserted task', () => {
+    const card = api.createCard({ title: 'Plan', markdown: '- [ ] a\n- [ ] b' })
+    const before = api.listTasks({ status: 'all' }).filter((t) => t.cardId === card.id)
+    expect(before.map((t) => t.taskId).every(Boolean)).toBe(true)
+    const [a, b] = before
+
+    // insert a new item at the front and re-save — existing ids must survive
+    const withInsert = {
+      ...card.content,
+      content: [
+        {
+          type: 'taskList',
+          content: [
+            { type: 'taskItem', attrs: { checked: false }, content: [{ type: 'paragraph', content: [{ type: 'text', text: 'new' }] }] },
+            ...(card.content.content?.[0].content ?? [])
+          ]
+        }
+      ]
+    }
+    api.updateCard({ id: card.id, content: withInsert })
+    const after = api.listTasks({ status: 'all' }).filter((t) => t.cardId === card.id)
+    expect(after).toHaveLength(3)
+    expect(after.find((t) => t.text === 'a')!.taskId).toBe(a.taskId)
+    expect(after.find((t) => t.text === 'b')!.taskId).toBe(b.taskId)
+    expect(after.find((t) => t.text === 'new')!.taskId).toBeTruthy()
   })
 
   it('flips a single task by card id + index and persists it', () => {

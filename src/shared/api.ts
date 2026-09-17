@@ -19,6 +19,7 @@ import type {
   Tag,
   TagProperty,
   Task,
+  TaskComment,
   Whiteboard,
   WhiteboardDetail,
   WhiteboardObject
@@ -92,11 +93,19 @@ export interface CanvasApi {
   /** Add a to-do to a card, or to today's (or the given day's) journal when no card is given. */
   addTask(input: { text: string; cardId?: ID; date?: string }): Promise<Task>
 
+  // task comments
+  listTaskComments(cardId: ID, taskId: string): Promise<TaskComment[]>
+  addTaskComment(input: { cardId: ID; taskId: string; body: string; fileIds?: ID[] }): Promise<TaskComment>
+  updateTaskComment(input: { id: ID; body: string }): Promise<TaskComment>
+  deleteTaskComment(id: ID): Promise<void>
+
   // search
   search(query: string, limit?: number): Promise<SearchHit[]>
 
   // files
   importFiles(paths?: string[]): Promise<FileRecord[]>
+  /** Write raw bytes (e.g. a pasted clipboard image) into the files dir and register them. 25 MB limit. */
+  importFileData(input: { name: string; mime: string; dataBase64: string }): Promise<FileRecord>
   getFileUrl(id: ID): Promise<string | null>
 
   // web links
@@ -122,8 +131,9 @@ export const API_METHODS: ApiMethod[] = [
   'addObject', 'updateObjects', 'removeObjects', 'restoreObjects', 'addConnection', 'updateConnection', 'removeConnections', 'organizeBoard',
   'getJournal', 'listJournal',
   'listTasks', 'setTaskChecked', 'addTask',
+  'listTaskComments', 'addTaskComment', 'updateTaskComment', 'deleteTaskComment',
   'search',
-  'importFiles', 'getFileUrl',
+  'importFiles', 'importFileData', 'getFileUrl',
   'fetchLinkPreview', 'clipUrl',
   'exportMarkdown', 'importMarkdown',
   'getMcpInfo'
