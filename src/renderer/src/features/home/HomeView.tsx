@@ -1,10 +1,11 @@
+import { ThinkingOrb } from 'thinking-orbs'
 import { ArrowRight, BookOpen, CalendarDays, LayoutDashboard, Plus } from '@/components/icons'
 import { CardIcon } from '@/components/CardIcon'
 import { motion } from 'motion/react'
 import { Button } from '@/components/ui/button'
 import { useAppDispatch } from '@/store'
 import { useCreateCardMutation, useCreateWhiteboardMutation, useListCardsQuery, useListWhiteboardsQuery } from '@/store/api'
-import { navigate, openCard } from '@/store/ui'
+import { navigate, openCard, setChatOpen } from '@/store/ui'
 
 export function HomeView() {
   const dispatch = useAppDispatch()
@@ -16,10 +17,22 @@ export function HomeView() {
   return (
     <div className="h-full overflow-y-auto">
       <div className="mx-auto max-w-4xl px-10 py-14">
-        <motion.h1 initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} className="text-3xl font-semibold tracking-tight">
-          Good {greeting()}.
-        </motion.h1>
-        <p className="mt-1 text-muted-foreground">Think visually. Your knowledge base is local, open and MCP-ready.</p>
+        <div className="flex items-center gap-4">
+          <button
+            onClick={() => dispatch(setChatOpen(true))}
+            className="shrink-0 rounded-full transition hover:scale-105"
+            title="Ask AI"
+            aria-label="Ask AI"
+          >
+            <ThinkingOrb state="connecting" size={64} />
+          </button>
+          <div className="min-w-0">
+            <motion.h1 initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} className="text-3xl font-semibold tracking-tight">
+              Good {greeting()}.
+            </motion.h1>
+            <p className="mt-1 text-muted-foreground">Think visually. Your knowledge base is local, open and MCP-ready.</p>
+          </div>
+        </div>
 
         <div className="mt-8 grid grid-cols-3 gap-3">
           <QuickAction
