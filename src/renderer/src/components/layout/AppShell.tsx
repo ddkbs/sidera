@@ -3,7 +3,6 @@ import { AnimatePresence, motion } from 'motion/react'
 import { CardPanel } from '@/features/card/CardPanel'
 import { WhiteboardView } from '@/features/canvas/WhiteboardView'
 import { HomeView } from '@/features/home/HomeView'
-import { JournalView } from '@/features/journal/JournalView'
 import { LibraryView } from '@/features/library/LibraryView'
 import { TasksView } from '@/features/tasks/TasksView'
 import { CommandPalette } from '@/features/palette/CommandPalette'
@@ -31,7 +30,6 @@ export function AppShell() {
     'edit.redo': () => void redoWithToast(),
     'nav.back': () => dispatch(back()),
     'nav.forward': () => dispatch(forward()),
-    'nav.journal': () => dispatch(navigate({ type: 'journal' })),
     'nav.tasks': () => dispatch(navigate({ type: 'tasks' })),
     'capture.open': () => void window.app.openCapture(),
     'tab.new': () => dispatch(openTab(undefined)),
@@ -63,7 +61,6 @@ export function AppShell() {
             <ErrorBoundary key={JSON.stringify(view)}>
               {view.type === 'whiteboard' && <WhiteboardView key={view.id} id={view.id} />}
               {view.type === 'library' && <LibraryView />}
-              {view.type === 'journal' && <JournalView />}
               {view.type === 'tasks' && <TasksView />}
               {view.type === 'home' && <HomeView />}
             </ErrorBoundary>

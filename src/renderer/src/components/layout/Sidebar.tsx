@@ -1,7 +1,6 @@
 import { record } from '@/lib/undo'
 import {
   BookOpen,
-  CalendarDays,
   ChevronRight,
   Folder as FolderIcon,
   FolderPlus,
@@ -220,9 +219,6 @@ export function Sidebar() {
         <nav data-tour="sidebar-nav" className="flex flex-col gap-0.5 px-2 text-sm">
           <NavItem icon={<Home className="size-4" />} active={view.type === 'home'} onClick={(e) => go({ type: 'home' }, e)}>
             Home
-          </NavItem>
-          <NavItem icon={<CalendarDays className="size-4" />} active={view.type === 'journal'} onClick={(e) => go({ type: 'journal' }, e)}>
-            Journal
           </NavItem>
           <NavItem icon={<ListChecks className="size-4" />} active={view.type === 'tasks'} onClick={(e) => go({ type: 'tasks' }, e)}>
             Tasks

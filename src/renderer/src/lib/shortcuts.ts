@@ -29,7 +29,6 @@ export const COMMANDS: CommandDef[] = [
   { id: 'tab.close', label: 'Close tab', group: 'Navigation', binding: 'Mod+W', global: true },
   { id: 'tab.next', label: 'Next tab', group: 'Navigation', binding: 'Ctrl+Tab', global: true },
   { id: 'tab.prev', label: 'Previous tab', group: 'Navigation', binding: 'Ctrl+Shift+Tab', global: true },
-  { id: 'nav.journal', label: "Open today's journal", group: 'Navigation', binding: 'Mod+Shift+J', global: true },
   { id: 'nav.tasks', label: 'Open tasks', group: 'Navigation', binding: 'Mod+Shift+T', global: true },
   { id: 'tool.select', label: 'Select tool', group: 'Whiteboard tools', binding: 'V' },
   { id: 'tool.card', label: 'Card tool', group: 'Whiteboard tools', binding: 'C' },

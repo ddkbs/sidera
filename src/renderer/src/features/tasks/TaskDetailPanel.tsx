@@ -17,7 +17,7 @@ import {
   useSetTaskCheckedMutation,
   useUpdateTaskCommentMutation
 } from '@/store/api'
-import { navigate, openCard } from '@/store/ui'
+import { openCard } from '@/store/ui'
 import type { FileRecord, TaskComment } from '@shared/types'
 
 function relTime(ms: number): string {
@@ -83,11 +83,11 @@ export function TaskDetailPanel({ cardId, taskId, onClose }: { cardId: string; t
               <span className={cn('min-w-0 flex-1', task.checked && 'text-muted-foreground line-through')}>{task.text || 'Untitled task'}</span>
             </label>
             <button
-              onClick={() => (task.isJournal ? dispatch(navigate({ type: 'journal' })) : dispatch(openCard(cardId)))}
+              onClick={() => dispatch(openCard(cardId))}
               className="flex items-center gap-1.5 pl-7 text-xs text-muted-foreground transition hover:text-foreground"
             >
               <FileText className="size-3.5" />
-              {task.isJournal ? 'In journal' : task.cardTitle || 'Untitled'}
+              {task.cardTitle || 'Untitled'}
             </button>
           </div>
           <ScrollArea className="min-h-0 flex-1">

@@ -4,9 +4,12 @@ import type { McpActivity } from '@shared/api'
 export type View =
   | { type: 'whiteboard'; id: string }
   | { type: 'library'; tagId: string | null; mode: 'table' | 'list' | 'kanban' }
-  | { type: 'journal' }
   | { type: 'tasks' }
   | { type: 'home' }
+
+/** Legacy persisted view kinds no longer supported (e.g. the removed journal) — fall back to Home. */
+type LegacyView = View | { type: 'journal' }
+const migrateView = (v: LegacyView | undefined): View => (v && v.type !== 'journal' ? v : HOME)
 
 export type CanvasTool = 'select' | 'card' | 'import' | 'connector' | 'text' | 'section' | 'search'
 
@@ -48,7 +51,9 @@ const stored = (() => {
   }
 })()
 
-const initialTabs: Tab[] = stored.tabs?.length ? stored.tabs.map((t) => ({ ...t, back: [], forward: [] })) : [newTab(stored.view ?? HOME)]
+const initialTabs: Tab[] = stored.tabs?.length
+  ? stored.tabs.map((t) => ({ ...t, view: migrateView(t.view), back: [], forward: [] }))
+  : [newTab(migrateView(stored.view))]
 const initialActive = initialTabs.find((t) => t.id === stored.activeTabId) ?? initialTabs[0]
 
 const initialState: UiState = {

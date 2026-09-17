@@ -1,4 +1,4 @@
-import { BookOpen, CalendarDays, Redo2, Undo2, Hash, Home, LayoutDashboard, ListChecks, PanelLeft, Plus, X } from '@/components/icons'
+import { BookOpen, Redo2, Undo2, Hash, Home, LayoutDashboard, ListChecks, PanelLeft, Plus, X } from '@/components/icons'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { AppActions } from './AppActions'
 import { formatBinding, useBinding } from '@/lib/shortcuts'
@@ -20,8 +20,6 @@ export function useViewLabel(view: View): { title: string; Icon: typeof Home } {
       const tag = tags.find((t) => t.id === view.tagId)
       return tag ? { title: tag.name, Icon: Hash } : { title: 'Card Library', Icon: BookOpen }
     }
-    case 'journal':
-      return { title: 'Journal', Icon: CalendarDays }
     case 'tasks':
       return { title: 'Tasks', Icon: ListChecks }
     default:

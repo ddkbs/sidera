@@ -1,7 +1,6 @@
 import {
   Bookmark,
   BookOpen,
-  CalendarDays,
   Download,
   FileText,
   Home,
@@ -104,9 +103,6 @@ export function CommandPalette() {
               <>
                 <CommandItem value="home" onSelect={run(() => dispatch(navigate({ type: 'home' })))}>
                   <Home /> Go to Home
-                </CommandItem>
-                <CommandItem value="journal" onSelect={run(() => dispatch(navigate({ type: 'journal' })))}>
-                  <CalendarDays /> Open today's journal
                 </CommandItem>
                 <CommandItem value="tasks" onSelect={run(() => dispatch(navigate({ type: 'tasks' })))}>
                   <ListChecks /> Open tasks

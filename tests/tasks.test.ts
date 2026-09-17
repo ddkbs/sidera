@@ -3,7 +3,6 @@ import { collectTasks, ensureTaskIds, setTaskChecked } from '../src/shared/tasks
 import { markdownToDoc } from '../src/shared/doc'
 import { openDatabase } from '../src/main/db/client'
 import { createServices, type Services } from '../src/main/services'
-import { todayISO } from '../src/shared/util'
 
 describe('shared/tasks', () => {
   it('collects taskItems depth-first with their own text', () => {
@@ -39,11 +38,10 @@ describe('services: tasks', () => {
     api = createServices(openDatabase(':memory:'))
   })
 
-  it('lists tasks across cards and journal days, and filters by status', () => {
+  it('lists tasks across cards, and filters by status', () => {
     const card = api.createCard({ title: 'Plan', markdown: '- [ ] buy milk\n- [x] pay rent' })
-    const date = todayISO()
-    const day = api.getJournal(date)
-    api.updateCard({ id: day.card.id, content: markdownToDoc('- [ ] call mom') })
+    const inbox = api.getInboxCard()
+    api.updateCard({ id: inbox.id, content: markdownToDoc('- [ ] call mom') })
 
     const all = api.listTasks({ status: 'all' })
     expect(all).toHaveLength(3)
@@ -52,9 +50,8 @@ describe('services: tasks', () => {
     expect(forCard[0].checked).toBe(false)
     expect(forCard[1].checked).toBe(true)
 
-    const journalTask = all.find((t) => t.cardId === day.card.id)!
-    expect(journalTask.isJournal).toBe(true)
-    expect(journalTask.journalDate).toBe(date)
+    const inboxTask = all.find((t) => t.cardId === inbox.id)!
+    expect(inboxTask.text).toBe('call mom')
 
     expect(api.listTasks({ status: 'open' })).toHaveLength(2)
     expect(api.listTasks({ status: 'done' })).toHaveLength(1)
@@ -112,14 +109,19 @@ describe('adding tasks', async () => {
     expect(afterText.doc.content?.map((b) => b.type)).toEqual(['paragraph', 'taskList'])
   })
 
-  it('adds to the journal by default and to a card when given', () => {
+  it('adds to the Inbox card by default, and to a given card otherwise', () => {
     const api = createServices(openDatabase(':memory:'))
-    const j = api.addTask({ text: 'Call Anna', date: '2026-09-17' })
-    expect(j).toMatchObject({ isJournal: true, journalDate: '2026-09-17', index: 0, checked: false })
+    const j = api.addTask({ text: 'Call Anna' })
+    const inbox = api.getInboxCard()
+    expect(j).toMatchObject({ cardId: inbox.id, cardTitle: 'Inbox', index: 0, checked: false })
+    // adding again without a cardId reuses the same Inbox card rather than creating another one
+    const j2 = api.addTask({ text: 'Buy milk' })
+    expect(j2.cardId).toBe(inbox.id)
+    expect(api.listCards().filter((c) => c.title === 'Inbox')).toHaveLength(1)
     const card = api.createCard({ title: 'Launch', markdown: '- [x] Scope' })
     const t = api.addTask({ text: 'Ship it', cardId: card.id })
-    expect(t).toMatchObject({ cardId: card.id, isJournal: false, index: 1 })
-    expect(api.listTasks({ status: 'open' }).map((x) => x.text).sort()).toEqual(['Call Anna', 'Ship it'])
+    expect(t).toMatchObject({ cardId: card.id, index: 1 })
+    expect(api.listTasks({ status: 'open' }).map((x) => x.text).sort()).toEqual(['Buy milk', 'Call Anna', 'Ship it'])
     expect(() => api.addTask({ text: '  ' })).toThrow()
   })
 })

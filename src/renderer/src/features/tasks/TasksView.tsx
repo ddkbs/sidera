@@ -2,7 +2,7 @@ import { addTaskUndoable, recordTaskToggle } from '@/lib/undo-actions'
 import { AnimatePresence } from 'motion/react'
 import { useMemo, useRef, useState } from 'react'
 import { toast } from 'sonner'
-import { CalendarDays, Check, ChevronDown, FileText, MessageSquare, Plus } from '@/components/icons'
+import { Check, ChevronDown, FileText, MessageSquare, Plus } from '@/components/icons'
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { Checkbox } from '@/components/ui/checkbox'
@@ -10,18 +10,15 @@ import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { cn } from '@/lib/utils'
 import { useAppDispatch } from '@/store'
 import { useAddTaskMutation, useListTasksQuery, useSearchQuery, useSetTaskCheckedMutation } from '@/store/api'
-import { navigate, openCard } from '@/store/ui'
+import { openCard } from '@/store/ui'
 import type { Task } from '@shared/types'
 import { TaskDetailPanel } from './TaskDetailPanel'
 
 type Status = 'open' | 'done' | 'all'
 
-const prettyDate = (date: string) => new Date(date + 'T12:00:00').toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' })
-
 interface Group {
   cardId: string
   title: string
-  isJournal: boolean
   updatedAt: number
   tasks: Task[]
 }
@@ -38,7 +35,7 @@ export function TasksView() {
     for (const t of tasks) {
       let g = byCard.get(t.cardId)
       if (!g) {
-        g = { cardId: t.cardId, title: t.isJournal ? prettyDate(t.journalDate!) : t.cardTitle || 'Untitled', isJournal: t.isJournal, updatedAt: t.updatedAt, tasks: [] }
+        g = { cardId: t.cardId, title: t.cardTitle || 'Untitled', updatedAt: t.updatedAt, tasks: [] }
         byCard.set(t.cardId, g)
       }
       g.tasks.push(t)
@@ -74,7 +71,7 @@ export function TasksView() {
           <div className="rounded-xl border border-dashed py-16 text-center text-sm text-muted-foreground">
             {status === 'open' && 'No open tasks — nice work.'}
             {status === 'done' && 'No completed tasks yet.'}
-            {status === 'all' && 'No to-dos yet. Add a checklist to a card or journal entry.'}
+            {status === 'all' && 'No to-dos yet. Add a checklist to a card.'}
           </div>
         )}
 
@@ -82,10 +79,10 @@ export function TasksView() {
           {groups.map((g) => (
             <section key={g.cardId}>
               <button
-                onClick={() => (g.isJournal ? dispatch(navigate({ type: 'journal' })) : dispatch(openCard(g.cardId)))}
+                onClick={() => dispatch(openCard(g.cardId))}
                 className="mb-1.5 flex items-center gap-1.5 px-0.5 text-xs font-medium text-muted-foreground transition hover:text-foreground"
               >
-                {g.isJournal ? <CalendarDays className="size-3.5" /> : <FileText className="size-3.5" />}
+                <FileText className="size-3.5" />
                 {g.title}
               </button>
               <div className="overflow-hidden rounded-lg border">
@@ -131,18 +128,18 @@ function TaskRow({ task, onToggle, onOpen }: { task: Task; onToggle: (checked: b
   )
 }
 
-type Target = { kind: 'journal' } | { kind: 'card'; id: string; title: string }
+type Target = { kind: 'inbox' } | { kind: 'card'; id: string; title: string }
 
 const TARGET_KEY = 'canvascl.tasks.target'
 
-/** Quick entry at the top: Enter adds the task to today's journal or a chosen card and keeps focus for the next one. */
+/** Quick entry at the top: Enter adds the task to the Inbox card or a chosen card and keeps focus for the next one. */
 function AddTask() {
   const [text, setText] = useState('')
   const [target, setTarget] = useState<Target>(() => {
     try {
-      return (JSON.parse(localStorage.getItem(TARGET_KEY) ?? 'null') as Target | null) ?? { kind: 'journal' }
+      return (JSON.parse(localStorage.getItem(TARGET_KEY) ?? 'null') as Target | null) ?? { kind: 'inbox' }
     } catch {
-      return { kind: 'journal' }
+      return { kind: 'inbox' }
     }
   })
   const [pickerOpen, setPickerOpen] = useState(false)
@@ -173,7 +170,7 @@ function AddTask() {
     }, cardId)
     if (!res || 'error' in res) {
       toast.error('Could not add task')
-      if (target.kind === 'card') choose({ kind: 'journal' })
+      if (target.kind === 'card') choose({ kind: 'inbox' })
       return
     }
     setText('')
@@ -194,8 +191,8 @@ function AddTask() {
       <Popover open={pickerOpen} onOpenChange={setPickerOpen}>
         <PopoverTrigger asChild>
           <button className="flex h-7 max-w-52 items-center gap-1.5 rounded-md px-2 text-xs text-muted-foreground transition hover:bg-accent hover:text-foreground">
-            {target.kind === 'journal' ? <CalendarDays className="size-3.5 shrink-0" /> : <FileText className="size-3.5 shrink-0" />}
-            <span className="truncate">{target.kind === 'journal' ? "Today's journal" : target.title || 'Untitled'}</span>
+            <FileText className="size-3.5 shrink-0" />
+            <span className="truncate">{target.kind === 'inbox' ? 'Inbox' : target.title || 'Untitled'}</span>
             <ChevronDown className="size-3 shrink-0" />
           </button>
         </PopoverTrigger>
@@ -205,9 +202,9 @@ function AddTask() {
             <CommandList>
               <CommandEmpty>No cards found</CommandEmpty>
               <CommandGroup>
-                <CommandItem value="__journal" onSelect={() => choose({ kind: 'journal' })}>
-                  <CalendarDays /> Today's journal
-                  {target.kind === 'journal' && <Check className="ml-auto size-3.5" />}
+                <CommandItem value="__inbox" onSelect={() => choose({ kind: 'inbox' })}>
+                  <FileText /> Inbox
+                  {target.kind === 'inbox' && <Check className="ml-auto size-3.5" />}
                 </CommandItem>
               </CommandGroup>
               <CommandGroup heading="Cards">
