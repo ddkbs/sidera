@@ -108,7 +108,10 @@ import {
   IconWorkflow,
   IconWrench,
   IconUser,
-  IconPalette
+  IconPalette,
+  IconFolder,
+  IconFolderFill,
+  IconFolderAdd
 } from 'obra-icons-react'
 
 export type AppIcon = ComponentType<SVGProps<SVGSVGElement> & { size?: number }>
@@ -158,6 +161,9 @@ export const Download = IconDownload
 export const Ellipsis = IconOptionsHorizontal
 export const Expand = IconExpand
 export const File = IconDocument
+export const Folder = IconFolder
+export const FolderFilled = IconFolderFill
+export const FolderPlus = IconFolderAdd
 export const FileText = IconArticle
 export const GitBranch = IconLayout
 export const GripVertical = IconOptionsVertical

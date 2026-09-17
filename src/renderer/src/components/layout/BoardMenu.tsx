@@ -1,12 +1,27 @@
-import { LayoutDashboard, Pencil, Plus, Sparkles, Trash2 } from '@/components/icons'
+import { Folder as FolderIcon, LayoutDashboard, Pencil, Plus, Sparkles, Trash2 } from '@/components/icons'
 import { useState, type ReactElement } from 'react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
-import { ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuSeparator, ContextMenuTrigger } from '@/components/ui/context-menu'
+import {
+  ContextMenu,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuSeparator,
+  ContextMenuSub,
+  ContextMenuSubContent,
+  ContextMenuSubTrigger,
+  ContextMenuTrigger
+} from '@/components/ui/context-menu'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { useAppDispatch, useAppSelector } from '@/store'
-import { useCreateWhiteboardMutation, useDeleteWhiteboardMutation, useUpdateWhiteboardMutation } from '@/store/api'
+import {
+  useCreateWhiteboardMutation,
+  useDeleteWhiteboardMutation,
+  useListFoldersQuery,
+  useMoveWhiteboardToFolderMutation,
+  useUpdateWhiteboardMutation
+} from '@/store/api'
 import { navigate, openTab, queueChatMessage } from '@/store/ui'
 import type { Whiteboard } from '@shared/types'
 
@@ -27,6 +42,8 @@ export function BoardMenu({ board, children }: { board: Whiteboard; children: Re
   const [update] = useUpdateWhiteboardMutation()
   const [remove] = useDeleteWhiteboardMutation()
   const [create] = useCreateWhiteboardMutation()
+  const [moveToFolder] = useMoveWhiteboardToFolderMutation()
+  const { data: folders = [] } = useListFoldersQuery()
   const [dialog, setDialog] = useState<'rename' | 'delete' | null>(null)
   const [name, setName] = useState(board.name)
 
@@ -55,6 +72,26 @@ export function BoardMenu({ board, children }: { board: Whiteboard; children: Re
           >
             <LayoutDashboard /> New sub-whiteboard
           </ContextMenuItem>
+          <ContextMenuSub>
+            <ContextMenuSubTrigger>
+              <FolderIcon /> Move to folder
+            </ContextMenuSubTrigger>
+            <ContextMenuSubContent className="w-48">
+              <ContextMenuItem disabled={!board.folderId} onSelect={() => void moveToFolder({ whiteboardId: board.id, folderId: null })}>
+                No folder
+              </ContextMenuItem>
+              {folders.length > 0 && <ContextMenuSeparator />}
+              {folders.map((f) => (
+                <ContextMenuItem
+                  key={f.id}
+                  disabled={board.folderId === f.id}
+                  onSelect={() => void moveToFolder({ whiteboardId: board.id, folderId: f.id })}
+                >
+                  <FolderIcon /> {f.name}
+                </ContextMenuItem>
+              ))}
+            </ContextMenuSubContent>
+          </ContextMenuSub>
           <ContextMenuSeparator />
           <ContextMenuItem variant="destructive" onSelect={() => setDialog('delete')}>
             <Trash2 /> Delete
