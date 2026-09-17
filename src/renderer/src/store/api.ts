@@ -14,7 +14,7 @@ const call = async <K extends keyof Api>(name: K, ...args: Arg<K>): Promise<{ da
   }
 }
 
-export const TAGS = ['Card', 'CardList', 'Tag', 'Whiteboard', 'Kanban', 'Task', 'TaskComment', 'Profile'] as const
+export const TAGS = ['Card', 'CardList', 'Tag', 'Whiteboard', 'Kanban', 'Task', 'TaskComment', 'Profile', 'Highlight'] as const
 
 export const api = createApi({
   reducerPath: 'data',
@@ -249,6 +249,24 @@ export const api = createApi({
       queryFn: (input) => call('importFileData', input)
     }),
 
+    // pdf highlights
+    listHighlights: b.query<Res<'listHighlights'>, string>({
+      queryFn: (fileId) => call('listHighlights', fileId),
+      providesTags: (_r, _e, fileId) => [{ type: 'Highlight', id: fileId }]
+    }),
+    createHighlight: b.mutation<Res<'createHighlight'>, Arg<'createHighlight'>[0]>({
+      queryFn: (input) => call('createHighlight', input),
+      invalidatesTags: (_r, _e, { fileId }) => [{ type: 'Highlight', id: fileId }]
+    }),
+    updateHighlight: b.mutation<Res<'updateHighlight'>, Arg<'updateHighlight'>[0] & { fileId: string }>({
+      queryFn: ({ fileId: _f, ...input }) => call('updateHighlight', input),
+      invalidatesTags: (_r, _e, { fileId }) => [{ type: 'Highlight', id: fileId }]
+    }),
+    deleteHighlight: b.mutation<void, { id: string; fileId: string }>({
+      queryFn: ({ id }) => call('deleteHighlight', id),
+      invalidatesTags: (_r, _e, { fileId }) => [{ type: 'Highlight', id: fileId }]
+    }),
+
     // search & meta
     search: b.query<Res<'search'>, string>({
       queryFn: (q) => call('search', q, 30),
@@ -271,6 +289,7 @@ export const scopeTags: Record<DbChangeScope, (typeof TAGS)[number][]> = {
   tags: ['Tag', 'Kanban', 'Card'],
   whiteboards: ['Whiteboard'],
   profiles: ['Profile', 'TaskComment'],
+  files: ['Highlight'],
   all: [...TAGS]
 }
 
@@ -316,6 +335,10 @@ export const {
   useUpdateTaskCommentMutation,
   useDeleteTaskCommentMutation,
   useImportFileDataMutation,
+  useListHighlightsQuery,
+  useCreateHighlightMutation,
+  useUpdateHighlightMutation,
+  useDeleteHighlightMutation,
   useListProfilesQuery,
   useGetActiveProfileQuery,
   useCreateProfileMutation,

@@ -8,11 +8,13 @@ import type {
   DocJSON,
   FileRecord,
   Folder,
+  HighlightRect,
   ID,
   KanbanBoard,
   LinkPreviewData,
   ObjectKind,
   ObjectPatch,
+  PdfHighlight,
   PropertyType,
   SearchHit,
   SelectOption,
@@ -147,6 +149,19 @@ export interface CanvasApi {
   /** Open an imported file (looked up by id, never an arbitrary path) with the default macOS app. */
   openFile(id: ID): Promise<void>
 
+  // pdf highlights (per imported file, ordered by page then position on the page)
+  listHighlights(fileId: ID): Promise<PdfHighlight[]>
+  createHighlight(input: {
+    fileId: ID
+    page: number
+    text: string
+    rects: HighlightRect[]
+    color?: string
+    note?: string | null
+  }): Promise<PdfHighlight>
+  updateHighlight(input: { id: ID; color?: string; note?: string | null }): Promise<PdfHighlight>
+  deleteHighlight(id: ID): Promise<void>
+
   // web links
   fetchLinkPreview(url: string): Promise<LinkPreviewData>
   clipUrl(input: { url: string; tagIds?: ID[] }): Promise<Card>
@@ -174,6 +189,7 @@ export const API_METHODS: ApiMethod[] = [
   'listProfiles', 'createProfile', 'updateProfile', 'deleteProfile', 'getActiveProfile', 'setActiveProfile',
   'search',
   'importFiles', 'importFileData', 'getFileUrl', 'openFile',
+  'listHighlights', 'createHighlight', 'updateHighlight', 'deleteHighlight',
   'fetchLinkPreview', 'clipUrl',
   'exportMarkdown', 'importMarkdown',
   'getMcpInfo'
@@ -181,7 +197,7 @@ export const API_METHODS: ApiMethod[] = [
 
 /** Event pushed from main to renderer whenever data changed outside the renderer (e.g. via MCP). */
 export const DB_CHANGED = 'db:changed'
-export type DbChangeScope = 'cards' | 'tags' | 'whiteboards' | 'profiles' | 'all'
+export type DbChangeScope = 'cards' | 'tags' | 'whiteboards' | 'profiles' | 'files' | 'all'
 
 /** Event pushed to the renderer for every MCP tool call. */
 export const MCP_ACTIVITY = 'mcp:activity'

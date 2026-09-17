@@ -155,6 +155,33 @@ export interface FileRecord {
   createdAt: number
 }
 
+/**
+ * One rectangle of a PDF highlight, normalised to the page box (0..1) so it survives
+ * zooming, window resizing and re-rendering at a different scale.
+ */
+export interface HighlightRect {
+  x: number
+  y: number
+  w: number
+  h: number
+}
+
+/** A colour highlight drawn over the text layer of an imported PDF. */
+export interface PdfHighlight {
+  id: ID
+  fileId: ID
+  /** 1-based page number. */
+  page: number
+  /** Palette key (see renderer `lib/colors.ts`), e.g. 'yellow'. */
+  color: string
+  /** The selected text, kept so cards and the highlight list work without re-opening the PDF. */
+  text: string
+  note: string | null
+  rects: HighlightRect[]
+  createdAt: number
+  updatedAt: number
+}
+
 export type ObjectPatch = Partial<Pick<WhiteboardObject, 'x' | 'y' | 'width' | 'height' | 'z' | 'color' | 'data'>> & {
   id: ID
 }

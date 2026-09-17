@@ -130,6 +130,46 @@ describe('inbox', () => {
   })
 })
 
+describe('pdf highlights', () => {
+  const file = () => api.registerFile({ name: 'paper.pdf', mime: 'application/pdf', path: '/tmp/paper.pdf', size: 1234 })
+
+  it('stores highlights per file and returns them in page order', () => {
+    const f = file()
+    const second = api.createHighlight({ fileId: f.id, page: 2, text: 'second', rects: [{ x: 0.1, y: 0.2, w: 0.3, h: 0.04 }] })
+    const lower = api.createHighlight({ fileId: f.id, page: 1, text: 'lower', rects: [{ x: 0.1, y: 0.8, w: 0.2, h: 0.04 }], color: 'green' })
+    const upper = api.createHighlight({ fileId: f.id, page: 1, text: 'upper', rects: [{ x: 0.1, y: 0.1, w: 0.2, h: 0.04 }] })
+
+    expect(upper.color).toBe('yellow')
+    expect(lower.color).toBe('green')
+    expect(upper.rects).toEqual([{ x: 0.1, y: 0.1, w: 0.2, h: 0.04 }])
+    expect(api.listHighlights(f.id).map((h) => h.id)).toEqual([upper.id, lower.id, second.id])
+
+    // a second file keeps its own list
+    const other = file()
+    api.createHighlight({ fileId: other.id, page: 1, text: 'elsewhere', rects: [] })
+    expect(api.listHighlights(f.id)).toHaveLength(3)
+    expect(api.listHighlights(other.id)).toHaveLength(1)
+  })
+
+  it('updates colour and note and deletes', () => {
+    const f = file()
+    const h = api.createHighlight({ fileId: f.id, page: 1, text: 'quote', rects: [] })
+    expect(h.note).toBeNull()
+    const patched = api.updateHighlight({ id: h.id, color: 'pink', note: 'check this' })
+    expect(patched).toMatchObject({ color: 'pink', note: 'check this', text: 'quote' })
+    expect(api.listHighlights(f.id)[0]).toMatchObject({ color: 'pink', note: 'check this' })
+    // note only, colour stays
+    expect(api.updateHighlight({ id: h.id, note: null })).toMatchObject({ color: 'pink', note: null })
+    api.deleteHighlight(h.id)
+    expect(api.listHighlights(f.id)).toEqual([])
+  })
+
+  it('rejects highlights for unknown files', () => {
+    expect(() => api.createHighlight({ fileId: 'nope', page: 1, text: 'x', rects: [] })).toThrow(/File not found/)
+    expect(() => api.updateHighlight({ id: 'nope', color: 'red' })).toThrow(/Highlight not found/)
+  })
+})
+
 describe('migrations', () => {
   it('a former journal card survives the journal_entries drop and shows up in listCards', async () => {
     const Database = (await import('better-sqlite3')).default
