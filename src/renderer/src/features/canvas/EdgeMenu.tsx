@@ -90,7 +90,7 @@ export function EdgeMenu({ connection, x, y, onChange, onDelete, onClose }: Prop
           onClick={() => onChange({ color: null })}
           className={cn('size-5 rounded-full border bg-muted', !connection.color && 'ring-2 ring-foreground/40')}
         />
-        {Object.keys(PALETTE).map((name) => (
+        {Object.keys(PALETTE).filter((c) => c !== 'gray').map((name) => (
           <button
             key={name}
             aria-label={name}

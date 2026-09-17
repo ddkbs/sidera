@@ -88,7 +88,7 @@ export function SelectionToolbar({ selected, actions }: { selected: ObjectNode[]
               title={c}
               onClick={() => actions.color(c)}
               className="size-5 rounded-full border border-transparent transition hover:scale-110"
-              style={{ background: PALETTE[c].border }}
+              style={{ background: PALETTE[c].fg }}
             />
           ))}
         <Divider />
