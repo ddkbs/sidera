@@ -1,14 +1,15 @@
-import { ArrowUp, ChevronDown, KeyRound, RotateCcw, Square, Wrench, X } from '@/components/icons'
+import { ArrowUp, ChevronDown, Globe, KeyRound, RotateCcw, Square, Wrench, X } from '@/components/icons'
 import { motion } from 'motion/react'
 import { useEffect, useRef, useState } from 'react'
 import Markdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { toast } from 'sonner'
-import { AI_PROVIDERS, getProviderMeta } from '@shared/ai'
-import type { AskUserAnswer, AskUserQuestion } from '@shared/api'
+import { AI_PROVIDERS, getProviderMeta, mergeSources, supportsWebSearch } from '@shared/ai'
+import type { AskUserAnswer, AskUserQuestion, ChatEvent, ChatSource } from '@shared/api'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { Orb } from '@/components/Orb'
 import { cn } from '@/lib/utils'
 import { useAppDispatch, useAppSelector } from '@/store'
@@ -28,7 +29,36 @@ interface Msg {
   text: string
   tools: string[]
   asks: AskEntry[]
+  /** Native web searches in this message (query/error filled in as they arrive). */
+  searches?: { query?: string; error?: string }[]
+  sources?: ChatSource[]
   error?: string
+}
+
+/** Apply a streamed `search` event to a message's search list. Pure. */
+function applySearch(list: NonNullable<Msg['searches']>, e: Extract<ChatEvent, { type: 'search' }>): NonNullable<Msg['searches']> {
+  const out = [...list]
+  const last = out[out.length - 1]
+  if (e.error) {
+    if (last && !last.error) out[out.length - 1] = { ...last, error: e.error }
+    else out.push({ error: e.error })
+  } else if (e.query) {
+    if (last && !last.query && !last.error) out[out.length - 1] = { ...last, query: e.query }
+    else out.push({ query: e.query })
+  } else out.push({})
+  return out
+}
+
+function hostOf(url: string): string {
+  try {
+    return new URL(url).hostname.replace(/^www\./, '')
+  } catch {
+    return url
+  }
+}
+
+function isHttpUrl(url: string): boolean {
+  return /^https?:\/\//i.test(url)
 }
 
 const SUGGESTIONS = [
@@ -62,6 +92,15 @@ export function ChatPanel() {
     }
   }, [])
 
+  // Dev-only: `window.__devChatMessage(user, assistant)` appends a fake exchange (e.g. with web sources) for devShot.
+  useEffect(() => {
+    if (!import.meta.env.DEV) return
+    ;(window as unknown as { __devChatMessage?: (user: string, assistant: Partial<Msg>) => void }).__devChatMessage = (user, assistant) => {
+      setHasKey(true)
+      setMessages((ms) => [...ms, { role: 'user', text: user, tools: [], asks: [] }, { role: 'assistant', text: '', tools: [], asks: [], ...assistant }])
+    }
+  }, [])
+
   // Switching provider starts a new conversation (the main-process agent resets its own history too).
   useEffect(() => {
     if (prevProvider.current === ai.provider) return
@@ -81,6 +120,8 @@ export function ChatPanel() {
           const next = { ...last }
           if (e.type === 'text') next.text += e.delta
           else if (e.type === 'tool') next.tools = [...next.tools, e.name]
+          else if (e.type === 'search') next.searches = applySearch(next.searches ?? [], e)
+          else if (e.type === 'sources') next.sources = mergeSources(next.sources ?? [], e.sources)
           else if (e.type === 'ask') next.asks = [...next.asks, { requestId: e.requestId, questions: e.questions }]
           else if (e.type === 'error') next.error = e.message
           return [...ms.slice(0, -1), next]
@@ -249,9 +290,46 @@ export function ChatPanel() {
                         ))}
                       </div>
                     )}
+                    {!!m.searches?.length && (
+                      <div className="flex flex-wrap gap-1">
+                        {m.searches.map((q, k) => (
+                          <span
+                            key={k}
+                            className={cn('inline-flex max-w-full items-center gap-1 rounded-md bg-muted px-1.5 py-0.5 text-[11px] text-muted-foreground', q.error && 'text-destructive')}
+                          >
+                            <Globe className="size-3 shrink-0" />
+                            <span className="truncate">
+                              {q.error ? q.error : q.query ? `Searched “${q.query}”` : busy && i === messages.length - 1 ? 'Searching the web…' : 'Searched the web'}
+                            </span>
+                          </span>
+                        ))}
+                      </div>
+                    )}
                     {m.text && (
                       <div className="prose-canvas chat-markdown text-sm">
                         <Markdown remarkPlugins={[remarkGfm]}>{m.text}</Markdown>
+                      </div>
+                    )}
+                    {!!m.sources?.length && (
+                      <div className="space-y-1">
+                        <div className="text-[11px] font-medium text-muted-foreground">Sources</div>
+                        <ol className="flex flex-col gap-0.5">
+                          {m.sources.filter((src) => isHttpUrl(src.url)).map((src, k) => (
+                            <li key={src.url}>
+                              <a
+                                href={src.url}
+                                target="_blank"
+                                rel="noreferrer noopener"
+                                title={src.citedText ? `“${src.citedText}”\n${src.url}` : src.url}
+                                className="flex min-w-0 items-center gap-1.5 rounded-md px-1.5 py-1 text-xs transition hover:bg-accent"
+                              >
+                                <span className="flex size-4 shrink-0 items-center justify-center rounded bg-muted font-mono text-[10px] text-muted-foreground">{k + 1}</span>
+                                <span className="shrink-0 text-muted-foreground">{hostOf(src.url)}</span>
+                                {src.title && <span className="min-w-0 truncate">{src.title}</span>}
+                              </a>
+                            </li>
+                          ))}
+                        </ol>
                       </div>
                     )}
                     {m.asks.map((a) => (
@@ -290,6 +368,7 @@ export function ChatPanel() {
                   placeholder="Ask or instruct…"
                   className="max-h-40 min-h-6 flex-1 resize-none bg-transparent px-1 text-sm outline-none"
                 />
+                <WebSearchToggle />
                 {busy ? (
                   <Button type="button" size="icon" variant="secondary" className="size-7 rounded-lg" onClick={() => void window.chat.stop()}>
                     <Square className="size-3" />
@@ -305,5 +384,40 @@ export function ChatPanel() {
         )}
       </div>
     </motion.aside>
+  )
+}
+
+/** Composer toggle for `AppSettings.ai.webSearch` — only usable with providers that have native web search. */
+function WebSearchToggle() {
+  const dispatch = useAppDispatch()
+  const ai = useAppSelector((s) => s.settings.ai)
+  const supported = supportsWebSearch(ai.provider)
+  const on = supported && ai.webSearch
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <Button
+          type="button"
+          size="sm"
+          variant="ghost"
+          aria-label="Allow web search"
+          aria-pressed={on}
+          aria-disabled={!supported}
+          data-web-search={supported ? (on ? 'on' : 'off') : 'disabled'}
+          onClick={() => supported && dispatch(updateSettings({ ai: { webSearch: !ai.webSearch } }))}
+          className={cn(
+            'h-7 gap-1 rounded-lg px-1.5 text-xs text-muted-foreground',
+            on && 'bg-primary/10 text-foreground hover:bg-primary/15 dark:bg-primary/15 dark:hover:bg-primary/20',
+            !supported && 'cursor-not-allowed opacity-40 hover:bg-transparent hover:text-muted-foreground dark:hover:bg-transparent'
+          )}
+        >
+          <Globe className="size-4" />
+          {on && <span>Web</span>}
+        </Button>
+      </TooltipTrigger>
+      <TooltipContent side="top">
+        {supported ? (on ? 'Web search on — searches may cost extra' : 'Allow web search') : 'Web search is available with OpenAI and Anthropic'}
+      </TooltipContent>
+    </Tooltip>
   )
 }
