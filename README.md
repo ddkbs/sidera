@@ -11,7 +11,7 @@ A free, open-source, local-first visual knowledge base — whiteboards, a card l
 - **Tags as databases** — table view with typed properties, kanban boards (drag & drop), list view.
 - **Journal** — one card per day.
 - **Search** — SQLite FTS5 across cards and whiteboards (⌘K).
-- **MCP-first** — local MCP server (HTTP + stdio) with 19 tools, live activity feed, and a built-in Claude assistant that uses the same tools.
+- **MCP-first** — local MCP server (HTTP + stdio) with 32 tools, live activity feed, and a built-in Claude assistant that uses the same tools.
 - **Tabs & settings** — open several whiteboards in tabs (⌘T, ⌘-click); settings for theme, font (Jost/Futura/Geist/SF), editor, MCP and fully rebindable shortcuts (⌘,).
 - **Local-first** — everything lives in `~/Library/Application Support/CanvasCL/data/` (SQLite database + imported files); Markdown export/import.
 
@@ -29,7 +29,7 @@ npm test && npm run typecheck
 Easiest: **Settings → MCP & Claude → Connect everything** (adds CanvasCL to Claude Desktop and Claude Code). While the app runs, an MCP server listens on `http://127.0.0.1:3845/mcp` (Streamable HTTP).
 Headless stdio mode: `CanvasCL --mcp-stdio`. Tools: `search_cards`, `get_card`, `create_card`, `update_card`, `clip_url`,
 `list_cards`, `list_tags`, `tag_card`, `create_property`, `set_card_property`, `list_whiteboards`, `get_whiteboard`, `create_whiteboard`, `add_card_to_whiteboard`,
-`add_section`, `organize_board`, `add_chart`, `update_chart`, `add_mindmap`, `add_flowchart`, `update_diagram`, `connect_objects`, `get_kanban`, `move_kanban_item`, `get_journal`, `append_to_journal`, `list_tasks`, `add_task`, `complete_task`. Also exposes an
+`add_section`, `organize_board`, `list_folders`, `create_folder`, `move_whiteboard_to_folder`, `add_chart`, `update_chart`, `add_mindmap`, `add_flowchart`, `update_diagram`, `connect_objects`, `get_kanban`, `move_kanban_item`, `get_journal`, `append_to_journal`, `list_tasks`, `add_task`, `complete_task`. Also exposes an
 `organize-board` prompt that guides an agent through grouping a whiteboard's objects and calling `organize_board`.
 
 ## In-app assistant
