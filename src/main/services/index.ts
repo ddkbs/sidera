@@ -38,6 +38,8 @@ export type Services = ServiceMethods & {
   getObject(id: string): WhiteboardObject | null
   /** Tell the UI that data changed outside of the renderer (e.g. MCP edits of object data). */
   notify(scope: DbChangeScope): void
+  /** Hard-delete soft-deleted cards/whiteboards older than `olderThan` ms. */
+  purgeDeleted(olderThan: number): void
 }
 
 const DEFAULT_SIZES: Record<string, [number, number]> = {
@@ -220,12 +222,12 @@ export function createServices(db: DB, onChange: (scope: DbChangeScope) => void 
 
     getCard(id) {
       const r = getCardRow(id)
-      if (!r) return null
+      if (!r || r.deletedAt) return null
       const card = toCard(r)
       const backlinks = sql
         .prepare(
           `SELECT c.id AS cardId, c.title FROM backlinks b JOIN cards c ON c.id = b.source_card_id
-           WHERE b.target_card_id = ? ORDER BY c.updated_at DESC`
+           WHERE b.target_card_id = ? AND c.deleted_at IS NULL ORDER BY c.updated_at DESC`
         )
         .all(id) as CardDetail['backlinks']
       const whiteboards = sql
@@ -286,11 +288,14 @@ export function createServices(db: DB, onChange: (scope: DbChangeScope) => void 
       return { ...existing, ...requireCard(input.id) }
     },
 
+    /** Soft delete: the card disappears everywhere but can be restored (undo) until it is purged. */
     deleteCard(id) {
-      tx(() => {
-        sql.prepare(`DELETE FROM whiteboard_objects WHERE kind = 'card' AND ref_id = ?`).run(id)
-        db.delete(s.cards).where(eq(s.cards.id, id)).run()
-      })
+      db.update(s.cards).set({ deletedAt: now() }).where(eq(s.cards.id, id)).run()
+      onChange('all')
+    },
+
+    restoreCard(id) {
+      db.update(s.cards).set({ deletedAt: null }).where(eq(s.cards.id, id)).run()
       onChange('all')
     },
 
@@ -443,8 +448,27 @@ export function createServices(db: DB, onChange: (scope: DbChangeScope) => void 
           ? db.select().from(s.whiteboards).where(eq(s.whiteboards.id, cursor.parentId)).get()
           : undefined
       }
-      const objects = db.select().from(s.whiteboardObjects).where(eq(s.whiteboardObjects.whiteboardId, id)).all().map(toObject)
-      const connections = db.select().from(s.connections).where(eq(s.connections.whiteboardId, id)).all().map(toConn)
+      // hide objects pointing at soft-deleted cards / whiteboards (and their arrows)
+      const hidden = new Set(
+        (
+          sql
+            .prepare(
+              `SELECT o.id FROM whiteboard_objects o
+               LEFT JOIN cards c ON o.kind = 'card' AND c.id = o.ref_id
+               LEFT JOIN whiteboards w ON o.kind = 'whiteboard' AND w.id = o.ref_id
+               WHERE o.whiteboard_id = ? AND (c.deleted_at IS NOT NULL OR w.deleted_at IS NOT NULL)`
+            )
+            .all(id) as { id: string }[]
+        ).map((r) => r.id)
+      )
+      const objects = db.select().from(s.whiteboardObjects).where(eq(s.whiteboardObjects.whiteboardId, id)).all().map(toObject).filter((o) => !hidden.has(o.id))
+      const connections = db
+        .select()
+        .from(s.connections)
+        .where(eq(s.connections.whiteboardId, id))
+        .all()
+        .map(toConn)
+        .filter((c) => !hidden.has(c.sourceId) && !hidden.has(c.targetId))
       const cardIds = objects.filter((o) => o.kind === 'card' && o.refId).map((o) => o.refId!)
       const cardRows = cardIds.length
         ? db
@@ -475,11 +499,14 @@ export function createServices(db: DB, onChange: (scope: DbChangeScope) => void 
       return toBoard(db.select().from(s.whiteboards).where(eq(s.whiteboards.id, id)).get()!)
     },
 
+    /** Soft delete (restorable). Objects referencing it on other boards are hidden meanwhile. */
     deleteWhiteboard(id) {
-      tx(() => {
-        sql.prepare(`DELETE FROM whiteboard_objects WHERE kind = 'whiteboard' AND ref_id = ?`).run(id)
-        db.delete(s.whiteboards).where(eq(s.whiteboards.id, id)).run()
-      })
+      db.update(s.whiteboards).set({ deletedAt: now() }).where(eq(s.whiteboards.id, id)).run()
+      onChange('whiteboards')
+    },
+
+    restoreWhiteboard(id) {
+      db.update(s.whiteboards).set({ deletedAt: null }).where(eq(s.whiteboards.id, id)).run()
       onChange('whiteboards')
     },
 
@@ -729,6 +756,15 @@ export function createServices(db: DB, onChange: (scope: DbChangeScope) => void 
     },
     getFile(id) {
       return db.select().from(s.files).where(eq(s.files.id, id)).get() ?? null
+    },
+    purgeDeleted(olderThan) {
+      const cutoff = now() - olderThan
+      tx(() => {
+        sql.prepare(`DELETE FROM whiteboard_objects WHERE kind = 'card' AND ref_id IN (SELECT id FROM cards WHERE deleted_at IS NOT NULL AND deleted_at < ?)`).run(cutoff)
+        sql.prepare(`DELETE FROM cards WHERE deleted_at IS NOT NULL AND deleted_at < ?`).run(cutoff)
+        sql.prepare(`DELETE FROM whiteboard_objects WHERE kind = 'whiteboard' AND ref_id IN (SELECT id FROM whiteboards WHERE deleted_at IS NOT NULL AND deleted_at < ?)`).run(cutoff)
+        sql.prepare(`DELETE FROM whiteboards WHERE deleted_at IS NOT NULL AND deleted_at < ?`).run(cutoff)
+      })
     },
     notify(scope) {
       onChange(scope)

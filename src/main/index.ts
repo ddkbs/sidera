@@ -48,6 +48,8 @@ const emit = (scope: DbChangeScope): void => {
 const db = openDatabase(join(dataDir, 'canvascl.db'))
 const services = createServices(db, emit)
 const settings = new SettingsStore(dataDir)
+// deleted cards/whiteboards stay restorable (undo) for 30 days
+services.purgeDeleted(30 * 24 * 60 * 60 * 1000)
 
 const MIME: Record<string, string> = {
   '.pdf': 'application/pdf', '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg',

@@ -40,6 +40,41 @@ describe('cards', () => {
   })
 })
 
+describe('soft delete & restore', () => {
+  it('hides deleted cards and whiteboards everywhere and restores them', () => {
+    const wb = api.createWhiteboard({ name: 'Board' })
+    const child = api.createWhiteboard({ name: 'Child', parentId: wb.id })
+    const card = api.createCard({ title: 'Doomed', markdown: '- [ ] task' })
+    const o1 = api.addObject({ whiteboardId: wb.id, kind: 'card', refId: card.id, x: 0, y: 0 })
+    const o2 = api.addObject({ whiteboardId: wb.id, kind: 'whiteboard', refId: child.id, x: 400, y: 0 })
+    api.addConnection({ whiteboardId: wb.id, sourceId: o1.id, targetId: o2.id })
+
+    api.deleteCard(card.id)
+    expect(api.getCard(card.id)).toBeNull()
+    expect(api.search('Doomed')).toHaveLength(0)
+    expect(api.listTasks()).toHaveLength(0)
+    let board = api.getWhiteboard(wb.id)!
+    expect(board.objects.map((o) => o.id)).toEqual([o2.id])
+    expect(board.connections).toHaveLength(0)
+
+    api.restoreCard(card.id)
+    board = api.getWhiteboard(wb.id)!
+    expect(board.objects).toHaveLength(2)
+    expect(board.connections).toHaveLength(1)
+
+    api.deleteWhiteboard(child.id)
+    expect(api.listWhiteboards().map((w) => w.name)).toEqual(['Board'])
+    expect(api.getWhiteboard(wb.id)!.objects.map((o) => o.id)).toEqual([o1.id])
+    api.restoreWhiteboard(child.id)
+    expect(api.listWhiteboards()).toHaveLength(2)
+
+    api.deleteCard(card.id)
+    api.purgeDeleted(-1)
+    api.restoreCard(card.id)
+    expect(api.getCard(card.id)).toBeNull()
+  })
+})
+
 describe('tags & kanban', () => {
   it('moves items between columns with ordering', () => {
     const tag = api.createTag({ name: '#Project' })

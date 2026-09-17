@@ -36,6 +36,7 @@ export interface CanvasApi {
   createCard(input: { title?: string; content?: DocJSON; markdown?: string; tagIds?: ID[] }): Promise<Card>
   updateCard(input: { id: ID; title?: string; content?: DocJSON; color?: string | null; icon?: string | null }): Promise<Card>
   deleteCard(id: ID): Promise<void>
+  restoreCard(id: ID): Promise<void>
 
   // tags & properties
   listTags(): Promise<Tag[]>
@@ -58,6 +59,7 @@ export interface CanvasApi {
   createWhiteboard(input: { name: string; parentId?: ID | null }): Promise<Whiteboard>
   updateWhiteboard(input: { id: ID; name?: string; viewport?: Whiteboard['viewport'] }): Promise<Whiteboard>
   deleteWhiteboard(id: ID): Promise<void>
+  restoreWhiteboard(id: ID): Promise<void>
   addObject(input: {
     whiteboardId: ID
     kind: ObjectKind
@@ -114,11 +116,11 @@ export interface CanvasApi {
 export type ApiMethod = keyof CanvasApi
 
 export const API_METHODS: ApiMethod[] = [
-  'listCards', 'getCard', 'createCard', 'updateCard', 'deleteCard',
+  'listCards', 'getCard', 'createCard', 'updateCard', 'deleteCard', 'restoreCard',
   'listTags', 'createTag', 'updateTag', 'deleteTag', 'setCardTags',
   'listProperties', 'createProperty', 'updateProperty', 'setPropertyValue',
   'getKanban', 'moveKanbanItem',
-  'listWhiteboards', 'getWhiteboard', 'createWhiteboard', 'updateWhiteboard', 'deleteWhiteboard',
+  'listWhiteboards', 'getWhiteboard', 'createWhiteboard', 'updateWhiteboard', 'deleteWhiteboard', 'restoreWhiteboard',
   'addObject', 'updateObjects', 'removeObjects', 'restoreObjects', 'addConnection', 'updateConnection', 'removeConnections', 'organizeBoard',
   'getJournal', 'listJournal',
   'listTasks', 'setTaskChecked', 'addTask',
