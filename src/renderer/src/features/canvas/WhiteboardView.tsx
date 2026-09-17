@@ -18,7 +18,8 @@ import {
 import dagre from 'dagre'
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { toast } from 'sonner'
-import type { ObjectKind, ObjectPatch, WhiteboardDetail } from '@shared/types'
+import type { Connection, ObjectKind, ObjectPatch, WhiteboardDetail } from '@shared/types'
+import { PALETTE } from '@/lib/colors'
 import { firstUrl } from '@shared/util'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
@@ -38,7 +39,7 @@ import {
   useRemoveConnectionsMutation,
   useRemoveObjectsMutation
 } from '@/store/api'
-import { navigate, openCard, queueChatMessage, setTool, type CanvasTool } from '@/store/ui'
+import { navigate, openCard, openTab, queueChatMessage, setTool, type CanvasTool } from '@/store/ui'
 import { AddCardDialog } from './AddCardDialog'
 import { CARD_MIME, CardDrawer } from './CardDrawer'
 import { FileViewer } from './FileViewer'
@@ -46,7 +47,12 @@ import { BoardBreadcrumb } from './BoardBreadcrumb'
 import { FindOnBoard } from './FindOnBoard'
 import { invert, opLabel, type HistoryOp } from './history'
 import { record } from '@/lib/undo'
-import { CanvasToolbar, TOOLS, type OverflowAction } from './CanvasToolbar'
+import { CanvasToolbar, TOOLS } from './CanvasToolbar'
+import { CanvasContextMenu } from './CanvasContextMenu'
+import { EdgeMenu, type ConnectionPatch } from './EdgeMenu'
+import { SelectionToolbar } from './SelectionToolbar'
+import { arrange, bounds, type ArrangeMode } from './arrange'
+import type { CanvasAction } from './actions'
 import { edgeTypes } from './FloatingEdge'
 import { NodeMenu, type NodeMenuAction } from './NodeMenu'
 import { nodeTypes } from './nodes'
@@ -96,6 +102,17 @@ const toNodes = (d: WhiteboardDetail, prev: ObjectNode[] = [], autoEdit?: string
     })
 }
 
+/** Stroke, dash pattern and arrow heads for a connection's stored styling. */
+const edgeLook = (c: Connection): Pick<ConnectionEdge, 'style' | 'markerEnd' | 'markerStart'> => {
+  const stroke = c.color ? PALETTE[c.color]?.fg : undefined
+  const marker = { type: MarkerType.ArrowClosed, width: 18, height: 18, ...(stroke ? { color: stroke } : {}) }
+  return {
+    style: { stroke, strokeWidth: 1.8, strokeDasharray: c.lineStyle === 'dashed' ? '7 6' : undefined },
+    markerEnd: c.arrows === 'none' ? undefined : marker,
+    markerStart: c.arrows === 'both' ? marker : undefined
+  }
+}
+
 const toEdges = (d: WhiteboardDetail, prev: ConnectionEdge[] = []): ConnectionEdge[] => {
   const sel = new Set(prev.filter((e) => e.selected).map((e) => e.id))
   return d.connections.map((c) => ({
@@ -105,10 +122,13 @@ const toEdges = (d: WhiteboardDetail, prev: ConnectionEdge[] = []): ConnectionEd
     type: 'floating',
     label: c.label || undefined,
     selected: sel.has(c.id),
-    markerEnd: { type: MarkerType.ArrowClosed, width: 18, height: 18 },
-    data: { label: c.label }
+    ...edgeLook(c),
+    data: { label: c.label, connection: c }
   }))
 }
+
+/** Pointer travel (px) below which a right-button press counts as a click, not a pan. */
+const RIGHT_CLICK_SLOP = 4
 
 function Canvas({ detail }: { detail: WhiteboardDetail }) {
   const boardId = detail.whiteboard.id
@@ -143,7 +163,12 @@ function Canvas({ detail }: { detail: WhiteboardDetail }) {
   const [deleteCard] = useDeleteCardMutation()
   const [clipUrl] = useClipUrlMutation()
   const [viewing, setViewing] = useState<{ refId: string; name: string; mime: string } | null>(null)
-  const [edgeEdit, setEdgeEdit] = useState<{ id: string; x: number; y: number; label: string } | null>(null)
+  const [edgeMenu, setEdgeMenu] = useState<{ id: string; x: number; y: number } | null>(null)
+  const [paneMenu, setPaneMenu] = useState<{ x: number; y: number; flow: { x: number; y: number } } | null>(null)
+  /** Where an action started that finishes in a dialog (add existing card, link preview). */
+  const insertPos = useRef<{ x: number; y: number } | null>(null)
+  /** Right-button press, to tell a right-click apart from a right-drag pan. */
+  const rightDown = useRef<{ x: number; y: number; pane: boolean } | null>(null)
   const [sketchId, setSketchId] = useState<string | null>(null)
   const [linkDialog, setLinkDialog] = useState(false)
   const [linkUrl, setLinkUrl] = useState('')
@@ -237,25 +262,32 @@ function Canvas({ detail }: { detail: WhiteboardDetail }) {
     [createCard, place, dispatch]
   )
 
+  const importAt = useCallback(
+    async (pos: { x: number; y: number }) => {
+      const files = await window.api.importFiles()
+      for (const [i, f] of files.entries())
+        await place('file', { x: pos.x - 160 + i * 40, y: pos.y - 200 + i * 40 }, { refId: f.id, data: { name: f.name, mime: f.mime } })
+      if (files.length) toast.success(`Imported ${files.length} file${files.length > 1 ? 's' : ''}`)
+    },
+    [place]
+  )
+
   const changeTool = useCallback(
     async (t: CanvasTool) => {
       if (t === 'import') {
         dispatch(setTool('select'))
-        const files = await window.api.importFiles()
-        const c = center()
-        for (const [i, f] of files.entries())
-          await place('file', { x: c.x - 160 + i * 40, y: c.y - 200 + i * 40 }, { refId: f.id, data: { name: f.name, mime: f.mime } })
-        if (files.length) toast.success(`Imported ${files.length} file${files.length > 1 ? 's' : ''}`)
+        await importAt(center())
         return
       }
       if (t === 'search') {
         dispatch(setTool('select'))
+        insertPos.current = null
         setSearchOpen(true)
         return
       }
       dispatch(setTool(t))
     },
-    [dispatch, center, place]
+    [dispatch, center, importAt]
   )
 
   const applyOp = useCallback(
@@ -313,6 +345,31 @@ function Canvas({ detail }: { detail: WhiteboardDetail }) {
 
   const selectedObjects = () => rf.getNodes().filter((n) => n.selected).map((n) => ({ ...n.data.object, x: n.position.x, y: n.position.y }))
 
+  const pasteAt = useCallback(
+    async (pos: { x: number; y: number }) => {
+      if (clipboard.current) {
+        const objs = clipboard.current.objects
+        const minX = Math.min(...objs.map((o) => o.x))
+        const minY = Math.min(...objs.map((o) => o.y))
+        await pasteObjects(objs, { x: pos.x - minX - 100, y: pos.y - minY - 100 })
+        return
+      }
+      // Nothing copied on the canvas — if the system clipboard holds a URL, drop a link card in.
+      let text = ''
+      try {
+        text = await navigator.clipboard.readText()
+      } catch {
+        return
+      }
+      const url = firstUrl(text)
+      if (!url) return
+      await place('link', { x: pos.x - 160, y: pos.y - 100 }, { data: { url } })
+    },
+    [pasteObjects, place]
+  )
+
+  const selectAll = useCallback(() => setNodes((ns) => ns.map((n) => ({ ...n, selected: true }))), [])
+
   useCommands({
     'canvas.copy': () => {
       const selected = selectedObjects()
@@ -323,30 +380,12 @@ function Canvas({ detail }: { detail: WhiteboardDetail }) {
       const selected = selectedObjects()
       if (selected.length) void pasteObjects(selected, { x: 40, y: 40 })
     },
-    'canvas.paste': () => {
-      if (clipboard.current) {
-        const objs = clipboard.current.objects
-        const c = center()
-        const minX = Math.min(...objs.map((o) => o.x))
-        const minY = Math.min(...objs.map((o) => o.y))
-        void pasteObjects(objs, { x: c.x - minX - 100, y: c.y - minY - 100 })
-        return
-      }
-      // Nothing copied on the canvas — if the system clipboard holds a URL, drop a link card in.
-      void (async () => {
-        let text = ''
-        try {
-          text = await navigator.clipboard.readText()
-        } catch {
-          return
-        }
-        const url = firstUrl(text)
-        if (!url) return
-        const c = center()
-        await place('link', { x: c.x - 160, y: c.y - 100 }, { data: { url } })
-      })()
+    'canvas.paste': () => void pasteAt(center()),
+    'canvas.selectAll': () => selectAll(),
+    'canvas.group': () => {
+      if (rf.getNodes().filter((n) => n.selected).length < 2) return false
+      void groupSelection()
     },
-    'canvas.selectAll': () => setNodes((ns) => ns.map((n) => ({ ...n, selected: true }))),
     'canvas.fit': () => void rf.fitView({ duration: 300, padding: 0.15 }),
     ...Object.fromEntries(TOOLS.map((tool) => [`tool.${tool.id}`, () => void changeTool(tool.id)]))
   })
@@ -465,9 +504,27 @@ function Canvas({ detail }: { detail: WhiteboardDetail }) {
   )
 
   const onAction = useCallback(
-    async (a: OverflowAction) => {
-      const c = center()
+    async (a: CanvasAction, at?: { x: number; y: number }) => {
+      const c = at ?? center()
       if (a === 'fit') return void rf.fitView({ duration: 300, padding: 0.15 })
+      if (a === 'paste') return void pasteAt(c)
+      if (a === 'select-all') return selectAll()
+      if (a === 'card') return void newCardAt(c)
+      if (a === 'existing-card') {
+        insertPos.current = c
+        return setSearchOpen(true)
+      }
+      if (a === 'text') {
+        const o = await place('text', { x: c.x, y: c.y - 20 }, { data: { text: '' } })
+        if (o) {
+          autoEdit.current = o.id
+          setNodes((ns) => ns.map((n) => (n.id === o.id ? { ...n, data: { ...n.data, autoEdit: true } } : n)))
+        }
+        return
+      }
+      if (a === 'section') return void place('section', { x: c.x, y: c.y }, { color: 'blue', data: { title: 'Section' } })
+      if (a === 'connector') return void dispatch(setTool('connector'))
+      if (a === 'import') return void importAt(c)
       if (a.startsWith('chart:')) {
         const type = a.slice(6) as ChartType
         const o = await place('chart', { x: c.x - 220, y: c.y - 150 }, { data: defaultChart(type) as unknown as Record<string, unknown> })
@@ -490,6 +547,7 @@ function Canvas({ detail }: { detail: WhiteboardDetail }) {
         return
       }
       if (a === 'link') {
+        insertPos.current = c
         setLinkUrl('')
         setLinkDialog(true)
         return
@@ -532,7 +590,117 @@ function Canvas({ detail }: { detail: WhiteboardDetail }) {
         setTimeout(() => rf.fitView({ duration: 400, padding: 0.15 }), 50)
       }
     },
-    [center, rf, place, createWhiteboard, boardId, edges, nodes, dispatch, detail.whiteboard.name]
+    [center, rf, place, createWhiteboard, boardId, edges, nodes, dispatch, detail.whiteboard.name, pasteAt, selectAll, newCardAt, importAt]
+  )
+
+  // ---- selection toolbar -------------------------------------------------
+  const selectedNodes = useMemo(() => nodes.filter((n) => n.selected), [nodes])
+  const nodeBox = (n: ObjectNode) => ({
+    id: n.id,
+    x: n.position.x,
+    y: n.position.y,
+    width: n.measured?.width ?? n.width ?? 300,
+    height: n.measured?.height ?? n.height ?? 180
+  })
+
+  /** Cards carry their colour on the card, everything else on the whiteboard object. */
+  const applyColors = useCallback(
+    async (cards: { id: string; color: string | null }[], objects: ObjectPatch[]) => {
+      for (const c of cards) await window.api.updateCard({ id: c.id, color: c.color })
+      if (objects.length) await window.api.updateObjects(objects)
+      dispatch(api.util.invalidateTags([{ type: 'Whiteboard', id: boardId }, 'Card', 'CardList']))
+    },
+    [dispatch, boardId]
+  )
+
+  const colorSelection = useCallback(
+    async (col: string | null) => {
+      const sel = rf.getNodes().filter((n) => n.selected)
+      const cardNodes = sel.filter((n) => n.type === 'card' && n.data.object.refId)
+      const objNodes = sel.filter((n) => n.type !== 'card')
+      if (!cardNodes.length && !objNodes.length) return
+      const beforeCards = cardNodes.map((n) => ({ id: n.data.object.refId!, color: n.data.card?.color ?? null }))
+      const afterCards = cardNodes.map((n) => ({ id: n.data.object.refId!, color: col }))
+      const beforeObjs: ObjectPatch[] = objNodes.map((n) => ({ id: n.id, color: n.data.object.color }))
+      const afterObjs: ObjectPatch[] = objNodes.map((n) => ({ id: n.id, color: col }))
+      await applyColors(afterCards, afterObjs)
+      record({
+        label: 'Change colour',
+        undo: () => void applyColors(beforeCards, beforeObjs),
+        redo: () => void applyColors(afterCards, afterObjs)
+      })
+    },
+    [rf, applyColors]
+  )
+
+  const arrangeSelection = useCallback(
+    (mode: ArrangeMode) => {
+      const sel = rf.getNodes().filter((n) => n.selected)
+      const moved = arrange(sel.map(nodeBox), mode)
+      if (!moved.length) return
+      const before: ObjectPatch[] = moved.map((p) => {
+        const n = rf.getNode(p.id)!
+        return { id: p.id, x: n.position.x, y: n.position.y }
+      })
+      const after: ObjectPatch[] = moved.map((p) => ({ id: p.id, x: p.x, y: p.y }))
+      const byId = new Map(moved.map((p) => [p.id, p]))
+      setNodes((ns) => ns.map((n) => (byId.has(n.id) ? { ...n, position: { x: byId.get(n.id)!.x, y: byId.get(n.id)!.y } } : n)))
+      persist(after)
+      track({ type: 'patch', before, after })
+    },
+    [rf]
+  )
+
+  /** Wrap the selection in a section that sits behind it. */
+  const groupSelection = useCallback(async () => {
+    const sel = rf.getNodes().filter((n) => n.selected)
+    if (sel.length < 2) return
+    const b = bounds(sel.map(nodeBox))
+    const pad = 40
+    await place('section', { x: b.x - pad, y: b.y - pad - 8 }, { color: 'blue', width: b.width + pad * 2, height: b.height + pad * 2 + 8, data: { title: 'Section' } })
+  }, [rf, place])
+
+  const selectionActions = useMemo(
+    () => ({
+      color: (c: string | null) => void colorSelection(c),
+      arrange: arrangeSelection,
+      group: () => void groupSelection(),
+      copy: () => {
+        clipboard.current = { objects: selectedObjects() }
+        toast('Copied', { duration: 1200 })
+      },
+      duplicate: () => void pasteObjects(selectedObjects(), { x: 40, y: 40 }),
+      remove: () => void rf.deleteElements({ nodes: rf.getNodes().filter((n) => n.selected).map((n) => ({ id: n.id })) }),
+      open: (node: ObjectNode) => {
+        const o = node.data.object
+        if (!o.refId) return
+        dispatch(node.type === 'whiteboard' ? navigate({ type: 'whiteboard', id: o.refId }) : openCard(o.refId))
+      },
+      openInNewTab: (node: ObjectNode) => {
+        const o = node.data.object
+        if (o.refId && node.type === 'whiteboard') dispatch(openTab({ type: 'whiteboard', id: o.refId }))
+      }
+    }),
+    [colorSelection, arrangeSelection, groupSelection, pasteObjects, rf, dispatch]
+  )
+
+  // ---- connection menu ---------------------------------------------------
+  const edgeConnection = useMemo(() => detail.connections.find((c) => c.id === edgeMenu?.id), [detail.connections, edgeMenu])
+
+  /** Apply a connection patch and make it undoable. */
+  const patchConnection = useCallback(
+    async (id: string, patch: ConnectionPatch) => {
+      const before = detail.connections.find((c) => c.id === id)
+      if (!before) return
+      const apply = async (p: ConnectionPatch): Promise<void> => {
+        await window.api.updateConnection({ id, ...p })
+        dispatch(api.util.invalidateTags([{ type: 'Whiteboard', id: boardId }]))
+      }
+      const undoPatch = Object.fromEntries(Object.keys(patch).map((k) => [k, before[k as keyof ConnectionPatch]])) as ConnectionPatch
+      await apply(patch)
+      record({ label: 'Change connection', undo: () => void apply(undoPatch), redo: () => void apply(patch) })
+    },
+    [detail.connections, dispatch, boardId]
   )
 
   const viewportTimer = useRef<ReturnType<typeof setTimeout>>(undefined)
@@ -551,6 +719,19 @@ function Canvas({ detail }: { detail: WhiteboardDetail }) {
     <div
       ref={wrapper}
       className={cn('canvas-root relative h-full w-full bg-canvas', `tool-${tool}`)}
+      onContextMenu={(e) => e.preventDefault()}
+      onPointerDownCapture={(e) => {
+        if (e.button !== 2) return
+        rightDown.current = { x: e.clientX, y: e.clientY, pane: (e.target as HTMLElement).classList.contains('react-flow__pane') }
+      }}
+      onPointerUp={(e) => {
+        // A right-click opens the canvas menu; a right-drag panned the board instead.
+        if (e.button !== 2) return
+        const down = rightDown.current
+        rightDown.current = null
+        if (!down?.pane || Math.hypot(e.clientX - down.x, e.clientY - down.y) > RIGHT_CLICK_SLOP) return
+        setPaneMenu({ x: e.clientX, y: e.clientY, flow: rf.screenToFlowPosition({ x: e.clientX, y: e.clientY }) })
+      }}
       onDragOver={(e) => {
         if (e.dataTransfer.types.includes(CARD_MIME) || e.dataTransfer.types.includes('Files') || e.dataTransfer.types.includes('text/uri-list')) {
           e.preventDefault()
@@ -607,9 +788,9 @@ function Canvas({ detail }: { detail: WhiteboardDetail }) {
           const o = node.data.object
           if (node.type === 'file' && o.refId) setViewing({ refId: o.refId, name: String(o.data.name ?? 'File'), mime: String(o.data.mime ?? '') })
         }}
-        onEdgeDoubleClick={(e, edge) => {
+        onEdgeClick={(e, edge) => {
           const r = wrapper.current!.getBoundingClientRect()
-          setEdgeEdit({ id: edge.id, x: e.clientX - r.left, y: e.clientY - r.top, label: edge.data?.label ?? '' })
+          setEdgeMenu({ id: edge.id, x: e.clientX - r.left, y: e.clientY - r.top + 14 })
         }}
         onNodeContextMenu={(e, node) => {
           e.preventDefault()
@@ -643,27 +824,29 @@ function Canvas({ detail }: { detail: WhiteboardDetail }) {
       <ZoomControls />
       <CardDrawer onBoard={cardIds} />
       <BoardBreadcrumb id={boardId} />
-      {edgeEdit && (
-        <input
-          autoFocus
-          value={edgeEdit.label}
-          placeholder="Label"
-          onChange={(e) => setEdgeEdit({ ...edgeEdit, label: e.target.value })}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter') e.currentTarget.blur()
-            if (e.key === 'Escape') setEdgeEdit(null)
+      {edgeMenu && edgeConnection && (
+        <EdgeMenu
+          connection={edgeConnection}
+          x={edgeMenu.x}
+          y={edgeMenu.y}
+          onChange={(patch) => void patchConnection(edgeMenu.id, patch)}
+          onDelete={() => {
+            setEdgeMenu(null)
+            void rf.deleteElements({ edges: [{ id: edgeMenu.id }] })
           }}
-          onBlur={async () => {
-            const { id, label } = edgeEdit
-            setEdgeEdit(null)
-            await window.api.updateConnection({ id, label: label.trim() })
-            setEdges((es) => es.map((x) => (x.id === id ? { ...x, label: label.trim() || undefined, data: { label: label.trim() } } : x)))
-            dispatch(api.util.invalidateTags([{ type: 'Whiteboard', id: boardId }]))
-          }}
-          style={{ left: edgeEdit.x, top: edgeEdit.y }}
-          className="absolute z-20 h-8 w-44 -translate-x-1/2 -translate-y-1/2 rounded-md border bg-background px-2 text-sm shadow-lg outline-none focus:ring-2 focus:ring-brand/40"
+          onClose={() => setEdgeMenu(null)}
         />
       )}
+      <SelectionToolbar selected={selectedNodes} actions={selectionActions} />
+      <CanvasContextMenu
+        at={paneMenu}
+        onClose={() => setPaneMenu(null)}
+        onAction={(a) => {
+          const at = paneMenu?.flow
+          setPaneMenu(null)
+          void onAction(a, at)
+        }}
+      />
       <FindOnBoard />
       {sketchId && (
         <Suspense fallback={null}>
@@ -716,12 +899,12 @@ function Canvas({ detail }: { detail: WhiteboardDetail }) {
         excludeIds={cardIds}
         onPick={async (cardId) => {
           setSearchOpen(false)
-          const c = center()
+          const c = insertPos.current ?? center()
           await place('card', { x: c.x - 160, y: c.y - 110 }, { refId: cardId })
         }}
         onCreate={async (title) => {
           setSearchOpen(false)
-          await newCardAt(center(), title)
+          await newCardAt(insertPos.current ?? center(), title)
         }}
       />
       <Dialog open={linkDialog} onOpenChange={setLinkDialog}>
@@ -736,7 +919,8 @@ function Canvas({ detail }: { detail: WhiteboardDetail }) {
               if (!raw) return
               const url = /^https?:\/\//i.test(raw) ? raw : `https://${raw}`
               setLinkDialog(false)
-              await place('link', { x: center().x - 160, y: center().y - 100 }, { data: { url } })
+              const c = insertPos.current ?? center()
+              await place('link', { x: c.x - 160, y: c.y - 100 }, { data: { url } })
             }}
           >
             <Input autoFocus placeholder="https://example.com" value={linkUrl} onChange={(e) => setLinkUrl(e.target.value)} />

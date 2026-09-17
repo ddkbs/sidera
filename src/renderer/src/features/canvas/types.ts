@@ -1,5 +1,5 @@
 import type { Edge, Node } from '@xyflow/react'
-import type { CardSummary, ObjectKind, ObjectPatch, WhiteboardObject } from '@shared/types'
+import type { CardSummary, Connection, ObjectKind, ObjectPatch, WhiteboardObject } from '@shared/types'
 
 export interface ObjectNodeData extends Record<string, unknown> {
   object: WhiteboardObject
@@ -9,7 +9,7 @@ export interface ObjectNodeData extends Record<string, unknown> {
 }
 
 export type ObjectNode = Node<ObjectNodeData, ObjectKind>
-export type ConnectionEdge = Edge<{ label?: string }>
+export type ConnectionEdge = Edge<{ label?: string; connection?: Connection }>
 
 export const persist = (patches: ObjectPatch[]): void => {
   if (patches.length) void window.api.updateObjects(patches)
