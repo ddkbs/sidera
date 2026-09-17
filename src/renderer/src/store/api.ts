@@ -109,6 +109,32 @@ export const api = createApi({
       queryFn: (id) => call('deleteWhiteboard', id),
       invalidatesTags: ['Whiteboard']
     }),
+    moveWhiteboardToFolder: b.mutation<void, { whiteboardId: string; folderId: string | null }>({
+      queryFn: ({ whiteboardId, folderId }) => call('moveWhiteboardToFolder', whiteboardId, folderId),
+      invalidatesTags: ['Whiteboard']
+    }),
+
+    // folders
+    listFolders: b.query<Res<'listFolders'>, void>({
+      queryFn: () => call('listFolders'),
+      providesTags: ['Whiteboard']
+    }),
+    createFolder: b.mutation<Res<'createFolder'>, Arg<'createFolder'>[0]>({
+      queryFn: (input) => call('createFolder', input),
+      invalidatesTags: ['Whiteboard']
+    }),
+    renameFolder: b.mutation<Res<'renameFolder'>, { id: string; name: string }>({
+      queryFn: ({ id, name }) => call('renameFolder', id, name),
+      invalidatesTags: ['Whiteboard']
+    }),
+    deleteFolder: b.mutation<void, string>({
+      queryFn: (id) => call('deleteFolder', id),
+      invalidatesTags: ['Whiteboard']
+    }),
+    moveFolder: b.mutation<void, { id: string; parentId: string | null }>({
+      queryFn: ({ id, parentId }) => call('moveFolder', id, parentId),
+      invalidatesTags: ['Whiteboard']
+    }),
     addObject: b.mutation<Res<'addObject'>, Arg<'addObject'>[0]>({
       queryFn: (input) => call('addObject', input),
       invalidatesTags: (_r, _e, { whiteboardId, refId }) => [{ type: 'Whiteboard', id: whiteboardId }, ...(refId ? [{ type: 'Card' as const, id: refId }] : [])]
@@ -198,6 +224,12 @@ export const {
   useCreateWhiteboardMutation,
   useUpdateWhiteboardMutation,
   useDeleteWhiteboardMutation,
+  useMoveWhiteboardToFolderMutation,
+  useListFoldersQuery,
+  useCreateFolderMutation,
+  useRenameFolderMutation,
+  useDeleteFolderMutation,
+  useMoveFolderMutation,
   useAddObjectMutation,
   useRemoveObjectsMutation,
   useAddConnectionMutation,
