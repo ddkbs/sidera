@@ -17,7 +17,7 @@ export const TOUR_STEPS: TourStep[] = [
   {
     id: 'sidebar',
     title: 'Everything lives in the sidebar',
-    body: 'Jump between Home, the Card Library, whiteboards and tags — all your knowledge in one tree.',
+    body: 'Jump between Home, Tasks and the Card Library — then organize whiteboards and folders in your Hub below. Right-click the Hub to add one.',
     target: 'sidebar-nav'
   },
   {
