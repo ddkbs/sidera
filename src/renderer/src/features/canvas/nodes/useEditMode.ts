@@ -23,7 +23,12 @@ export function useEditMode(selected: boolean | undefined, onDone: () => void, i
       if (root.current?.contains(t) || t.closest('.mention-popup, [data-node-editor]')) return
       setEditing(false)
     }
-    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && setEditing(false)
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return
+      // Esc inside an open select/popover of the editor closes just that menu
+      if ((e.target as HTMLElement | null)?.closest?.('[data-radix-popper-content-wrapper]')) return
+      setEditing(false)
+    }
     document.addEventListener('mousedown', onDown, true)
     // capture phase: inputs inside nodes stop propagation of their key events
     window.addEventListener('keydown', onKey, true)
