@@ -80,16 +80,19 @@ import {
   IconLink,
   IconMap,
   IconMarqueeSelection,
+  IconMessageSquare,
   IconMoon,
   IconOptionsHorizontal,
   IconOptionsVertical,
   IconOrderedList,
+  IconPaperclip,
   IconPen,
   IconPencil,
   IconQuoteFill,
   IconRadioOn,
   IconRotate,
   IconSearch,
+  IconSend,
   IconServer,
   IconSettings,
   IconSidebar,
@@ -177,17 +180,20 @@ export const Map = IconMap
 export const Maximize = IconFullscreen
 export const Minus = IconSubtract
 export const Moon = IconMoon
+export const MessageSquare = IconMessageSquare
 export const MoreHorizontal = IconOptionsHorizontal
 export const MousePointer2 = IconCursor
 export const Network = IconSitemap
 export const Palette = IconPalette
 export const PanelLeft = IconSidebar
+export const Paperclip = IconPaperclip
 export const PenTool = IconPen
 export const Pencil = IconPencil
 export const Plus = IconAdd
 export const Quote = IconQuoteFill
 export const RotateCcw = IconRotate
 export const Search = IconSearch
+export const Send = IconSend
 export const Server = IconServer
 export const Settings = IconSettings
 export const Sparkles = IconSparkles

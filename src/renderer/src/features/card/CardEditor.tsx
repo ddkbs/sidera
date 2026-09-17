@@ -12,6 +12,20 @@ import { CardMention, handleMentionClick } from './mention'
 import { SlashCommand } from './slash'
 import './editor.css'
 
+/** TaskItem + a stable `id` attribute (`data-task-id`) so comments can reference a task across reorders/inserts. */
+const TaskItemWithId = TaskItem.extend({
+  addAttributes() {
+    return {
+      ...this.parent?.(),
+      id: {
+        default: null,
+        parseHTML: (el: HTMLElement) => el.getAttribute('data-task-id'),
+        renderHTML: (attrs: Record<string, unknown>) => (attrs.id ? { 'data-task-id': attrs.id } : {})
+      }
+    }
+  }
+})
+
 interface Props {
   content: DocJSON
   onChange: (doc: DocJSON) => void
@@ -35,7 +49,7 @@ export function CardEditor({ content, onChange, placeholder = "Write, type '/' f
       Placeholder.configure({ placeholder }),
       Link.configure({ openOnClick: false, autolink: true }),
       TaskList,
-      TaskItem.configure({ nested: true }),
+      TaskItemWithId.configure({ nested: true }),
       CardMention,
       SlashCommand
     ],
