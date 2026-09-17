@@ -1,3 +1,4 @@
+import { addTaskUndoable, recordTaskToggle } from '@/lib/undo-actions'
 import { AnimatePresence } from 'motion/react'
 import { useMemo, useRef, useState } from 'react'
 import { toast } from 'sonner'
@@ -92,7 +93,10 @@ export function TasksView() {
                   <TaskRow
                     key={t.taskId || t.index}
                     task={t}
-                    onToggle={(checked) => void setChecked({ cardId: t.cardId, index: t.index, checked })}
+                    onToggle={(checked) => {
+                      void setChecked({ cardId: t.cardId, index: t.index, checked })
+                      recordTaskToggle(t.cardId, t.index, checked)
+                    }}
                     onOpen={() => t.taskId && setSelected({ cardId: t.cardId, taskId: t.taskId })}
                   />
                 ))}
@@ -161,8 +165,13 @@ function AddTask() {
   const submit = async () => {
     const value = text.trim()
     if (!value) return
-    const res = await addTask(target.kind === 'card' ? { text: value, cardId: target.id } : { text: value })
-    if ('error' in res) {
+    let res: Awaited<ReturnType<typeof addTask>> | undefined
+    const cardId = target.kind === 'card' ? target.id : undefined
+    await addTaskUndoable(async () => {
+      res = await addTask(cardId ? { text: value, cardId } : { text: value })
+      return 'data' in res ? res.data : undefined
+    }, cardId)
+    if (!res || 'error' in res) {
       toast.error('Could not add task')
       if (target.kind === 'card') choose({ kind: 'journal' })
       return
@@ -242,7 +251,11 @@ function InlineAdd({ cardId }: { cardId: string }) {
         onKeyDown={async (e) => {
           if (e.key === 'Escape') return setEditing(false)
           if (e.key !== 'Enter' || e.nativeEvent.isComposing || !text.trim()) return
-          await addTask({ text: text.trim(), cardId })
+          const value = text.trim()
+          await addTaskUndoable(async () => {
+            const r = await addTask({ text: value, cardId })
+            return 'data' in r ? r.data : undefined
+          }, cardId)
           setText('')
         }}
         placeholder="New task"

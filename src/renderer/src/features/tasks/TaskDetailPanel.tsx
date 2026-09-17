@@ -1,3 +1,4 @@
+import { recordTaskToggle } from '@/lib/undo-actions'
 import { motion } from 'motion/react'
 import { useEffect, useRef, useState } from 'react'
 import { toast } from 'sonner'
@@ -74,7 +75,10 @@ export function TaskDetailPanel({ cardId, taskId, onClose }: { cardId: string; t
               <Checkbox
                 className="mt-0.5"
                 checked={task.checked}
-                onCheckedChange={(v) => void setChecked({ cardId, index: task.index, checked: v === true })}
+                onCheckedChange={(v) => {
+                  void setChecked({ cardId, index: task.index, checked: v === true })
+                  recordTaskToggle(cardId, task.index, v === true)
+                }}
               />
               <span className={cn('min-w-0 flex-1', task.checked && 'text-muted-foreground line-through')}>{task.text || 'Untitled task'}</span>
             </label>
