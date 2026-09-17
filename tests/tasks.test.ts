@@ -125,3 +125,122 @@ describe('adding tasks', async () => {
     expect(() => api.addTask({ text: '  ' })).toThrow()
   })
 })
+
+describe('task metadata', () => {
+  let api: Services
+  beforeEach(() => {
+    api = createServices(openDatabase(':memory:'))
+  })
+  const find = (taskId: string) => api.listTasks({ status: 'all' }).find((t) => t.taskId === taskId)!
+
+  it('defaults tasks written in a card to todo / no priority / unassigned', () => {
+    api.createCard({ title: 'Plan', markdown: '- [ ] a\n- [x] b' })
+    const [a, b] = api.listTasks({ status: 'all' })
+    expect(a).toMatchObject({ status: 'todo', priority: 'none', assignee: null, dueDate: null, createdBy: null, attachmentCount: 0 })
+    expect(b.status).toBe('done')
+  })
+
+  it('stores metadata from addTask with the active profile as creator', () => {
+    const me = api.getActiveProfile()
+    const t = api.addTask({ text: 'Ship', priority: 'high', assigneeId: me.id, dueDate: '2026-01-02', status: 'in_progress' })
+    expect(t).toMatchObject({ status: 'in_progress', priority: 'high', dueDate: '2026-01-02', checked: false })
+    expect(t.assignee?.id).toBe(me.id)
+    expect(t.createdBy?.id).toBe(me.id)
+    expect(api.listTaskActivity(t.cardId, t.taskId).map((a) => a.kind)).toEqual(['created'])
+    expect(() => api.addTask({ text: 'x', dueDate: 'tomorrow' })).toThrow()
+    expect(() => api.addTask({ text: 'x', assigneeId: 'missing' })).toThrow()
+  })
+
+  it('keeps status done in sync with the checkbox, both directions', () => {
+    const t = api.addTask({ text: 'Ship', status: 'in_progress' })
+    api.updateTask({ cardId: t.cardId, taskId: t.taskId, status: 'done' })
+    expect(find(t.taskId)).toMatchObject({ status: 'done', checked: true })
+    expect(collectTasks(api.getCard(t.cardId)!.content)[t.index].checked).toBe(true)
+
+    // unticking the checkbox in the card reopens the task
+    api.setTaskChecked(t.cardId, t.index, false)
+    expect(find(t.taskId)).toMatchObject({ status: 'todo', checked: false })
+
+    // ticking it in the card completes it
+    api.updateTask({ cardId: t.cardId, taskId: t.taskId, status: 'in_progress' })
+    api.setTaskChecked(t.cardId, t.index, true)
+    expect(find(t.taskId).status).toBe('done')
+
+    // moving a done task back to in_progress unticks it
+    api.updateTask({ cardId: t.cardId, taskId: t.taskId, status: 'in_progress' })
+    expect(find(t.taskId)).toMatchObject({ status: 'in_progress', checked: false })
+  })
+
+  it('logs one activity entry per change, including checkbox flips made in the card', () => {
+    const me = api.getActiveProfile()
+    const t = api.addTask({ text: 'Ship' })
+    api.updateTask({ cardId: t.cardId, taskId: t.taskId, status: 'done', priority: 'urgent', assigneeId: me.id, dueDate: '2026-03-01' })
+    api.updateTask({ cardId: t.cardId, taskId: t.taskId, priority: 'urgent' }) // no-op
+    api.setTaskChecked(t.cardId, t.index, false)
+    api.updateTask({ cardId: t.cardId, taskId: t.taskId, text: 'Ship it  now' })
+    const log = api.listTaskActivity(t.cardId, t.taskId)
+    expect(log.map((a) => [a.kind, a.from, a.to])).toEqual([
+      ['created', null, null],
+      ['status', 'todo', 'done'],
+      ['priority', 'none', 'urgent'],
+      ['assignee', null, me.id],
+      ['due', null, '2026-03-01'],
+      ['status', 'done', 'todo'],
+      ['title', 'Ship', 'Ship it now']
+    ])
+    expect(log.every((a) => a.actor?.id === me.id)).toBe(true)
+    expect(find(t.taskId).text).toBe('Ship it now')
+  })
+
+  it('edits task text without touching nested sub-tasks', () => {
+    const card = api.createCard({ title: 'Plan', markdown: '- [ ] parent\n  - [ ] child' })
+    const [parent, child] = api.listTasks({ status: 'all' })
+    api.updateTask({ cardId: card.id, taskId: parent.taskId, text: 'renamed' })
+    const after = api.listTasks({ status: 'all' })
+    expect(after.map((t) => [t.taskId, t.text])).toEqual([
+      [parent.taskId, 'renamed'],
+      [child.taskId, 'child']
+    ])
+  })
+
+  it('filters by status, assignee, priority and due date', () => {
+    const me = api.getActiveProfile()
+    const other = api.createProfile({ name: 'Ada' })
+    api.addTask({ text: 'overdue', dueDate: '2026-09-10', assigneeId: me.id, priority: 'high' })
+    api.addTask({ text: 'today', dueDate: '2026-09-17', assigneeId: other.id })
+    api.addTask({ text: 'week', dueDate: '2026-09-23', status: 'in_progress' })
+    api.addTask({ text: 'later', dueDate: '2026-10-30' })
+    api.addTask({ text: 'done late', dueDate: '2026-09-01', status: 'done' })
+    const texts = (opts: Parameters<Services['listTasks']>[0]) =>
+      api
+        .listTasks({ today: '2026-09-17', ...opts })
+        .map((t) => t.text)
+        .sort()
+    expect(texts({ due: 'overdue' })).toEqual(['overdue'])
+    expect(texts({ due: 'today' })).toEqual(['today'])
+    expect(texts({ due: 'week' })).toEqual(['today', 'week'])
+    expect(texts({ status: 'open' })).toEqual(['later', 'overdue', 'today', 'week'])
+    expect(texts({ status: 'in_progress' })).toEqual(['week'])
+    expect(texts({ assigneeId: me.id })).toEqual(['overdue'])
+    expect(texts({ assigneeId: null, status: 'open' })).toEqual(['later', 'week'])
+    expect(texts({ priority: 'high' })).toEqual(['overdue'])
+  })
+
+  it('unassigns tasks when the assignee profile is deleted', () => {
+    const other = api.createProfile({ name: 'Ada' })
+    const t = api.addTask({ text: 'x', assigneeId: other.id })
+    api.deleteProfile(other.id)
+    expect(find(t.taskId).assignee).toBeNull()
+  })
+
+  it('counts attachments and only lets authors edit or delete their comments', () => {
+    const t = api.addTask({ text: 'x' })
+    const file = api.registerFile({ name: 'a.png', mime: 'image/png', path: '/tmp/a.png', size: 1 })
+    const c = api.addTaskComment({ cardId: t.cardId, taskId: t.taskId, body: 'mine', fileIds: [file.id] })
+    expect(find(t.taskId)).toMatchObject({ commentCount: 1, attachmentCount: 1 })
+    const other = api.createProfile({ name: 'Ada' })
+    api.setActiveProfile(other.id)
+    expect(() => api.updateTaskComment({ id: c.id, body: 'hijack' })).toThrow(/own comments/)
+    expect(() => api.deleteTaskComment(c.id)).toThrow(/own comments/)
+  })
+})

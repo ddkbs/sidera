@@ -128,3 +128,30 @@ export const taskCommentFiles = sqliteTable(
   { commentId: text('comment_id').notNull(), fileId: text('file_id').notNull() },
   (t) => [primaryKey({ columns: [t.commentId, t.fileId] })]
 )
+
+export const taskMeta = sqliteTable(
+  'task_meta',
+  {
+    cardId: text('card_id').notNull(),
+    taskId: text('task_id').notNull(),
+    status: text('status').notNull().default('todo'),
+    priority: text('priority').notNull().default('none'),
+    assigneeProfileId: text('assignee_profile_id'),
+    dueDate: text('due_date'),
+    createdByProfileId: text('created_by_profile_id'),
+    createdAt: integer('created_at').notNull(),
+    updatedAt: integer('updated_at').notNull()
+  },
+  (t) => [primaryKey({ columns: [t.cardId, t.taskId] })]
+)
+
+export const taskActivity = sqliteTable('task_activity', {
+  id: text('id').primaryKey(),
+  cardId: text('card_id').notNull(),
+  taskId: text('task_id').notNull(),
+  actorProfileId: text('actor_profile_id'),
+  kind: text('kind').notNull(),
+  fromValue: text('from_value'),
+  toValue: text('to_value'),
+  createdAt: integer('created_at').notNull()
+})

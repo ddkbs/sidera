@@ -61,6 +61,46 @@ export function setTaskChecked(doc: DocJSON, index: number, checked: boolean): D
   return walk(doc)
 }
 
+/** Returns a new doc where the taskItem at `index` has its own text (first paragraph) replaced; nested lists are kept. */
+export function setTaskText(doc: DocJSON, index: number, text: string): DocJSON {
+  let i = 0
+  const walk = (n: DocJSON): DocJSON => {
+    if (n.type === 'taskItem') {
+      const mine = i++
+      let content = n.content ?? []
+      if (mine === index) {
+        const para: DocJSON = { type: 'paragraph', content: text ? [{ type: 'text', text }] : undefined }
+        const first = content.findIndex((c) => c.type === 'paragraph')
+        content = first === -1 ? [para, ...content] : content.map((c, j) => (j === first ? para : c))
+      }
+      return { ...n, content: content.map(walk) }
+    }
+    return n.content ? { ...n, content: n.content.map(walk) } : n
+  }
+  return walk(doc)
+}
+
+/** Local calendar date as YYYY-MM-DD. */
+export function isoDate(d: Date = new Date()): string {
+  const p = (n: number) => String(n).padStart(2, '0')
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`
+}
+
+export function addDays(iso: string, days: number): string {
+  const [y, m, d] = iso.split('-').map(Number)
+  return isoDate(new Date(y, m - 1, d + days))
+}
+
+export const isIsoDate = (v: string): boolean => /^\d{4}-\d{2}-\d{2}$/.test(v) && !Number.isNaN(new Date(`${v}T00:00:00`).getTime())
+
+/** Due-date bucket test against a local `today`. `week` = today through the next 6 days. Done tasks are never overdue. */
+export function matchesDue(dueDate: string | null, filter: 'overdue' | 'today' | 'week', today: string, done = false): boolean {
+  if (!dueDate) return false
+  if (filter === 'overdue') return !done && dueDate < today
+  if (filter === 'today') return dueDate === today
+  return dueDate >= today && dueDate <= addDays(today, 6)
+}
+
 /** Returns a new doc with an unchecked task appended: extends a trailing to-do list, otherwise starts a new one. */
 export function appendTask(doc: DocJSON, text: string): { doc: DocJSON; index: number } {
   const item: DocJSON = {

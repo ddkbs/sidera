@@ -19,7 +19,12 @@ import type {
   Tag,
   TagProperty,
   Task,
+  TaskActivity,
   TaskComment,
+  TaskDueFilter,
+  TaskPatch,
+  TaskPriority,
+  TaskStatus,
   Profile,
   Whiteboard,
   WhiteboardDetail,
@@ -97,10 +102,23 @@ export interface CanvasApi {
   }): Promise<{ sections: { id: ID; title: string; objectCount: number }[]; unsorted: number }>
 
   // tasks
-  listTasks(opts?: { status?: 'open' | 'done' | 'all' }): Promise<Task[]>
+  /**
+   * `status`: 'open' (not done) / 'done' / 'all', or an exact TaskStatus. `assigneeId` null = unassigned.
+   * `due` compares against the local date. `today` (YYYY-MM-DD) overrides "now" for tests.
+   */
+  listTasks(opts?: {
+    status?: 'open' | 'all' | TaskStatus
+    assigneeId?: ID | null
+    priority?: TaskPriority
+    due?: TaskDueFilter
+    today?: string
+  }): Promise<Task[]>
   setTaskChecked(cardId: ID, index: number, checked: boolean): Promise<void>
   /** Add a to-do to a card, or to the "Inbox" card (created on first use) when no card is given. */
-  addTask(input: { text: string; cardId?: ID }): Promise<Task>
+  addTask(input: { text: string; cardId?: ID; status?: TaskStatus; priority?: TaskPriority; assigneeId?: ID | null; dueDate?: string | null }): Promise<Task>
+  /** Change task properties; status 'done' ⇔ checkbox in the card content. Logs activity for each change. */
+  updateTask(input: TaskPatch): Promise<Task>
+  listTaskActivity(cardId: ID, taskId: string): Promise<TaskActivity[]>
 
   // task comments
   listTaskComments(cardId: ID, taskId: string): Promise<TaskComment[]>
@@ -126,6 +144,8 @@ export interface CanvasApi {
   /** Write raw bytes (e.g. a pasted clipboard image) into the files dir and register them. 25 MB limit. */
   importFileData(input: { name: string; mime: string; dataBase64: string }): Promise<FileRecord>
   getFileUrl(id: ID): Promise<string | null>
+  /** Open an imported file (looked up by id, never an arbitrary path) with the default macOS app. */
+  openFile(id: ID): Promise<void>
 
   // web links
   fetchLinkPreview(url: string): Promise<LinkPreviewData>
@@ -149,11 +169,11 @@ export const API_METHODS: ApiMethod[] = [
   'listWhiteboards', 'getWhiteboard', 'createWhiteboard', 'updateWhiteboard', 'deleteWhiteboard', 'restoreWhiteboard', 'moveWhiteboardToFolder',
   'listFolders', 'createFolder', 'renameFolder', 'deleteFolder', 'moveFolder',
   'addObject', 'updateObjects', 'removeObjects', 'restoreObjects', 'addConnection', 'updateConnection', 'removeConnections', 'organizeBoard',
-  'listTasks', 'setTaskChecked', 'addTask',
+  'listTasks', 'setTaskChecked', 'addTask', 'updateTask', 'listTaskActivity',
   'listTaskComments', 'addTaskComment', 'updateTaskComment', 'deleteTaskComment',
   'listProfiles', 'createProfile', 'updateProfile', 'deleteProfile', 'getActiveProfile', 'setActiveProfile',
   'search',
-  'importFiles', 'importFileData', 'getFileUrl',
+  'importFiles', 'importFileData', 'getFileUrl', 'openFile',
   'fetchLinkPreview', 'clipUrl',
   'exportMarkdown', 'importMarkdown',
   'getMcpInfo'

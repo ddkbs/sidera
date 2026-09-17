@@ -166,5 +166,32 @@ export const migrations: string[] = [
   `,
   /* 6: remove journal */ `
   DROP TABLE journal_entries;
+  `,
+  /* 7: task metadata + activity */ `
+  CREATE TABLE task_meta (
+    card_id TEXT NOT NULL REFERENCES cards(id) ON DELETE CASCADE,
+    task_id TEXT NOT NULL,
+    status TEXT NOT NULL DEFAULT 'todo',
+    priority TEXT NOT NULL DEFAULT 'none',
+    assignee_profile_id TEXT REFERENCES profiles(id) ON DELETE SET NULL,
+    due_date TEXT,
+    created_by_profile_id TEXT REFERENCES profiles(id) ON DELETE SET NULL,
+    created_at INTEGER NOT NULL,
+    updated_at INTEGER NOT NULL,
+    PRIMARY KEY (card_id, task_id)
+  );
+  CREATE INDEX task_meta_assignee_idx ON task_meta(assignee_profile_id);
+
+  CREATE TABLE task_activity (
+    id TEXT PRIMARY KEY,
+    card_id TEXT NOT NULL REFERENCES cards(id) ON DELETE CASCADE,
+    task_id TEXT NOT NULL,
+    actor_profile_id TEXT REFERENCES profiles(id) ON DELETE SET NULL,
+    kind TEXT NOT NULL,
+    from_value TEXT,
+    to_value TEXT,
+    created_at INTEGER NOT NULL
+  );
+  CREATE INDEX task_activity_task_idx ON task_activity(card_id, task_id);
   `
 ]

@@ -3,7 +3,7 @@ import { userInfo } from 'node:os'
 import { nanoid } from 'nanoid'
 import type { CanvasApi, DbChangeScope } from '@shared/api'
 import { docToText, emptyDoc, extractMentions, markdownToDoc } from '@shared/doc'
-import { appendTask, collectTasks, ensureTaskIds, setTaskChecked as applyTaskChecked } from '@shared/tasks'
+import { appendTask, collectTasks, ensureTaskIds, isIsoDate, isoDate, matchesDue, setTaskChecked as applyTaskChecked, setTaskText } from '@shared/tasks'
 import type {
   Card,
   CardDetail,
@@ -20,17 +20,22 @@ import type {
   Tag,
   TagProperty,
   Task,
+  TaskActivity,
+  TaskActivityKind,
   TaskComment,
+  TaskPriority,
+  TaskStatus,
   Whiteboard,
   WhiteboardDetail,
   WhiteboardObject
 } from '@shared/types'
+import { TASK_PRIORITIES, TASK_STATUSES } from '@shared/types'
 import { between, now, TAG_COLORS } from '@shared/util'
 import type { DB } from '../db/client'
 import * as s from '../db/schema'
 import { layoutGroups } from './organize'
 
-type Electronish = 'importFiles' | 'importFileData' | 'getFileUrl' | 'getMcpInfo' | 'exportMarkdown' | 'importMarkdown' | 'fetchLinkPreview' | 'clipUrl'
+type Electronish = 'importFiles' | 'importFileData' | 'getFileUrl' | 'openFile' | 'getMcpInfo' | 'exportMarkdown' | 'importMarkdown' | 'fetchLinkPreview' | 'clipUrl'
 export type ServiceMethods = {
   [K in Exclude<keyof CanvasApi, Electronish>]: (
     ...args: Parameters<CanvasApi[K]>
@@ -228,6 +233,13 @@ export function createServices(
     files
   })
 
+  /** Only the author (the active profile) may edit or delete a comment. */
+  const requireOwnComment = (id: string): void => {
+    const row = db.select().from(s.taskComments).where(eq(s.taskComments.id, id)).get()
+    if (!row) throw new Error(`Task comment not found: ${id}`)
+    if (row.authorId !== ensureActiveProfile().id) throw new Error('You can only edit or delete your own comments')
+  }
+
   const filesForComment = (commentId: string): FileRecord[] =>
     sql
       .prepare(
@@ -235,6 +247,115 @@ export function createServices(
          FROM task_comment_files cf JOIN files f ON f.id = cf.file_id WHERE cf.comment_id = ? ORDER BY f.created_at`
       )
       .all(commentId) as FileRecord[]
+
+  // ---------- task metadata ----------
+  type MetaRow = typeof s.taskMeta.$inferSelect
+  /** Set while updateTask writes the checkbox itself, so the card-content sync doesn't log the status change twice. */
+  let taskSyncSuppressed = false
+
+  const metaRow = (cardId: string, taskId: string): MetaRow | undefined =>
+    db.select().from(s.taskMeta).where(and(eq(s.taskMeta.cardId, cardId), eq(s.taskMeta.taskId, taskId))).get()
+
+  /** Checkbox wins for done-ness; otherwise the stored status (a stale 'done' becomes 'todo'). */
+  const effectiveStatus = (checked: boolean, meta: Pick<MetaRow, 'status'> | undefined): TaskStatus =>
+    checked ? 'done' : meta && meta.status !== 'done' ? (meta.status as TaskStatus) : 'todo'
+
+  const logActivity = (cardId: string, taskId: string, kind: TaskActivityKind, from: string | null, to: string | null): void => {
+    db.insert(s.taskActivity)
+      .values({ id: nanoid(), cardId, taskId, actorProfileId: ensureActiveProfile().id, kind, fromValue: from, toValue: to, createdAt: now() })
+      .run()
+  }
+
+  /** Keep task_meta.status in sync with checkboxes edited in the card itself, and log flips as activity. */
+  const syncTaskMeta = (cardId: string, before: DocJSON, after: DocJSON): void => {
+    const next = collectTasks(after)
+    if (!next.length) return
+    const prev = new Map(collectTasks(before).map((t) => [t.taskId, t.checked]))
+    for (const t of next) {
+      const meta = metaRow(cardId, t.taskId)
+      const was = prev.get(t.taskId)
+      if (was !== undefined && was !== t.checked && !taskSyncSuppressed)
+        logActivity(cardId, t.taskId, 'status', effectiveStatus(was, meta), t.checked ? 'done' : 'todo')
+      if (meta && (meta.status === 'done') !== t.checked)
+        db.update(s.taskMeta)
+          .set({ status: t.checked ? 'done' : 'todo', updatedAt: now() })
+          .where(and(eq(s.taskMeta.cardId, cardId), eq(s.taskMeta.taskId, t.taskId)))
+          .run()
+    }
+  }
+
+  /** Tasks of the given (non-deleted) cards, with metadata, counts and profile refs joined. */
+  const buildTasks = (cardIds?: string[]): Task[] => {
+    const where = cardIds ? `AND c.id IN (${cardIds.map(() => '?').join(',')})` : ''
+    const rows = sql
+      .prepare(
+        `SELECT c.id, c.title, c.content, c.icon, c.color, c.updated_at AS updatedAt
+         FROM cards c
+         WHERE c.deleted_at IS NULL AND c.content LIKE '%taskItem%' ${where}`
+      )
+      .all(...(cardIds ?? [])) as { id: string; title: string; content: string; icon: string | null; color: string | null; updatedAt: number }[]
+    if (!rows.length) return []
+    const key = (cardId: string, taskId: string) => `${cardId}:${taskId}`
+    const counts = (query: string) =>
+      new Map((sql.prepare(query).all() as { cardId: string; taskId: string; n: number }[]).map((c) => [key(c.cardId, c.taskId), c.n]))
+    const comments = counts(`SELECT card_id AS cardId, task_id AS taskId, COUNT(*) AS n FROM task_comments GROUP BY card_id, task_id`)
+    const attachments = counts(
+      `SELECT c.card_id AS cardId, c.task_id AS taskId, COUNT(*) AS n FROM task_comments c JOIN task_comment_files f ON f.comment_id = c.id GROUP BY c.card_id, c.task_id`
+    )
+    const metas = new Map(db.select().from(s.taskMeta).all().map((m) => [key(m.cardId, m.taskId), m]))
+    const profiles = new Map(
+      db
+        .select()
+        .from(s.profiles)
+        .all()
+        .map((r): [string, ProfileRef] => {
+          const p = toProfile(r)
+          return [p.id, { id: p.id, name: p.name, color: p.color, avatarUrl: p.avatarUrl }]
+        })
+    )
+    const ref = (id: string | null | undefined): ProfileRef | null => (id ? (profiles.get(id) ?? null) : null)
+    const out: Task[] = []
+    for (const r of rows) {
+      for (const t of collectTasks(json<DocJSON>(r.content, emptyDoc()))) {
+        const k = key(r.id, t.taskId)
+        const meta = metas.get(k)
+        out.push({
+          cardId: r.id,
+          cardTitle: r.title,
+          cardIcon: r.icon,
+          cardColor: r.color,
+          taskId: t.taskId,
+          index: t.index,
+          text: t.text,
+          checked: t.checked,
+          status: effectiveStatus(t.checked, meta),
+          priority: (meta?.priority as TaskPriority | undefined) ?? 'none',
+          assignee: ref(meta?.assigneeProfileId),
+          dueDate: meta?.dueDate ?? null,
+          createdBy: ref(meta?.createdByProfileId),
+          createdAt: meta?.createdAt ?? null,
+          updatedAt: Math.max(r.updatedAt, meta?.updatedAt ?? 0),
+          commentCount: comments.get(k) ?? 0,
+          attachmentCount: attachments.get(k) ?? 0
+        })
+      }
+    }
+    return out
+  }
+
+  const requireTask = (cardId: string, taskId: string): Task => {
+    const task = buildTasks([cardId]).find((t) => t.taskId === taskId)
+    if (!task) throw new Error(`Task not found: ${cardId}/${taskId}`)
+    return task
+  }
+
+  const checkTaskFields = (input: { status?: string; priority?: string; assigneeId?: string | null; dueDate?: string | null }): void => {
+    if (input.status !== undefined && !(TASK_STATUSES as readonly string[]).includes(input.status)) throw new Error(`Unknown status: ${input.status}`)
+    if (input.priority !== undefined && !(TASK_PRIORITIES as readonly string[]).includes(input.priority))
+      throw new Error(`Unknown priority: ${input.priority}`)
+    if (input.assigneeId && !profileRow(input.assigneeId)) throw new Error(`Profile not found: ${input.assigneeId}`)
+    if (input.dueDate && !isIsoDate(input.dueDate)) throw new Error(`Invalid due date (use YYYY-MM-DD): ${input.dueDate}`)
+  }
 
   const tagsFor = (cardIds: string[]): Map<string, Tag[]> => {
     const map = new Map<string, Tag[]>()
@@ -408,7 +529,10 @@ export function createServices(
       }
       tx(() => {
         db.update(s.cards).set(patch).where(eq(s.cards.id, input.id)).run()
-        if (content) syncBacklinks(input.id, content)
+        if (content) {
+          syncBacklinks(input.id, content)
+          syncTaskMeta(input.id, existing.content, content)
+        }
       })
       onChange('cards')
       return { ...existing, ...requireCard(input.id) }
@@ -824,38 +948,16 @@ export function createServices(
     // ---------- tasks ----------
     listTasks(opts = {}) {
       const status = opts.status ?? 'all'
-      const rows = sql
-        .prepare(
-          `SELECT c.id, c.title, c.content, c.updated_at AS updatedAt
-           FROM cards c
-           WHERE c.deleted_at IS NULL AND c.content LIKE '%taskItem%'`
-        )
-        .all() as { id: string; title: string; content: string; updatedAt: number }[]
-      const counts = sql.prepare(`SELECT card_id AS cardId, task_id AS taskId, COUNT(*) AS n FROM task_comments GROUP BY card_id, task_id`).all() as {
-        cardId: string
-        taskId: string
-        n: number
-      }[]
-      const countMap = new Map(counts.map((c) => [`${c.cardId}:${c.taskId}`, c.n]))
-      const out: Task[] = []
-      for (const r of rows) {
-        const doc = json<DocJSON>(r.content, emptyDoc())
-        for (const t of collectTasks(doc)) {
-          if (status === 'open' && t.checked) continue
-          if (status === 'done' && !t.checked) continue
-          out.push({
-            cardId: r.id,
-            cardTitle: r.title,
-            taskId: t.taskId,
-            index: t.index,
-            text: t.text,
-            checked: t.checked,
-            updatedAt: r.updatedAt,
-            commentCount: countMap.get(`${r.id}:${t.taskId}`) ?? 0
-          })
-        }
-      }
-      return out.sort((a, b) => b.updatedAt - a.updatedAt)
+      const today = opts.today ?? isoDate()
+      return buildTasks()
+        .filter((t) => {
+          if (status === 'open' ? t.status === 'done' : status !== 'all' && t.status !== status) return false
+          if (opts.assigneeId !== undefined && (t.assignee?.id ?? null) !== opts.assigneeId) return false
+          if (opts.priority !== undefined && t.priority !== opts.priority) return false
+          if (opts.due && !matchesDue(t.dueDate, opts.due, today, t.status === 'done')) return false
+          return true
+        })
+        .sort((a, b) => b.updatedAt - a.updatedAt)
     },
 
     setTaskChecked(cardId, index, checked) {
@@ -863,23 +965,108 @@ export function createServices(
       api.updateCard({ id: cardId, content: applyTaskChecked(card.content, index, checked) })
     },
 
-    addTask({ text, cardId }) {
+    addTask({ text, cardId, status, priority, assigneeId, dueDate }) {
       const clean = text.trim()
       if (!clean) throw new Error('Task text is empty')
+      checkTaskFields({ status, priority, assigneeId, dueDate })
       const card = cardId ? requireCard(cardId) : getOrCreateInboxCard()
-      const { doc, index } = appendTask(card.content, clean)
-      const saved = api.updateCard({ id: card.id, content: doc })
-      const taskId = collectTasks(saved.content)[index]?.taskId ?? ''
-      return {
-        cardId: card.id,
-        cardTitle: saved.title,
-        taskId,
-        index,
-        text: clean,
-        checked: false,
-        updatedAt: saved.updatedAt,
-        commentCount: 0
-      }
+      const appended = appendTask(card.content, clean)
+      const doc = status === 'done' ? applyTaskChecked(appended.doc, appended.index, true) : appended.doc
+      const t = now()
+      const taskId = tx(() => {
+        const saved = api.updateCard({ id: card.id, content: doc })
+        const id = collectTasks(saved.content)[appended.index]?.taskId ?? ''
+        db.insert(s.taskMeta)
+          .values({
+            cardId: card.id,
+            taskId: id,
+            status: status ?? 'todo',
+            priority: priority ?? 'none',
+            assigneeProfileId: assigneeId ?? null,
+            dueDate: dueDate ?? null,
+            createdByProfileId: ensureActiveProfile().id,
+            createdAt: t,
+            updatedAt: t
+          })
+          .run()
+        logActivity(card.id, id, 'created', null, null)
+        return id
+      })
+      onChange('cards')
+      return requireTask(card.id, taskId)
+    },
+
+    updateTask({ cardId, taskId, status, priority, assigneeId, dueDate, text }) {
+      const card = requireCard(cardId)
+      const item = collectTasks(card.content).find((t) => t.taskId === taskId)
+      if (!item) throw new Error(`Task not found: ${cardId}/${taskId}`)
+      checkTaskFields({ status, priority, assigneeId, dueDate })
+      const cleanText = text?.replace(/\s+/g, ' ').trim()
+      if (text !== undefined && !cleanText) throw new Error('Task text is empty')
+      const before = requireTask(cardId, taskId)
+      tx(() => {
+        const t = now()
+        if (!metaRow(cardId, taskId)) db.insert(s.taskMeta).values({ cardId, taskId, status: before.status, createdAt: t, updatedAt: t }).run()
+        const patch: Partial<MetaRow> = {}
+        if (status !== undefined && status !== before.status) {
+          patch.status = status
+          logActivity(cardId, taskId, 'status', before.status, status)
+        }
+        if (priority !== undefined && priority !== before.priority) {
+          patch.priority = priority
+          logActivity(cardId, taskId, 'priority', before.priority, priority)
+        }
+        if (assigneeId !== undefined && assigneeId !== (before.assignee?.id ?? null)) {
+          patch.assigneeProfileId = assigneeId
+          logActivity(cardId, taskId, 'assignee', before.assignee?.id ?? null, assigneeId)
+        }
+        if (dueDate !== undefined && dueDate !== before.dueDate) {
+          patch.dueDate = dueDate
+          logActivity(cardId, taskId, 'due', before.dueDate, dueDate)
+        }
+        let doc = card.content
+        if (cleanText !== undefined && cleanText !== item.text) {
+          doc = setTaskText(doc, item.index, cleanText)
+          logActivity(cardId, taskId, 'title', item.text, cleanText)
+        }
+        if (patch.status !== undefined && (patch.status === 'done') !== item.checked) doc = applyTaskChecked(doc, item.index, patch.status === 'done')
+        if (Object.keys(patch).length)
+          db.update(s.taskMeta)
+            .set({ ...patch, updatedAt: t })
+            .where(and(eq(s.taskMeta.cardId, cardId), eq(s.taskMeta.taskId, taskId)))
+            .run()
+        if (doc !== card.content) {
+          taskSyncSuppressed = true
+          try {
+            api.updateCard({ id: cardId, content: doc })
+          } finally {
+            taskSyncSuppressed = false
+          }
+        }
+      })
+      onChange('cards')
+      return requireTask(cardId, taskId)
+    },
+
+    listTaskActivity(cardId, taskId) {
+      return db
+        .select()
+        .from(s.taskActivity)
+        .where(and(eq(s.taskActivity.cardId, cardId), eq(s.taskActivity.taskId, taskId)))
+        .orderBy(s.taskActivity.createdAt)
+        .all()
+        .map(
+          (r): TaskActivity => ({
+            id: r.id,
+            cardId: r.cardId,
+            taskId: r.taskId,
+            actor: authorRef(r.actorProfileId),
+            kind: r.kind as TaskActivityKind,
+            from: r.fromValue,
+            to: r.toValue,
+            createdAt: r.createdAt
+          })
+        )
     },
 
     // ---------- task comments ----------
@@ -906,6 +1093,7 @@ export function createServices(
     },
 
     updateTaskComment({ id, body }) {
+      requireOwnComment(id)
       db.update(s.taskComments).set({ body, updatedAt: now() }).where(eq(s.taskComments.id, id)).run()
       onChange('cards')
       const row = db.select().from(s.taskComments).where(eq(s.taskComments.id, id)).get()
@@ -914,6 +1102,8 @@ export function createServices(
     },
 
     deleteTaskComment(id) {
+      if (!db.select().from(s.taskComments).where(eq(s.taskComments.id, id)).get()) return
+      requireOwnComment(id)
       db.delete(s.taskComments).where(eq(s.taskComments.id, id)).run()
       onChange('cards')
     },

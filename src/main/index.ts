@@ -1,7 +1,7 @@
 import { mkdirSync, readdirSync, statSync } from 'node:fs'
 import { pathToFileURL } from 'node:url'
 import { copyFile, mkdir, readFile, stat, writeFile } from 'node:fs/promises'
-import { basename, dirname, extname, join } from 'node:path'
+import { basename, dirname, extname, isAbsolute, join, relative } from 'node:path'
 import { app, BrowserWindow, dialog, ipcMain, net, protocol, shell } from 'electron'
 import { nanoid } from 'nanoid'
 import { CHAT_EVENT, DB_CHANGED, MCP_ACTIVITY, type AskUserAnswer, type DbChangeScope } from '@shared/api'
@@ -71,6 +71,7 @@ const EXT_BY_MIME: Record<string, string> = {
 }
 const DATA_MIME_ALLOWLIST = new Set([...Object.values(MIME), 'image/bmp', 'image/heic', 'image/heif'])
 const MAX_IMPORT_BYTES = 25 * 1024 * 1024
+const OPENABLE_EXTS = new Set(['.pdf', '.png', '.jpg', '.jpeg', '.gif', '.webp', '.bmp', '.heic', '.heif', '.md', '.txt'])
 
 if (STDIO) {
   app.dock?.hide()
@@ -134,6 +135,17 @@ async function bootstrap(): Promise<void> {
     },
     async getFileUrl(id) {
       return services.getFile(id) ? `canvascl-file://files/${encodeURIComponent(id)}` : null
+    },
+    async openFile(id) {
+      // Only files we imported ourselves (looked up by id, must live in the files dir) — never a renderer-supplied path.
+      const file = services.getFile(id)
+      if (!file) throw new Error(`File not found: ${id}`)
+      const rel = relative(filesDir, file.path)
+      if (!rel || rel.startsWith('..') || isAbsolute(rel)) throw new Error('File is outside the data folder')
+      // SVG/HTML-ish files could run script in a browser: only hand inert document/image types to the OS.
+      if (!OPENABLE_EXTS.has(extname(file.path).toLowerCase())) throw new Error('This file type cannot be opened externally')
+      const err = await shell.openPath(file.path)
+      if (err) throw new Error(err)
     },
     async fetchLinkPreview(url) {
       const preview = await fetchLinkPreview(url)

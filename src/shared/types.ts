@@ -159,17 +159,60 @@ export type ObjectPatch = Partial<Pick<WhiteboardObject, 'x' | 'y' | 'width' | '
   id: ID
 }
 
+export const TASK_STATUSES = ['todo', 'in_progress', 'done'] as const
+export type TaskStatus = (typeof TASK_STATUSES)[number]
+export const TASK_PRIORITIES = ['none', 'low', 'medium', 'high', 'urgent'] as const
+export type TaskPriority = (typeof TASK_PRIORITIES)[number]
+export type TaskDueFilter = 'overdue' | 'today' | 'week'
+
 export interface Task {
   cardId: ID
   cardTitle: string
+  cardIcon: string | null
+  cardColor: string | null
   /** stable id on the taskItem node, survives reordering/insertion (unlike `index`) */
   taskId: string
   /** position among taskItems in the card's content, depth-first */
   index: number
   text: string
+  /** mirrors the checkbox in the card content; always equal to `status === 'done'` */
   checked: boolean
+  status: TaskStatus
+  priority: TaskPriority
+  assignee: ProfileRef | null
+  /** local calendar date, YYYY-MM-DD */
+  dueDate: string | null
+  createdBy: ProfileRef | null
+  /** when the task metadata was first written (null for tasks only ever edited in a card) */
+  createdAt: number | null
   updatedAt: number
   commentCount: number
+  attachmentCount: number
+}
+
+export interface TaskPatch {
+  cardId: ID
+  taskId: string
+  status?: TaskStatus
+  priority?: TaskPriority
+  assigneeId?: ID | null
+  dueDate?: string | null
+  text?: string
+}
+
+export type TaskActivityKind = 'created' | 'status' | 'priority' | 'assignee' | 'due' | 'title'
+
+/** A system entry in a task's activity timeline ("ddkbs changed status to Done"). */
+export interface TaskActivity {
+  id: ID
+  cardId: ID
+  taskId: string
+  actor: ProfileRef | null
+  kind: TaskActivityKind
+  /** raw values: status/priority keys, profile ids (assignee), YYYY-MM-DD (due), text (title) */
+  from: string | null
+  to: string | null
+  createdAt: number
 }
 
 /** A local person using this knowledge base (Vercel-style account row in the sidebar). */
