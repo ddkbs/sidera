@@ -1,6 +1,9 @@
+import { nanoid } from 'nanoid'
 import type { DocJSON } from './types'
 
 export interface TaskItem {
+  /** stable id (taskItem attrs.id), survives reordering/insertion */
+  taskId: string
   /** position among taskItem nodes in the doc, depth-first pre-order */
   index: number
   text: string
@@ -27,11 +30,21 @@ const taskItemText = (item: DocJSON): string =>
 export function collectTasks(doc: DocJSON | null | undefined): TaskItem[] {
   const out: TaskItem[] = []
   const walk = (n: DocJSON): void => {
-    if (n.type === 'taskItem') out.push({ index: out.length, text: taskItemText(n), checked: !!n.attrs?.checked })
+    if (n.type === 'taskItem')
+      out.push({ taskId: String(n.attrs?.id ?? ''), index: out.length, text: taskItemText(n), checked: !!n.attrs?.checked })
     n.content?.forEach(walk)
   }
   if (doc) walk(doc)
   return out
+}
+
+/** Returns a new doc with a stable `id` filled in on every taskItem missing one. Idempotent. */
+export function ensureTaskIds(doc: DocJSON): DocJSON {
+  const walk = (n: DocJSON): DocJSON => {
+    const withId = n.type === 'taskItem' && !n.attrs?.id ? { ...n, attrs: { ...n.attrs, id: nanoid(10) } } : n
+    return withId.content ? { ...withId, content: withId.content.map(walk) } : withId
+  }
+  return walk(doc)
 }
 
 /** Returns a new doc with the checked state of the taskItem at `index` (depth-first pre-order) set. */
@@ -50,7 +63,11 @@ export function setTaskChecked(doc: DocJSON, index: number, checked: boolean): D
 
 /** Returns a new doc with an unchecked task appended: extends a trailing to-do list, otherwise starts a new one. */
 export function appendTask(doc: DocJSON, text: string): { doc: DocJSON; index: number } {
-  const item: DocJSON = { type: 'taskItem', attrs: { checked: false }, content: [{ type: 'paragraph', content: text ? [{ type: 'text', text }] : undefined }] }
+  const item: DocJSON = {
+    type: 'taskItem',
+    attrs: { checked: false, id: nanoid(10) },
+    content: [{ type: 'paragraph', content: text ? [{ type: 'text', text }] : undefined }]
+  }
   const blocks = doc.content ?? []
   const last = blocks[blocks.length - 1]
   const content =

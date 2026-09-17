@@ -614,9 +614,11 @@ export function createMcpServer(api: Services, version: string, onCall?: ToolCal
           card_title: t.cardTitle,
           is_journal: t.isJournal,
           journal_date: t.journalDate,
+          task_id: t.taskId,
           index: t.index,
           text: t.text,
-          checked: t.checked
+          checked: t.checked,
+          comment_count: t.commentCount
         }))
       )
   )
@@ -647,6 +649,38 @@ export function createMcpServer(api: Services, version: string, onCall?: ToolCal
       if (!api.getCard(card_id)) return { ...ok(`Card ${card_id} not found`), isError: true }
       api.setTaskChecked(card_id, index, checked)
       return ok('Updated')
+    }
+  )
+
+  server.registerTool(
+    'list_task_comments',
+    {
+      description: "List the comment thread on a to-do item (card_id + task_id from list_tasks).",
+      inputSchema: { card_id: z.string(), task_id: z.string() },
+      annotations: { readOnlyHint: true }
+    },
+    async ({ card_id, task_id }) =>
+      ok(
+        api.listTaskComments(card_id, task_id).map((c) => ({
+          id: c.id,
+          body: c.body,
+          files: c.files.map((f) => f.name),
+          created_at: c.createdAt,
+          updated_at: c.updatedAt
+        }))
+      )
+  )
+
+  server.registerTool(
+    'add_task_comment',
+    {
+      description: "Add a text comment to a to-do item (card_id + task_id from list_tasks). File uploads aren't supported over MCP.",
+      inputSchema: { card_id: z.string(), task_id: z.string(), body: z.string().min(1) }
+    },
+    async ({ card_id, task_id, body }) => {
+      if (!api.getCard(card_id)) return { ...ok(`Card ${card_id} not found`), isError: true }
+      const comment = api.addTaskComment({ cardId: card_id, taskId: task_id, body })
+      return ok({ id: comment.id })
     }
   )
 

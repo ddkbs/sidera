@@ -2,7 +2,7 @@ import { and, desc, eq, inArray, isNull } from 'drizzle-orm'
 import { nanoid } from 'nanoid'
 import type { CanvasApi, DbChangeScope } from '@shared/api'
 import { docToText, emptyDoc, extractMentions, markdownToDoc } from '@shared/doc'
-import { appendTask, collectTasks, setTaskChecked as applyTaskChecked } from '@shared/tasks'
+import { appendTask, collectTasks, ensureTaskIds, setTaskChecked as applyTaskChecked } from '@shared/tasks'
 import type {
   Card,
   CardDetail,
@@ -18,6 +18,7 @@ import type {
   Tag,
   TagProperty,
   Task,
+  TaskComment,
   Whiteboard,
   WhiteboardDetail,
   WhiteboardObject
@@ -27,7 +28,7 @@ import type { DB } from '../db/client'
 import * as s from '../db/schema'
 import { layoutGroups } from './organize'
 
-type Electronish = 'importFiles' | 'getFileUrl' | 'getMcpInfo' | 'exportMarkdown' | 'importMarkdown' | 'fetchLinkPreview' | 'clipUrl'
+type Electronish = 'importFiles' | 'importFileData' | 'getFileUrl' | 'getMcpInfo' | 'exportMarkdown' | 'importMarkdown' | 'fetchLinkPreview' | 'clipUrl'
 export type ServiceMethods = {
   [K in Exclude<keyof CanvasApi, Electronish>]: (
     ...args: Parameters<CanvasApi[K]>
@@ -127,6 +128,24 @@ export function createServices(db: DB, onChange: (scope: DbChangeScope) => void 
     label: r.label,
     data: json(r.data, {})
   })
+
+  const toTaskComment = (r: typeof s.taskComments.$inferSelect, files: FileRecord[]): TaskComment => ({
+    id: r.id,
+    cardId: r.cardId,
+    taskId: r.taskId,
+    body: r.body,
+    createdAt: r.createdAt,
+    updatedAt: r.updatedAt,
+    files
+  })
+
+  const filesForComment = (commentId: string): FileRecord[] =>
+    sql
+      .prepare(
+        `SELECT f.id, f.name, f.mime, f.path, f.size, f.created_at AS createdAt
+         FROM task_comment_files cf JOIN files f ON f.id = cf.file_id WHERE cf.comment_id = ? ORDER BY f.created_at`
+      )
+      .all(commentId) as FileRecord[]
 
   const tagsFor = (cardIds: string[]): Map<string, Tag[]> => {
     const map = new Map<string, Tag[]>()
@@ -261,7 +280,7 @@ export function createServices(db: DB, onChange: (scope: DbChangeScope) => void 
     },
 
     createCard(input) {
-      const content = input.content ?? (input.markdown ? markdownToDoc(input.markdown) : emptyDoc())
+      const content = ensureTaskIds(input.content ?? (input.markdown ? markdownToDoc(input.markdown) : emptyDoc()))
       const t = now()
       const row = {
         id: nanoid(),
@@ -286,13 +305,14 @@ export function createServices(db: DB, onChange: (scope: DbChangeScope) => void 
       if (input.title !== undefined) patch.title = input.title
       if (input.color !== undefined) patch.color = input.color
       if (input.icon !== undefined) patch.icon = input.icon
-      if (input.content !== undefined) {
-        patch.content = JSON.stringify(input.content)
-        patch.contentText = docToText(input.content)
+      const content = input.content !== undefined ? ensureTaskIds(input.content) : undefined
+      if (content !== undefined) {
+        patch.content = JSON.stringify(content)
+        patch.contentText = docToText(content)
       }
       tx(() => {
         db.update(s.cards).set(patch).where(eq(s.cards.id, input.id)).run()
-        if (input.content) syncBacklinks(input.id, input.content)
+        if (content) syncBacklinks(input.id, content)
       })
       onChange('cards')
       return { ...existing, ...requireCard(input.id) }
@@ -734,6 +754,12 @@ export function createServices(db: DB, onChange: (scope: DbChangeScope) => void 
            WHERE c.deleted_at IS NULL AND c.content LIKE '%taskItem%'`
         )
         .all() as { id: string; title: string; content: string; updatedAt: number; journalDate: string | null }[]
+      const counts = sql.prepare(`SELECT card_id AS cardId, task_id AS taskId, COUNT(*) AS n FROM task_comments GROUP BY card_id, task_id`).all() as {
+        cardId: string
+        taskId: string
+        n: number
+      }[]
+      const countMap = new Map(counts.map((c) => [`${c.cardId}:${c.taskId}`, c.n]))
       const out: Task[] = []
       for (const r of rows) {
         const doc = json<DocJSON>(r.content, emptyDoc())
@@ -745,10 +771,12 @@ export function createServices(db: DB, onChange: (scope: DbChangeScope) => void 
             cardTitle: r.title,
             isJournal: !!r.journalDate,
             journalDate: r.journalDate,
+            taskId: t.taskId,
             index: t.index,
             text: t.text,
             checked: t.checked,
-            updatedAt: r.updatedAt
+            updatedAt: r.updatedAt,
+            commentCount: countMap.get(`${r.id}:${t.taskId}`) ?? 0
           })
         }
       }
@@ -767,16 +795,54 @@ export function createServices(db: DB, onChange: (scope: DbChangeScope) => void 
       const card = journal ? journal.card : requireCard(cardId!)
       const { doc, index } = appendTask(card.content, clean)
       const saved = api.updateCard({ id: card.id, content: doc })
+      const taskId = collectTasks(saved.content)[index]?.taskId ?? ''
       return {
         cardId: card.id,
         cardTitle: saved.title,
         isJournal: !!journal,
         journalDate: journal?.date ?? null,
+        taskId,
         index,
         text: clean,
         checked: false,
-        updatedAt: saved.updatedAt
+        updatedAt: saved.updatedAt,
+        commentCount: 0
       }
+    },
+
+    // ---------- task comments ----------
+    listTaskComments(cardId, taskId) {
+      const rows = db
+        .select()
+        .from(s.taskComments)
+        .where(and(eq(s.taskComments.cardId, cardId), eq(s.taskComments.taskId, taskId)))
+        .orderBy(s.taskComments.createdAt)
+        .all()
+      return rows.map((r) => toTaskComment(r, filesForComment(r.id)))
+    },
+
+    addTaskComment({ cardId, taskId, body, fileIds = [] }) {
+      const t = now()
+      const row = { id: nanoid(), cardId, taskId, body: body ?? '', createdAt: t, updatedAt: t }
+      tx(() => {
+        db.insert(s.taskComments).values(row).run()
+        for (const fileId of fileIds) db.insert(s.taskCommentFiles).values({ commentId: row.id, fileId }).run()
+      })
+      onChange('cards')
+      return toTaskComment(row, filesForComment(row.id))
+    },
+
+    updateTaskComment({ id, body }) {
+      db.update(s.taskComments).set({ body, updatedAt: now() }).where(eq(s.taskComments.id, id)).run()
+      onChange('cards')
+      const row = db.select().from(s.taskComments).where(eq(s.taskComments.id, id)).get()
+      if (!row) throw new Error(`Task comment not found: ${id}`)
+      return toTaskComment(row, filesForComment(id))
+    },
+
+    deleteTaskComment(id) {
+      db.delete(s.taskComments).where(eq(s.taskComments.id, id)).run()
+      onChange('cards')
     },
 
     // ---------- search ----------

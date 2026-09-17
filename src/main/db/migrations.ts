@@ -132,5 +132,22 @@ export const migrations: string[] = [
 
   ALTER TABLE whiteboards ADD COLUMN folder_id TEXT REFERENCES folders(id) ON DELETE SET NULL;
   CREATE INDEX whiteboards_folder_idx ON whiteboards(folder_id);
+  `,
+  /* 4: task comments */ `
+  CREATE TABLE task_comments (
+    id TEXT PRIMARY KEY,
+    card_id TEXT NOT NULL REFERENCES cards(id) ON DELETE CASCADE,
+    task_id TEXT NOT NULL,
+    body TEXT NOT NULL DEFAULT '',
+    created_at INTEGER NOT NULL,
+    updated_at INTEGER NOT NULL
+  );
+  CREATE INDEX task_comments_task_idx ON task_comments(card_id, task_id);
+
+  CREATE TABLE task_comment_files (
+    comment_id TEXT NOT NULL REFERENCES task_comments(id) ON DELETE CASCADE,
+    file_id TEXT NOT NULL REFERENCES files(id),
+    PRIMARY KEY (comment_id, file_id)
+  );
   `
 ]

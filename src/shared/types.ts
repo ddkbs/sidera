@@ -169,11 +169,24 @@ export interface Task {
   cardTitle: string
   isJournal: boolean
   journalDate: string | null
+  /** stable id on the taskItem node, survives reordering/insertion (unlike `index`) */
+  taskId: string
   /** position among taskItems in the card's content, depth-first */
   index: number
   text: string
   checked: boolean
   updatedAt: number
+  commentCount: number
+}
+
+export interface TaskComment {
+  id: ID
+  cardId: ID
+  taskId: string
+  body: string
+  createdAt: number
+  updatedAt: number
+  files: FileRecord[]
 }
 
 /** og:* / meta data fetched for a `link` whiteboard object. */

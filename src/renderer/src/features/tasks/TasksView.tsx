@@ -1,6 +1,7 @@
+import { AnimatePresence } from 'motion/react'
 import { useMemo, useRef, useState } from 'react'
 import { toast } from 'sonner'
-import { CalendarDays, Check, ChevronDown, FileText, Plus } from '@/components/icons'
+import { CalendarDays, Check, ChevronDown, FileText, MessageSquare, Plus } from '@/components/icons'
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { Checkbox } from '@/components/ui/checkbox'
@@ -10,6 +11,7 @@ import { useAppDispatch } from '@/store'
 import { useAddTaskMutation, useListTasksQuery, useSearchQuery, useSetTaskCheckedMutation } from '@/store/api'
 import { navigate, openCard } from '@/store/ui'
 import type { Task } from '@shared/types'
+import { TaskDetailPanel } from './TaskDetailPanel'
 
 type Status = 'open' | 'done' | 'all'
 
@@ -28,6 +30,7 @@ export function TasksView() {
   const [status, setStatus] = useState<Status>('open')
   const { data: tasks = [], isLoading } = useListTasksQuery({ status })
   const [setChecked] = useSetTaskCheckedMutation()
+  const [selected, setSelected] = useState<{ cardId: string; taskId: string } | null>(null)
 
   const groups = useMemo(() => {
     const byCard = new Map<string, Group>()
@@ -45,6 +48,7 @@ export function TasksView() {
   const openCount = tasks.filter((t) => !t.checked).length
 
   return (
+    <div className="relative h-full">
     <div className="h-full overflow-y-auto">
       <div className="mx-auto max-w-3xl px-10 py-12">
         <div className="mb-6 flex items-center gap-3">
@@ -85,7 +89,12 @@ export function TasksView() {
               </button>
               <div className="overflow-hidden rounded-lg border">
                 {g.tasks.map((t) => (
-                  <TaskRow key={t.index} task={t} onToggle={(checked) => void setChecked({ cardId: t.cardId, index: t.index, checked })} />
+                  <TaskRow
+                    key={t.taskId || t.index}
+                    task={t}
+                    onToggle={(checked) => void setChecked({ cardId: t.cardId, index: t.index, checked })}
+                    onOpen={() => t.taskId && setSelected({ cardId: t.cardId, taskId: t.taskId })}
+                  />
                 ))}
                 {status !== 'done' && <InlineAdd cardId={g.cardId} />}
               </div>
@@ -94,15 +103,27 @@ export function TasksView() {
         </div>
       </div>
     </div>
+      <AnimatePresence>
+        {selected && <TaskDetailPanel key={selected.taskId} cardId={selected.cardId} taskId={selected.taskId} onClose={() => setSelected(null)} />}
+      </AnimatePresence>
+    </div>
   )
 }
 
-function TaskRow({ task, onToggle }: { task: Task; onToggle: (checked: boolean) => void }) {
+function TaskRow({ task, onToggle, onOpen }: { task: Task; onToggle: (checked: boolean) => void; onOpen: () => void }) {
   return (
-    <label className="flex cursor-pointer items-center gap-2.5 border-b bg-card px-3 py-2 text-sm transition last:border-b-0 hover:bg-accent">
+    <div className="flex items-center gap-2.5 border-b bg-card px-3 py-2 text-sm transition last:border-b-0 hover:bg-accent">
       <Checkbox checked={task.checked} onCheckedChange={(v) => onToggle(v === true)} />
-      <span className={cn('min-w-0 flex-1 truncate', task.checked && 'text-muted-foreground line-through')}>{task.text || 'Untitled task'}</span>
-    </label>
+      <button onClick={onOpen} className="flex min-w-0 flex-1 items-center gap-1.5 text-left">
+        <span className={cn('min-w-0 flex-1 truncate', task.checked && 'text-muted-foreground line-through')}>{task.text || 'Untitled task'}</span>
+        {task.commentCount > 0 && (
+          <span className="flex shrink-0 items-center gap-1 rounded-full bg-muted px-1.5 py-0.5 text-[11px] text-muted-foreground">
+            <MessageSquare className="size-3" />
+            {task.commentCount}
+          </span>
+        )}
+      </button>
+    </div>
   )
 }
 
