@@ -1,19 +1,23 @@
 import { useVirtualizer } from '@tanstack/react-virtual'
 import { CardIcon } from '@/components/CardIcon'
 import { color as paletteColor } from '@/lib/colors'
-import { Columns3, List, Plus, Table2 } from '@/components/icons'
+import { ChevronDown, Columns3, Hash, List, Plus, Table2 } from '@/components/icons'
 import { useRef, useState } from 'react'
 import { Button } from '@/components/ui/button'
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { TagBadge } from '@/features/card/TagBadge'
+import { TagMenu } from '@/features/card/TagMenu'
 import { KanbanBoard } from '@/features/kanban/KanbanBoard'
+import { color } from '@/lib/colors'
+import { cn } from '@/lib/utils'
 import { CardRowMenu } from './CardRowMenu'
 import { TagTable } from './TagTable'
 import { useAppDispatch, useAppSelector } from '@/store'
 import { useCreateCardMutation, useListCardsQuery, useListTagsQuery } from '@/store/api'
 import { navigate, openCard } from '@/store/ui'
-import type { CardSummary } from '@shared/types'
+import type { CardSummary, Tag } from '@shared/types'
 
 export function LibraryView() {
   const dispatch = useAppDispatch()
@@ -38,6 +42,7 @@ export function LibraryView() {
           <p className="text-sm text-muted-foreground">{tag ? 'Tagged cards — switch to Kanban to organize by status' : 'Every card across your whiteboards'}</p>
         </div>
         <div className="flex-1" />
+        <TagFilterMenu tags={tags} activeTagId={view.tagId} mode={view.mode} />
         <input
           value={filter}
           onChange={(e) => setFilter(e.target.value)}
@@ -72,6 +77,40 @@ export function LibraryView() {
         {mode === 'kanban' && view.tagId ? <KanbanBoard tagId={view.tagId} filter={filter} /> : mode === 'table' && view.tagId ? <TagTable tagId={view.tagId} filter={filter} /> : <CardCollection tagId={view.tagId} mode={mode === 'list' ? 'list' : 'table'} filter={filter} />}
       </div>
     </div>
+  )
+}
+
+/** Compact tag picker — replaces the sidebar's removed Tags section for browsing/filtering by tag. */
+function TagFilterMenu({ tags, activeTagId, mode }: { tags: Tag[]; activeTagId: string | null; mode: 'table' | 'list' | 'kanban' }) {
+  const dispatch = useAppDispatch()
+  const active = tags.find((t) => t.id === activeTagId)
+  const go = (tagId: string | null) => dispatch(navigate({ type: 'library', tagId, mode: mode === 'kanban' && !tagId ? 'table' : mode }))
+
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button variant="outline" size="sm" className={cn('h-8 gap-1.5 px-2.5', active && 'border-primary/40')}>
+          {active ? <Hash className="size-3.5" style={{ color: color(active.color).fg }} /> : <Hash className="size-3.5 text-muted-foreground" />}
+          {active ? active.name : 'All tags'}
+          <ChevronDown className="size-3.5 text-muted-foreground" />
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="w-56">
+        <DropdownMenuItem onSelect={() => go(null)} className={cn(!activeTagId && 'font-medium')}>
+          Every card
+        </DropdownMenuItem>
+        {tags.length > 0 && <div className="my-1 border-t" />}
+        {tags.map((t) => (
+          <TagMenu key={t.id} tag={t}>
+            <DropdownMenuItem onSelect={() => go(t.id)} className={cn(activeTagId === t.id && 'font-medium')}>
+              <Hash className="size-3.5" style={{ color: color(t.color).fg }} />
+              {t.name}
+            </DropdownMenuItem>
+          </TagMenu>
+        ))}
+        {!tags.length && <p className="px-2 py-1.5 text-xs text-muted-foreground">Tag cards to build databases</p>}
+      </DropdownMenuContent>
+    </DropdownMenu>
   )
 }
 

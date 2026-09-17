@@ -3,6 +3,7 @@ import {
   BookOpen,
   Download,
   FileText,
+  Hash,
   Home,
   LayoutDashboard,
   ListChecks,
@@ -16,12 +17,13 @@ import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { toast } from 'sonner'
+import { color } from '@/lib/colors'
 import { api } from '@/store/api'
 import { updateSettings } from '@/store/settings'
 import { useEffect, useState } from 'react'
 import { CommandDialog, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList, CommandSeparator, CommandShortcut } from '@/components/ui/command'
 import { useAppDispatch, useAppSelector } from '@/store'
-import { useClipUrlMutation, useCreateCardMutation, useCreateWhiteboardMutation, useGetWhiteboardQuery, useSearchQuery } from '@/store/api'
+import { useClipUrlMutation, useCreateCardMutation, useCreateWhiteboardMutation, useGetWhiteboardQuery, useListTagsQuery, useSearchQuery } from '@/store/api'
 import { navigate, openCard, openSettings, queueChatMessage, setPaletteOpen, toggleSidebar } from '@/store/ui'
 
 export function CommandPalette() {
@@ -32,6 +34,7 @@ export function CommandPalette() {
   const [q, setQ] = useState('')
   const [debounced, setDebounced] = useState('')
   const { data: hits = [] } = useSearchQuery(debounced, { skip: !open })
+  const { data: tags = [] } = useListTagsQuery(undefined, { skip: !open })
   const [createCard] = useCreateCardMutation()
   const [createWhiteboard] = useCreateWhiteboardMutation()
   const [clipUrl] = useClipUrlMutation()
@@ -53,6 +56,7 @@ export function CommandPalette() {
     void fn()
   }
   const text = q.trim()
+  const tagHits = text ? tags.filter((t) => t.name.toLowerCase().includes(text.toLowerCase())) : []
 
   return (
     <>
@@ -73,6 +77,19 @@ export function CommandPalette() {
                     <div className="truncate">{h.title || 'Untitled'}</div>
                     {h.kind === 'card' && h.snippet && <div className="truncate text-xs text-muted-foreground">{h.snippet}</div>}
                   </div>
+                </CommandItem>
+              ))}
+            </CommandGroup>
+          )}
+          {tagHits.length > 0 && (
+            <CommandGroup heading="Tags">
+              {tagHits.map((t) => (
+                <CommandItem
+                  key={t.id}
+                  value={`tag-${t.id}`}
+                  onSelect={run(() => dispatch(navigate({ type: 'library', tagId: t.id, mode: view.type === 'library' ? view.mode : 'table' })))}
+                >
+                  <Hash style={{ color: color(t.color).fg }} /> {t.name}
                 </CommandItem>
               ))}
             </CommandGroup>
