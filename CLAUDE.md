@@ -1,6 +1,6 @@
 # CanvasCL — Claude Code guide
 
-Free, open-source, MCP-first visual knowledge base: whiteboards, card library, kanban, journal.
+Free, open-source, MCP-first visual knowledge base: whiteboards, card library, kanban.
 macOS only, local-first. Keep answers & diffs small; don't re-explore what this file already says.
 
 ## Commands
@@ -30,7 +30,7 @@ Navigate by writing `localStorage['canvascl.ui'] = {sidebarOpen, chatOpen, tabs:
 - Keyboard: every shortcut is a command in `renderer/src/lib/shortcuts.ts` (`COMMANDS`); register handlers with `useCommands()`, never raw keydown listeners. Pure key parsing in `lib/keys.ts`.
 - Undo: every user action goes through `lib/undo.ts` (`record({label, undo, redo})`, global ⌘Z/⇧⌘Z + tab-bar arrows); deletes are soft (`restoreCard`/`restoreWhiteboard`), use `recordDelete`/`recordCardPatch` from `lib/undo-actions.ts`. Navigation back/forward = ⌘[ / ⌘].
 - Canvas node editing: use `features/canvas/nodes/useEditMode.ts` (double-click to edit, outside click/Esc to finish).
-- `src/renderer/src/` — React. `store/` (RTK + RTK Query `api.ts` wrapping window.api), `features/<canvas|library|kanban|journal|palette|card>`, `components/ui` (shadcn), `components/layout`.
+- `src/renderer/src/` — React. `store/` (RTK + RTK Query `api.ts` wrapping window.api), `features/<canvas|library|kanban|tasks|palette|card>`, `components/ui` (shadcn), `components/layout`.
 
 ## Adding a feature (checklist)
 1. Types in `shared/types.ts`, method in `shared/api.ts` (+ `API_METHODS`)
