@@ -110,3 +110,35 @@ export function resolveBaseUrl(id: AiProviderId, settingsBaseUrl?: string): stri
   if (meta.baseUrl) return meta.baseUrl
   return settingsBaseUrl?.trim() || (id === 'ollama' ? 'http://127.0.0.1:11434/v1' : '')
 }
+
+/** Providers whose native web search the in-app assistant can use. */
+export const WEB_SEARCH_PROVIDERS: readonly AiProviderId[] = ['openai', 'anthropic']
+
+export function supportsWebSearch(provider: AiProviderId): boolean {
+  return WEB_SEARCH_PROVIDERS.includes(provider)
+}
+
+/** Append `incoming` web sources to `existing`, dropping non-http(s) URLs and duplicates (by URL, first wins; later entries fill a missing title/citedText). Pure. */
+export function mergeSources<T extends { url: string; title?: string; citedText?: string }>(existing: T[], incoming: T[]): T[] {
+  const out = existing.map((s) => ({ ...s }))
+  for (const src of incoming) {
+    let url: URL
+    try {
+      url = new URL(src.url)
+    } catch {
+      continue
+    }
+    if (url.protocol !== 'http:' && url.protocol !== 'https:') continue
+    const hit = out.find((s) => s.url === src.url)
+    if (hit) {
+      hit.title ||= src.title
+      hit.citedText ||= src.citedText
+    } else {
+      const clean = { url: src.url } as T
+      if (src.title) clean.title = src.title
+      if (src.citedText) clean.citedText = src.citedText
+      out.push(clean)
+    }
+  }
+  return out
+}

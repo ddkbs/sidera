@@ -18,7 +18,7 @@ export interface AppSettings {
   /** whether the first-launch guided tour has been finished or skipped */
   tourCompleted: boolean
   /** Active AI provider + model for the in-app "Ask AI" assistant. */
-  ai: { provider: AiProviderId; model: string; baseUrl?: string }
+  ai: { provider: AiProviderId; model: string; baseUrl?: string; /** Let the assistant use the provider's native web search (OpenAI/Anthropic only; costs extra). */ webSearch: boolean }
   /** Profile that authors comments etc. Created on first start when null. */
   activeProfileId: string | null
 }
@@ -34,7 +34,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   shortcuts: {},
   quickCapture: { enabled: true, accelerator: 'Ctrl+Alt+Space' },
   tourCompleted: false,
-  ai: { provider: 'anthropic', model: 'claude-opus-5' },
+  ai: { provider: 'anthropic', model: 'claude-opus-5', webSearch: false },
   activeProfileId: null
 }
 

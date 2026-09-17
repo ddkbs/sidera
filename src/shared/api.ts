@@ -219,8 +219,18 @@ export type ChatEvent =
   /** The model called `ask_user_questions`. The renderer shows the Questionnaire and the loop pauses until
    *  `ChatBridge.answerQuestions`/`skipQuestions` resolves this `requestId`. */
   | { type: 'ask'; requestId: string; questions: AskUserQuestion[] }
+  /** A native web search started (no query yet), got its query, or failed. */
+  | { type: 'search'; query?: string; error?: string }
+  /** Web sources cited in the current assistant message (renderer merges/dedupes by URL). */
+  | { type: 'sources'; sources: ChatSource[] }
   | { type: 'error'; message: string }
   | { type: 'done' }
+
+export interface ChatSource {
+  url: string
+  title?: string
+  citedText?: string
+}
 
 export const CHAT_EVENT = 'chat:event'
 
