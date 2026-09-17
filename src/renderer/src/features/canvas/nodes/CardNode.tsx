@@ -74,7 +74,13 @@ export const CardNode = memo(function CardNode({ data, selected }: NodeProps<Obj
       )}
       <div
         ref={root}
-        onDoubleClick={() => card && setEditing(true)}
+        /* single click on a selected card types inline, double-click opens the big card window */
+        onClick={() => card && selected && setEditing(true)}
+        onDoubleClick={() => {
+          if (!card) return
+          setEditing(false)
+          dispatch(openCard(card.id))
+        }}
         className={cn(
           'group relative flex h-full w-full flex-col overflow-hidden rounded-xl border bg-card text-card-foreground shadow-[0_1px_2px_rgba(0,0,0,0.04),0_4px_16px_-4px_rgba(0,0,0,0.08)] transition-shadow',
           selected && 'ring-2 ring-brand/70',
