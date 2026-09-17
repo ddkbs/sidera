@@ -111,6 +111,11 @@ import {
   IconWorkflow,
   IconWrench,
   IconUser,
+  IconUserAdd,
+  IconNotification,
+  IconKeyboard,
+  IconComputerMonitor,
+  IconImage,
   IconPalette,
   IconFolder,
   IconFolderFill,
@@ -213,6 +218,11 @@ export const TriangleAlert = IconWarningTriangle
 export const Type = IconText
 export const Upload = IconUpload
 export const User = IconUser
+export const UserPlus = IconUserAdd
+export const Bell = IconNotification
+export const Keyboard = IconKeyboard
+export const Monitor = IconComputerMonitor
+export const ImageIcon = IconImage
 export const Workflow = IconWorkflow
 export const Wrench = IconWrench
 export const X = IconClose

@@ -1,3 +1,4 @@
+import { ProfileDialog } from '@/features/profile/ProfileDialog'
 import { redoWithToast, undoWithToast } from '@/lib/undo-actions'
 import { AnimatePresence, motion } from 'motion/react'
 import { CardPanel } from '@/features/card/CardPanel'
@@ -75,6 +76,7 @@ export function AppShell() {
       <CommandPalette />
       <ShortcutsDialog />
       <SettingsDialog />
+      <ProfileDialog />
       <Tour />
     </div>
   )
