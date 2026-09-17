@@ -403,3 +403,77 @@ export const LineThick = glyph('LineThick', () => <path d="M2 8h12" {...stroke} 
 export const ArrowHeadNone = glyph('ArrowHeadNone', () => <path d="M2 8h12" {...stroke} />)
 export const ArrowHeadEnd = glyph('ArrowHeadEnd', () => <path d="M2 8h11.5M10 5l3.5 3-3.5 3" {...stroke} />)
 export const ArrowHeadBoth = glyph('ArrowHeadBoth', () => <path d="M2.5 8h11M6 5 2.5 8 6 11M10 5l3.5 3-3.5 3" {...stroke} />)
+
+/** Align / distribute glyphs for the canvas selection toolbar (16px grid). */
+const guide = { stroke: 'currentColor', strokeWidth: 1.2, strokeLinecap: 'round' as const, opacity: 0.55 }
+const bar = { fill: 'currentColor' }
+export const AlignLeft = glyph('AlignLeft', () => (
+  <>
+    <path d="M2 2.5v11" {...guide} />
+    <rect x="4" y="4" width="10" height="3" rx="1" {...bar} />
+    <rect x="4" y="9" width="6" height="3" rx="1" {...bar} />
+  </>
+))
+export const AlignCenterH = glyph('AlignCenterH', () => (
+  <>
+    <path d="M8 2.5v11" {...guide} />
+    <rect x="3" y="4" width="10" height="3" rx="1" {...bar} />
+    <rect x="5" y="9" width="6" height="3" rx="1" {...bar} />
+  </>
+))
+export const AlignRight = glyph('AlignRight', () => (
+  <>
+    <path d="M14 2.5v11" {...guide} />
+    <rect x="2" y="4" width="10" height="3" rx="1" {...bar} />
+    <rect x="6" y="9" width="6" height="3" rx="1" {...bar} />
+  </>
+))
+export const AlignTop = glyph('AlignTop', () => (
+  <>
+    <path d="M2.5 2h11" {...guide} />
+    <rect x="4" y="4" width="3" height="10" rx="1" {...bar} />
+    <rect x="9" y="4" width="3" height="6" rx="1" {...bar} />
+  </>
+))
+export const AlignMiddleV = glyph('AlignMiddleV', () => (
+  <>
+    <path d="M2.5 8h11" {...guide} />
+    <rect x="4" y="3" width="3" height="10" rx="1" {...bar} />
+    <rect x="9" y="5" width="3" height="6" rx="1" {...bar} />
+  </>
+))
+export const AlignBottom = glyph('AlignBottom', () => (
+  <>
+    <path d="M2.5 14h11" {...guide} />
+    <rect x="4" y="2" width="3" height="10" rx="1" {...bar} />
+    <rect x="9" y="6" width="3" height="6" rx="1" {...bar} />
+  </>
+))
+export const DistributeH = glyph('DistributeH', () => (
+  <>
+    <path d="M2 2.5v11M14 2.5v11" {...guide} />
+    <rect x="6.5" y="4" width="3" height="8" rx="1" {...bar} />
+    <rect x="3" y="4" width="1.6" height="8" rx=".8" fill="currentColor" opacity=".55" />
+    <rect x="11.4" y="4" width="1.6" height="8" rx=".8" fill="currentColor" opacity=".55" />
+  </>
+))
+export const DistributeV = glyph('DistributeV', () => (
+  <>
+    <path d="M2.5 2h11M2.5 14h11" {...guide} />
+    <rect x="4" y="6.5" width="8" height="3" rx="1" {...bar} />
+    <rect x="4" y="3" width="8" height="1.6" rx=".8" fill="currentColor" opacity=".55" />
+    <rect x="4" y="11.4" width="8" height="1.6" rx=".8" fill="currentColor" opacity=".55" />
+  </>
+))
+export const GridLayout = glyph('GridLayout', () => (
+  <>
+    {[2, 9].map((x) => [2, 9].map((y) => <rect key={`${x}-${y}`} x={x} y={y} width="5" height="5" rx="1.2" {...bar} />))}
+  </>
+))
+export const TidyUp = glyph('TidyUp', () => (
+  <>
+    <path d="M2 2.5v11" {...guide} />
+    <rect x="4.5" y="3" width="9" height="3.5" rx="1.2" {...bar} />
+    <rect x="4.5" y="9.5" width="6" height="3.5" rx="1.2" fill="currentColor" opacity=".55" />
+  </>
+))

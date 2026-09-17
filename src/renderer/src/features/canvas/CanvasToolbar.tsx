@@ -1,48 +1,36 @@
-import {
-  ArrowUpRight,
-  AskAI,
-  Globe,
-  BoxSelect,
-  Ellipsis,
-  GitBranch,
-  LayoutDashboard,
-  Maximize,
-  MousePointer2,
-  Search,
-  SquarePlus,
-  Type,
-  Upload
-} from '@/components/icons'
+import { ArrowUpRight, BoxSelect, Ellipsis, MousePointer2, Search, SquarePlus, Type, Upload } from '@/components/icons'
 import { motion } from 'motion/react'
 import type { ReactNode } from 'react'
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
+import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { Kbd } from '@/components/ui/kbd'
 import { formatBinding, useBinding } from '@/lib/shortcuts'
 import type { CanvasTool } from '@/store/ui'
-import type { ChartType } from '@shared/charts'
-import { InsertMenu } from './InsertMenu'
+import type { CanvasAction } from './actions'
+import { CanvasMenuItems } from './CanvasContextMenu'
 
-export const TOOLS: { id: CanvasTool; label: string; icon: ReactNode }[] = [
-  { id: 'select', label: 'Select', icon: <MousePointer2 /> },
-  { id: 'card', label: 'Card', icon: <SquarePlus /> },
+/** Every tool that has a keyboard shortcut; `primary` ones get a button on the toolbar. */
+export const TOOLS: { id: CanvasTool; label: string; icon: ReactNode; primary?: boolean }[] = [
+  { id: 'select', label: 'Select', icon: <MousePointer2 />, primary: true },
+  { id: 'card', label: 'Card', icon: <SquarePlus />, primary: true },
+  { id: 'connector', label: 'Connector', icon: <ArrowUpRight />, primary: true },
+  { id: 'text', label: 'Text', icon: <Type />, primary: true },
+  { id: 'section', label: 'Section', icon: <BoxSelect />, primary: true },
   { id: 'import', label: 'Import file', icon: <Upload /> },
-  { id: 'connector', label: 'Connector', icon: <ArrowUpRight /> },
-  { id: 'text', label: 'Text', icon: <Type /> },
-  { id: 'section', label: 'Section', icon: <BoxSelect /> },
   { id: 'search', label: 'Add existing card', icon: <Search /> }
 ]
-
-export type OverflowAction = 'whiteboard' | 'mindmap' | 'mermaid' | 'sketch' | 'link' | 'autolayout' | 'fit' | 'organize' | `chart:${ChartType}`
 
 interface Props {
   tool: CanvasTool
   onTool: (t: CanvasTool) => void
-  onAction: (a: OverflowAction) => void
+  onAction: (a: CanvasAction) => void
 }
 
-/** Floating vertical toolbar — compact, rounded, shadowed; a single-select ToggleGroup with tooltips. */
+/**
+ * Floating vertical toolbar — only the five most-used tools; everything else lives in the
+ * overflow menu, which shows exactly what the canvas right-click menu offers.
+ */
 export function CanvasToolbar({ tool, onTool, onAction }: Props) {
   return (
     <motion.div
@@ -59,7 +47,7 @@ export function CanvasToolbar({ tool, onTool, onAction }: Props) {
         onValueChange={(v) => v && onTool(v as CanvasTool)}
         className="flex flex-col gap-0.5 shadow-none"
       >
-        {TOOLS.map((t) => (
+        {TOOLS.filter((t) => t.primary).map((t) => (
           <Tooltip key={t.id}>
             <TooltipTrigger asChild>
               <ToggleGroupItem
@@ -77,34 +65,20 @@ export function CanvasToolbar({ tool, onTool, onAction }: Props) {
         ))}
       </ToggleGroup>
       <div className="my-0.5 h-px w-6 bg-border" />
-      <InsertMenu onAction={onAction} />
       <DropdownMenu>
         <Tooltip>
           <TooltipTrigger asChild>
-            <DropdownMenuTrigger aria-label="More" className="grid size-9 place-items-center rounded-xl text-muted-foreground transition hover:bg-accent hover:text-foreground">
+            <DropdownMenuTrigger
+              aria-label="Insert & more"
+              className="grid size-9 place-items-center rounded-xl text-muted-foreground transition hover:bg-accent hover:text-foreground data-[state=open]:bg-accent data-[state=open]:text-foreground"
+            >
               <Ellipsis className="size-[18px]" />
             </DropdownMenuTrigger>
           </TooltipTrigger>
-          <TooltipContent side="right">More</TooltipContent>
+          <TooltipContent side="right">Insert & more</TooltipContent>
         </Tooltip>
-        <DropdownMenuContent side="right" align="end" sideOffset={10} className="w-56" onCloseAutoFocus={(e) => e.preventDefault()}>
-          <DropdownMenuItem onClick={() => onAction('whiteboard')}>
-            <LayoutDashboard /> Nested whiteboard
-          </DropdownMenuItem>
-          <DropdownMenuItem onClick={() => onAction('link')}>
-            <Globe /> Link preview…
-          </DropdownMenuItem>
-          <DropdownMenuSeparator />
-          <DropdownMenuItem onClick={() => onAction('organize')}>
-            <AskAI /> Organize with AI
-          </DropdownMenuItem>
-          <DropdownMenuSeparator />
-          <DropdownMenuItem onClick={() => onAction('autolayout')}>
-            <GitBranch /> Auto-layout connected
-          </DropdownMenuItem>
-          <DropdownMenuItem onClick={() => onAction('fit')}>
-            <Maximize /> Fit to screen
-          </DropdownMenuItem>
+        <DropdownMenuContent side="right" align="center" sideOffset={10} className="w-56" onCloseAutoFocus={(e) => e.preventDefault()}>
+          <CanvasMenuItems onAction={onAction} />
         </DropdownMenuContent>
       </DropdownMenu>
     </motion.div>

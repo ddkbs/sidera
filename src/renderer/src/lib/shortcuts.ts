@@ -45,6 +45,7 @@ export const COMMANDS: CommandDef[] = [
   { id: 'canvas.paste', scope: 'whiteboard', label: 'Paste objects', group: 'Whiteboard editing', binding: 'Mod+V' },
   { id: 'canvas.duplicate', scope: 'whiteboard', label: 'Duplicate selection', group: 'Whiteboard editing', binding: 'Mod+D' },
   { id: 'canvas.selectAll', scope: 'whiteboard', label: 'Select all', group: 'Whiteboard editing', binding: 'Mod+A' },
+  { id: 'canvas.group', scope: 'whiteboard', label: 'Create section from selection', group: 'Whiteboard editing', binding: 'Mod+G' },
   { id: 'tasks.new', scope: 'tasks', label: 'New task', group: 'Tasks', binding: 'C' },
   { id: 'tasks.next', scope: 'tasks', label: 'Next task', group: 'Tasks', binding: 'Down' },
   { id: 'tasks.prev', scope: 'tasks', label: 'Previous task', group: 'Tasks', binding: 'Up' },

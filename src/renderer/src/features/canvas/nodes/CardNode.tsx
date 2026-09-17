@@ -1,8 +1,7 @@
 import { recordCardPatch } from '@/lib/undo-actions'
-import { NodeToolbar, Position, type NodeProps } from '@xyflow/react'
+import { type NodeProps } from '@xyflow/react'
 import { CardIcon } from '@/components/CardIcon'
-import { PALETTE, color as paletteColor } from '@/lib/colors'
-import { CARD_COLORS } from '@/features/card/AppearancePicker'
+import { color as paletteColor } from '@/lib/colors'
 import { Expand, FileText } from '@/components/icons'
 import { memo, useEffect, useRef, useState } from 'react'
 import { cn } from '@/lib/utils'
@@ -19,7 +18,6 @@ export const CardNode = memo(function CardNode({ data, selected }: NodeProps<Obj
   const card = data.card
   const isOpen = useAppSelector((s) => s.ui.openCardId === card?.id)
   const [editing, setEditing] = useState(false)
-  const [updateCard] = useUpdateCardMutation()
   const tint = card?.color ? paletteColor(card.color) : null
   const root = useRef<HTMLDivElement>(null)
 
@@ -46,32 +44,6 @@ export const CardNode = memo(function CardNode({ data, selected }: NodeProps<Obj
   return (
     <>
       <Resizer selected={selected} minWidth={180} minHeight={80} />
-      {card && (
-        <NodeToolbar isVisible={selected && !editing} position={Position.Top} offset={10}>
-          <div className="flex items-center gap-1 rounded-full border bg-popover p-1 shadow-md">
-            <button
-              aria-label="Default color"
-              onClick={() => {
-                updateCard({ id: card.id, color: null })
-                recordCardPatch(card.id, 'Change card color', { color: card.color }, { color: null })
-              }}
-              className={cn('size-5 rounded-full border bg-card', !card.color && 'ring-2 ring-foreground/40')}
-            />
-            {CARD_COLORS.map((c) => (
-              <button
-                key={c}
-                aria-label={c}
-                onClick={() => {
-                  updateCard({ id: card.id, color: c })
-                  recordCardPatch(card.id, 'Change card color', { color: card.color }, { color: c })
-                }}
-                className={cn('size-5 rounded-full border', card.color === c && 'ring-2 ring-foreground/40')}
-                style={{ background: PALETTE[c].border }}
-              />
-            ))}
-          </div>
-        </NodeToolbar>
-      )}
       <div
         ref={root}
         onDoubleClick={() => card && setEditing(true)}

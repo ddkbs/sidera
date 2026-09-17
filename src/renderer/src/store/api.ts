@@ -151,6 +151,10 @@ export const api = createApi({
       queryFn: (input) => call('addConnection', input),
       invalidatesTags: (_r, _e, { whiteboardId }) => [{ type: 'Whiteboard', id: whiteboardId }]
     }),
+    updateConnection: b.mutation<void, Arg<'updateConnection'>[0] & { whiteboardId: string }>({
+      queryFn: ({ whiteboardId: _w, ...input }) => call('updateConnection', input),
+      invalidatesTags: (_r, _e, { whiteboardId }) => [{ type: 'Whiteboard', id: whiteboardId }]
+    }),
     removeConnections: b.mutation<void, { whiteboardId: string; ids: string[] }>({
       queryFn: ({ ids }) => call('removeConnections', ids),
       invalidatesTags: (_r, _e, { whiteboardId }) => [{ type: 'Whiteboard', id: whiteboardId }]

@@ -40,6 +40,29 @@ describe('cards', () => {
   })
 })
 
+describe('connections', () => {
+  it('stores styling and keeps it through a restore', () => {
+    const wb = api.createWhiteboard({ name: 'Board' })
+    const a = api.addObject({ whiteboardId: wb.id, kind: 'text', x: 0, y: 0 })
+    const b = api.addObject({ whiteboardId: wb.id, kind: 'text', x: 300, y: 0 })
+    const conn = api.addConnection({ whiteboardId: wb.id, sourceId: a.id, targetId: b.id })
+    expect(conn).toMatchObject({ label: '', color: null, lineStyle: 'solid', arrows: 'end' })
+
+    api.updateConnection({ id: conn.id, label: 'depends on', color: 'red', lineStyle: 'dashed', arrows: 'both' })
+    const styled = api.getWhiteboard(wb.id)!.connections[0]
+    expect(styled).toMatchObject({ label: 'depends on', color: 'red', lineStyle: 'dashed', arrows: 'both' })
+
+    // A partial patch leaves the other fields alone.
+    api.updateConnection({ id: conn.id, color: null })
+    expect(api.getWhiteboard(wb.id)!.connections[0]).toMatchObject({ color: null, lineStyle: 'dashed', arrows: 'both' })
+
+    api.removeConnections([conn.id])
+    expect(api.getWhiteboard(wb.id)!.connections).toHaveLength(0)
+    api.restoreObjects([], [styled])
+    expect(api.getWhiteboard(wb.id)!.connections[0]).toMatchObject({ color: 'red', lineStyle: 'dashed', arrows: 'both' })
+  })
+})
+
 describe('soft delete & restore', () => {
   it('hides deleted cards and whiteboards everywhere and restores them', () => {
     const wb = api.createWhiteboard({ name: 'Board' })

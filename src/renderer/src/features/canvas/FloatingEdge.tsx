@@ -22,7 +22,7 @@ const center = (n: InternalNode) => ({
   y: n.internals.positionAbsolute.y + (n.measured.height ?? 0) / 2
 })
 
-export function FloatingEdge({ id, source, target, markerEnd, style, label, selected }: EdgeProps<ConnectionEdge>) {
+export function FloatingEdge({ id, source, target, markerEnd, markerStart, style, label, selected }: EdgeProps<ConnectionEdge>) {
   const s = useInternalNode(source)
   const t = useInternalNode(target)
   if (!s || !t) return null
@@ -31,7 +31,8 @@ export function FloatingEdge({ id, source, target, markerEnd, style, label, sele
   const [path, lx, ly] = getBezierPath({ sourceX: a.x, sourceY: a.y, sourcePosition: a.pos, targetX: b.x, targetY: b.y, targetPosition: b.pos })
   return (
     <>
-      <BaseEdge id={id} path={path} markerEnd={markerEnd} style={style} interactionWidth={16} />
+      {selected && <path d={path} fill="none" stroke="var(--brand)" strokeOpacity={0.3} strokeWidth={7} strokeLinecap="round" />}
+      <BaseEdge id={id} path={path} markerEnd={markerEnd} markerStart={markerStart} style={style} interactionWidth={16} />
       {label && (
         <EdgeLabelRenderer>
           <div

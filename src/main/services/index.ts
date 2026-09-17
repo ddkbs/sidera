@@ -162,6 +162,9 @@ export function createServices(
     sourceId: r.sourceId,
     targetId: r.targetId,
     label: r.label,
+    color: r.color ?? null,
+    lineStyle: (r.lineStyle === 'dashed' ? 'dashed' : 'solid') as Connection['lineStyle'],
+    arrows: (r.arrows === 'none' || r.arrows === 'both' ? r.arrows : 'end') as Connection['arrows'],
     data: json(r.data, {})
   })
 
@@ -900,17 +903,22 @@ export function createServices(
     },
 
     addConnection({ whiteboardId, sourceId, targetId, label = '' }) {
-      const row = { id: nanoid(), whiteboardId, sourceId, targetId, label, data: '{}' }
+      const row = { id: nanoid(), whiteboardId, sourceId, targetId, label, color: null, lineStyle: 'solid', arrows: 'end', data: '{}' }
       db.insert(s.connections).values(row).run()
       onChange('whiteboards')
       return toConn(row)
     },
 
-    updateConnection({ id, label, data }) {
+    updateConnection({ id, label, color, lineStyle, arrows, data }) {
       const patch: Partial<typeof s.connections.$inferInsert> = {}
       if (label !== undefined) patch.label = label
+      if (color !== undefined) patch.color = color
+      if (lineStyle !== undefined) patch.lineStyle = lineStyle
+      if (arrows !== undefined) patch.arrows = arrows
       if (data !== undefined) patch.data = JSON.stringify(data)
+      if (!Object.keys(patch).length) return
       db.update(s.connections).set(patch).where(eq(s.connections.id, id)).run()
+      onChange('whiteboards')
     },
 
     removeConnections(ids) {
