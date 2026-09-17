@@ -18,7 +18,11 @@ export function CaptureApp() {
   const [createCard] = useCreateCardMutation()
 
   useEffect(() => {
-    textareaRef.current?.focus()
+    // the panel is hidden, not destroyed — refocus the textarea every time it is shown again
+    const focus = (): void => textareaRef.current?.focus()
+    focus()
+    window.addEventListener('focus', focus)
+    return () => window.removeEventListener('focus', focus)
   }, [])
 
   const close = (): void => void window.app.hideCapture()

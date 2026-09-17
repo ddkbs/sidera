@@ -4,7 +4,7 @@ import { Toaster } from '@/components/ui/sonner'
 import { AppShell } from '@/components/layout/AppShell'
 import { api, scopeTags } from '@/store/api'
 import { useAppDispatch } from '@/store'
-import { pushActivity } from '@/store/ui'
+import { openSettings, pushActivity } from '@/store/ui'
 import { settingsLoaded } from '@/store/settings'
 import { useAppearance } from '@/lib/appearance'
 
@@ -26,6 +26,7 @@ export function App() {
   )
 
   useEffect(() => window.events.onMcpActivity((a) => dispatch(pushActivity(a))), [dispatch])
+  useEffect(() => window.events.onOpenSettings(() => dispatch(openSettings(undefined))), [dispatch])
 
   return (
     <TooltipProvider delayDuration={300}>

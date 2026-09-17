@@ -9,7 +9,8 @@ import { getProviderMeta, resolveBaseUrl, type AiProviderId } from '@shared/ai'
 import { withSourceHeader } from '@shared/html'
 import { SETTINGS_CHANGED, type SettingsPatch } from '@shared/settings'
 import { SettingsStore } from './settings'
-import { applyCaptureShortcut, hideCaptureWindow, showCaptureWindow, teardownCapture } from './capture'
+import { applyCaptureShortcut, hideCaptureWindow, showCaptureWindow, teardownCapture, toAccelerator } from './capture'
+import { createTray, destroyTray } from './tray'
 import { addToClaudeCode, addToClaudeDesktop, isInClaudeCode, isInClaudeDesktop, stdioLaunchSpec } from './integrations'
 import { existsSync } from 'node:fs'
 import { ChatAgent } from './ai/chat'
@@ -59,8 +60,15 @@ const services = createServices(db, emit, {
 services.purgeDeleted(30 * 24 * 60 * 60 * 1000)
 
 const MIME: Record<string, string> = {
-  '.pdf': 'application/pdf', '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg',
-  '.gif': 'image/gif', '.webp': 'image/webp', '.svg': 'image/svg+xml', '.md': 'text/markdown', '.txt': 'text/plain'
+  '.pdf': 'application/pdf',
+  '.png': 'image/png',
+  '.jpg': 'image/jpeg',
+  '.jpeg': 'image/jpeg',
+  '.gif': 'image/gif',
+  '.webp': 'image/webp',
+  '.svg': 'image/svg+xml',
+  '.md': 'text/markdown',
+  '.txt': 'text/plain'
 }
 // importFileData (paste/drop of raw bytes, e.g. a clipboard image) accepts the same mimes as importFiles plus a few more image types
 const EXT_BY_MIME: Record<string, string> = {
@@ -78,7 +86,9 @@ if (STDIO) {
   process.stdin.on('end', () => app.quit())
   app.whenReady().then(() => startStdioMcp(services, app.getVersion()))
 } else {
-  protocol.registerSchemesAsPrivileged([{ scheme: 'canvascl-file', privileges: { standard: true, secure: true, supportFetchAPI: true, stream: true, corsEnabled: true } }])
+  protocol.registerSchemesAsPrivileged([
+    { scheme: 'canvascl-file', privileges: { standard: true, secure: true, supportFetchAPI: true, stream: true, corsEnabled: true } }
+  ])
   void bootstrap()
 }
 
@@ -316,7 +326,26 @@ async function bootstrap(): Promise<void> {
   }
 
   createWindow()
-  app.on('activate', () => BrowserWindow.getAllWindows().length === 0 && createWindow())
+  // the hidden capture panel is also a BrowserWindow — only the main window counts here
+  app.on('activate', () => (!win || win.isDestroyed()) && createWindow())
+  if (!process.env.CANVASCL_SHOT)
+    createTray({
+      captureAccelerator: () => (settings.get().quickCapture.enabled ? toAccelerator(settings.get().quickCapture.accelerator) : null),
+      openMain: showMain,
+      openSettings: () => {
+        showMain()
+        win?.webContents.send('app:open-settings')
+      }
+    })
+}
+
+function showMain(): void {
+  if (!win || win.isDestroyed()) createWindow()
+  else {
+    if (win.isMinimized()) win.restore()
+    win.show()
+  }
+  app.focus({ steal: true })
 }
 
 function createWindow(): void {
@@ -349,7 +378,10 @@ function createWindow(): void {
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin' && !STDIO) app.quit()
 })
-app.on('will-quit', () => teardownCapture())
+app.on('will-quit', () => {
+  teardownCapture()
+  destroyTray()
+})
 app.on('before-quit', () => db.$client.close())
 
 /** Dev-only: run a script in the renderer, capture a screenshot, optionally quit. Used for automated UI checks. */

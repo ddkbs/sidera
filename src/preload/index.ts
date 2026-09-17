@@ -29,6 +29,12 @@ const events = {
     const listener = (_: unknown, a: McpActivity): void => cb(a)
     ipcRenderer.on(MCP_ACTIVITY, listener)
     return () => ipcRenderer.removeListener(MCP_ACTIVITY, listener)
+  },
+  /** menu-bar icon → "Settings…" */
+  onOpenSettings(cb: () => void): () => void {
+    const listener = (): void => cb()
+    ipcRenderer.on('app:open-settings', listener)
+    return () => ipcRenderer.removeListener('app:open-settings', listener)
   }
 }
 

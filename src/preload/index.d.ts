@@ -6,6 +6,7 @@ declare global {
     events: {
       onDbChanged(cb: (scopes: DbChangeScope[]) => void): () => void
       onMcpActivity(cb: (a: McpActivity) => void): () => void
+      onOpenSettings(cb: () => void): () => void
     }
     platform: string
     chat: ChatBridge
