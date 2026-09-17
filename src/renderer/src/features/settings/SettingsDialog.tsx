@@ -301,7 +301,7 @@ const TOOL_NAMES = [
   'list_whiteboards', 'get_whiteboard', 'create_whiteboard', 'add_card_to_whiteboard', 'add_section', 'organize_board', 'connect_objects',
   'list_folders', 'create_folder', 'move_whiteboard_to_folder',
   'add_chart', 'update_chart', 'add_mindmap', 'add_flowchart', 'update_diagram',
-  'get_kanban', 'move_kanban_item', 'list_tasks', 'add_task', 'complete_task',
+  'get_kanban', 'move_kanban_item', 'list_tasks', 'add_task', 'update_task', 'complete_task', 'list_profiles',
   'list_task_comments', 'add_task_comment'
 ]
 

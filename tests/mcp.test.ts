@@ -72,9 +72,10 @@ describe('mcp', () => {
     const { call } = await connect()
     const card = await call('create_card', { title: 'Todos', markdown: '- [ ] one\n- [ ] two' })
     const open = await call('list_tasks', { status: 'open' })
+    const base = { card_id: card.id, card_title: 'Todos', task_id: expect.any(String), checked: false, status: 'todo', priority: 'none', assignee: null, due_date: null, comment_count: 0 }
     expect(open).toEqual([
-      { card_id: card.id, card_title: 'Todos', task_id: expect.any(String), index: 0, text: 'one', checked: false, comment_count: 0 },
-      { card_id: card.id, card_title: 'Todos', task_id: expect.any(String), index: 1, text: 'two', checked: false, comment_count: 0 }
+      { ...base, index: 0, text: 'one' },
+      { ...base, index: 1, text: 'two' }
     ])
     expect(open[0].task_id).not.toBe(open[1].task_id)
     const added = await call('add_task', { text: 'three', card_id: card.id })
@@ -86,6 +87,29 @@ describe('mcp', () => {
     await call('complete_task', { card_id: card.id, index: 0 })
     expect((await call('list_tasks', { status: 'open' })).map((t: { text: string }) => t.text)).toEqual(['inbox todo'])
     expect((await call('list_tasks', { status: 'done' })).map((t: { text: string }) => t.text).sort()).toEqual(['one', 'three', 'two'])
+  })
+
+  it('updates task properties and filters by them', async () => {
+    const { api, client, call } = await connect()
+    const me = api.getActiveProfile()
+    const other = api.createProfile({ name: 'Ada Lovelace' })
+    expect((await call('list_profiles', {})).map((p: { name: string; active: boolean }) => [p.name, p.active])).toEqual([
+      [me.name, true],
+      ['Ada Lovelace', false]
+    ])
+    const a = await call('add_task', { text: 'Write spec', priority: 'high', assignee_id: me.id, due_date: '2020-01-01' })
+    const b = await call('add_task', { text: 'Review', status: 'in_progress', assignee_id: other.id })
+    expect((await call('list_tasks', { assignee: 'me' })).map((t: { text: string }) => t.text)).toEqual(['Write spec'])
+    expect((await call('list_tasks', { status: 'in_progress' })).map((t: { text: string }) => t.text)).toEqual(['Review'])
+    expect((await call('list_tasks', { due: 'overdue' })).map((t: { text: string }) => t.text)).toEqual(['Write spec'])
+    const updated = await call('update_task', { card_id: b.card_id, task_id: b.task_id, priority: 'urgent', assignee_id: null, due_date: '2030-05-01' })
+    expect(updated).toMatchObject({ priority: 'urgent', assignee: null, due_date: '2030-05-01', status: 'in_progress' })
+    expect((await call('list_tasks', { assignee: 'none' })).map((t: { text: string }) => t.text)).toEqual(['Review'])
+    await call('complete_task', { card_id: a.card_id, task_id: a.task_id })
+    const [done] = await call('list_tasks', { status: 'done' })
+    expect(done).toMatchObject({ text: 'Write spec', status: 'done', checked: true })
+    const bad = (await client.callTool({ name: 'update_task', arguments: { card_id: a.card_id, task_id: 'nope', status: 'done' } })).isError
+    expect(bad).toBe(true)
   })
 
   it('adds and lists comments on a task via list_task_comments / add_task_comment', async () => {

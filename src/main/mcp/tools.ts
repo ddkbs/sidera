@@ -3,6 +3,7 @@ import { z } from 'zod'
 import { docToMarkdown, linkWikiRefs, markdownToDoc } from '@shared/doc'
 import { withSourceHeader } from '@shared/html'
 import { CHART_DEFS, defaultChart, SHAPE_COLUMNS, vennRows, type ChartData, type ChartOptions, type ChartType } from '@shared/charts'
+import { TASK_PRIORITIES, TASK_STATUSES, type Task } from '@shared/types'
 import type { Services } from '../services'
 import { fetchPageForClip } from '../web'
 
@@ -572,39 +573,87 @@ export function createMcpServer(api: Services, version: string, onCall?: ToolCal
     }
   )
 
+  const taskOut = (t: Task) => ({
+    card_id: t.cardId,
+    card_title: t.cardTitle,
+    task_id: t.taskId,
+    index: t.index,
+    text: t.text,
+    checked: t.checked,
+    status: t.status,
+    priority: t.priority,
+    assignee: t.assignee ? { id: t.assignee.id, name: t.assignee.name } : null,
+    due_date: t.dueDate,
+    comment_count: t.commentCount
+  })
+  const taskError = (e: unknown) => ({ ...ok(String(e instanceof Error ? e.message : e)), isError: true })
+  const statusEnum = z.enum(TASK_STATUSES)
+  const priorityEnum = z.enum(TASK_PRIORITIES)
+  const dueDate = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'YYYY-MM-DD')
+
   server.registerTool(
     'list_tasks',
     {
-      description: 'List to-do items (task list checkboxes) across all cards.',
-      inputSchema: { status: z.enum(['open', 'done', 'all']).default('open') },
+      description:
+        "List to-do items (task list checkboxes) across all cards, with status, priority, assignee and due date. Filters combine. Assignee ids come from list_profiles; 'me' = the app's active profile, 'none' = unassigned.",
+      inputSchema: {
+        status: z.enum(['open', 'all', ...TASK_STATUSES]).default('open').describe("'open' = todo + in_progress"),
+        assignee: z.string().optional().describe("profile id, 'me' or 'none'"),
+        priority: priorityEnum.optional(),
+        due: z.enum(['overdue', 'today', 'week']).optional().describe("'week' = today through the next 6 days")
+      },
       annotations: { readOnlyHint: true }
     },
-    async ({ status }) =>
-      ok(
-        api.listTasks({ status }).map((t) => ({
-          card_id: t.cardId,
-          card_title: t.cardTitle,
-          task_id: t.taskId,
-          index: t.index,
-          text: t.text,
-          checked: t.checked,
-          comment_count: t.commentCount
-        }))
-      )
+    async ({ status, assignee, priority, due }) => {
+      const assigneeId = assignee === undefined ? undefined : assignee === 'none' ? null : assignee === 'me' ? api.getActiveProfile().id : assignee
+      return ok(api.listTasks({ status, assigneeId, priority, due }).map(taskOut))
+    }
   )
 
   server.registerTool(
     'add_task',
     {
-      description: "Add a to-do (checkbox) to a card, or to the \"Inbox\" card (created on first use) when card_id is omitted. It appears in the Tasks view.",
-      inputSchema: { text: z.string().min(1), card_id: z.string().optional() }
+      description:
+        'Add a to-do (checkbox) to a card, or to the "Inbox" card (created on first use) when card_id is omitted. It appears in the Tasks view. Optionally set status, priority, assignee (profile id) and due date.',
+      inputSchema: {
+        text: z.string().min(1),
+        card_id: z.string().optional(),
+        status: statusEnum.optional(),
+        priority: priorityEnum.optional(),
+        assignee_id: z.string().optional(),
+        due_date: dueDate.optional()
+      }
     },
-    async ({ text, card_id }) => {
+    async ({ text, card_id, status, priority, assignee_id, due_date }) => {
       try {
-        const task = api.addTask({ text, cardId: card_id })
-        return ok({ card_id: task.cardId, index: task.index })
+        const task = api.addTask({ text, cardId: card_id, status, priority, assigneeId: assignee_id, dueDate: due_date })
+        return ok({ card_id: task.cardId, task_id: task.taskId, index: task.index })
       } catch (e) {
-        return { ...ok(String(e instanceof Error ? e.message : e)), isError: true }
+        return taskError(e)
+      }
+    }
+  )
+
+  server.registerTool(
+    'update_task',
+    {
+      description:
+        "Change a to-do's status (todo / in_progress / done — done also ticks the checkbox in the card), priority, assignee (profile id, null to unassign), due date (YYYY-MM-DD, null to clear) or text. card_id + task_id from list_tasks.",
+      inputSchema: {
+        card_id: z.string(),
+        task_id: z.string(),
+        status: statusEnum.optional(),
+        priority: priorityEnum.optional(),
+        assignee_id: z.string().nullable().optional(),
+        due_date: dueDate.nullable().optional(),
+        text: z.string().min(1).optional()
+      }
+    },
+    async ({ card_id, task_id, status, priority, assignee_id, due_date, text }) => {
+      try {
+        return ok(taskOut(api.updateTask({ cardId: card_id, taskId: task_id, status, priority, assigneeId: assignee_id, dueDate: due_date, text })))
+      } catch (e) {
+        return taskError(e)
       }
     }
   )
@@ -612,13 +661,37 @@ export function createMcpServer(api: Services, version: string, onCall?: ToolCal
   server.registerTool(
     'complete_task',
     {
-      description: 'Mark a to-do item done or not done (card_id + index from list_tasks).',
-      inputSchema: { card_id: z.string(), index: z.number().int().min(0), checked: z.boolean().default(true) }
+      description: 'Mark a to-do item done (status done, checkbox ticked) or reopen it (status todo). card_id + task_id (or index) from list_tasks.',
+      inputSchema: {
+        card_id: z.string(),
+        task_id: z.string().optional(),
+        index: z.number().int().min(0).optional(),
+        checked: z.boolean().default(true)
+      }
     },
-    async ({ card_id, index, checked }) => {
+    async ({ card_id, task_id, index, checked }) => {
       if (!api.getCard(card_id)) return { ...ok(`Card ${card_id} not found`), isError: true }
-      api.setTaskChecked(card_id, index, checked)
-      return ok('Updated')
+      try {
+        const id = task_id ?? api.listTasks({ status: 'all' }).find((t) => t.cardId === card_id && t.index === index)?.taskId
+        if (!id) return { ...ok('Pass task_id (or a valid index) from list_tasks'), isError: true }
+        api.updateTask({ cardId: card_id, taskId: id, status: checked ? 'done' : 'todo' })
+        return ok('Updated')
+      } catch (e) {
+        return taskError(e)
+      }
+    }
+  )
+
+  server.registerTool(
+    'list_profiles',
+    {
+      description: "List the people (profiles) in this knowledge base, e.g. to assign tasks. `active` marks the profile using the app.",
+      inputSchema: {},
+      annotations: { readOnlyHint: true }
+    },
+    async () => {
+      const active = api.getActiveProfile().id
+      return ok(api.listProfiles().map((p) => ({ id: p.id, name: p.name, email: p.email, active: p.id === active })))
     }
   )
 
