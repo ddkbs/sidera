@@ -1,10 +1,12 @@
 import type { AiProviderId } from './ai'
 import type { AppSettings, SettingsPatch } from './settings'
 import type {
+  ArrowEnds,
   Card,
   CardDetail,
   CardSummary,
   Connection,
+  LineStyle,
   DocJSON,
   FileRecord,
   Folder,
@@ -93,7 +95,14 @@ export interface CanvasApi {
   /** Re-insert previously removed objects/connections with their original ids (undo). */
   restoreObjects(objects: WhiteboardObject[], connections: Connection[]): Promise<void>
   addConnection(input: { whiteboardId: ID; sourceId: ID; targetId: ID; label?: string }): Promise<Connection>
-  updateConnection(input: { id: ID; label?: string; data?: Record<string, unknown> }): Promise<void>
+  updateConnection(input: {
+    id: ID
+    label?: string
+    color?: string | null
+    lineStyle?: LineStyle
+    arrows?: ArrowEnds
+    data?: Record<string, unknown>
+  }): Promise<void>
   removeConnections(ids: ID[]): Promise<void>
   organizeBoard(input: {
     whiteboardId: ID

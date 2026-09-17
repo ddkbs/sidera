@@ -91,6 +91,9 @@ export const connections = sqliteTable('connections', {
   sourceId: text('source_id').notNull(),
   targetId: text('target_id').notNull(),
   label: text('label').notNull().default(''),
+  color: text('color'),
+  lineStyle: text('line_style').notNull().default('solid'),
+  arrows: text('arrows').notNull().default('end'),
   data: text('data').notNull().default('{}')
 })
 

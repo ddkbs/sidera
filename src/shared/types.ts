@@ -98,12 +98,21 @@ export interface WhiteboardObject {
   data: Record<string, unknown>
 }
 
+/** Line rendering of a connection. */
+export type LineStyle = 'solid' | 'dashed'
+/** Which ends of a connection carry an arrow head. */
+export type ArrowEnds = 'none' | 'end' | 'both'
+
 export interface Connection {
   id: ID
   whiteboardId: ID
   sourceId: ID
   targetId: ID
   label: string
+  /** Palette name (see lib/colors) or null for the default edge color. */
+  color: string | null
+  lineStyle: LineStyle
+  arrows: ArrowEnds
   data: Record<string, unknown>
 }
 

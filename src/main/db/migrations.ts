@@ -193,5 +193,10 @@ export const migrations: string[] = [
     created_at INTEGER NOT NULL
   );
   CREATE INDEX task_activity_task_idx ON task_activity(card_id, task_id);
+  `,
+  /* 8: connection styling */ `
+  ALTER TABLE connections ADD COLUMN color TEXT;
+  ALTER TABLE connections ADD COLUMN line_style TEXT NOT NULL DEFAULT 'solid';
+  ALTER TABLE connections ADD COLUMN arrows TEXT NOT NULL DEFAULT 'end';
   `
 ]
