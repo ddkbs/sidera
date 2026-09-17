@@ -1,38 +1,75 @@
 import { net } from 'electron'
 import type { LinkPreviewData } from '@shared/types'
 import { extractContentHtml, htmlToMarkdown, parseLinkPreview } from '@shared/html'
+import { assertPublicHttpUrl } from './netGuard'
 
 const TIMEOUT_MS = 10_000
 const MAX_BYTES = 3 * 1024 * 1024
+const MAX_REDIRECTS = 5
 
-/** Fetch a page's HTML, enforcing http(s)-only, a timeout and a body size cap. */
-async function fetchHtml(url: string): Promise<string> {
-  const parsed = new URL(url)
-  if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') throw new Error('Only http(s) URLs are supported')
+type Fetched = { status: number; contentType: string; body: Buffer; truncated: boolean }
 
-  const controller = new AbortController()
-  const timer = setTimeout(() => controller.abort(), TIMEOUT_MS)
-  try {
-    const res = await net.fetch(parsed.toString(), { signal: controller.signal, redirect: 'follow' })
-    if (!res.ok) throw new Error(`Request failed: ${res.status} ${res.statusText}`)
-    const reader = res.body?.getReader()
-    if (!reader) return await res.text()
-    const chunks: Uint8Array[] = []
-    let total = 0
-    for (;;) {
-      const { done, value } = await reader.read()
-      if (done) break
-      total += value.byteLength
-      if (total > MAX_BYTES) {
-        void reader.cancel()
-        break
-      }
-      chunks.push(value)
+/** One HTTP request without following redirects (so every hop can be re-validated). */
+function requestOnce(url: string, maxBytes: number, timeoutMs: number): Promise<Fetched | { redirect: string }> {
+  return new Promise((resolve, reject) => {
+    if (timeoutMs <= 0) return reject(new Error('Request timed out'))
+    const req = net.request({ url, redirect: 'manual', useSessionCookies: false })
+    let settled = false
+    const finish = (fn: () => void): void => {
+      if (settled) return
+      settled = true
+      clearTimeout(timer)
+      fn()
     }
-    return Buffer.concat(chunks.map((c) => Buffer.from(c))).toString('utf8')
-  } finally {
-    clearTimeout(timer)
+    const timer = setTimeout(() => {
+      finish(() => reject(new Error('Request timed out')))
+      req.abort()
+    }, timeoutMs)
+    req.on('redirect', (_status, _method, redirectUrl) => {
+      finish(() => resolve({ redirect: redirectUrl }))
+      req.abort()
+    })
+    req.on('response', (res) => {
+      const ct = res.headers['content-type']
+      const contentType = (Array.isArray(ct) ? ct[0] : ct) ?? ''
+      const chunks: Buffer[] = []
+      let total = 0
+      res.on('data', (chunk: Buffer) => {
+        if (settled) return
+        total += chunk.byteLength
+        if (total > maxBytes) {
+          finish(() => resolve({ status: res.statusCode, contentType, body: Buffer.concat(chunks), truncated: true }))
+          req.abort()
+          return
+        }
+        chunks.push(chunk)
+      })
+      res.on('end', () => finish(() => resolve({ status: res.statusCode, contentType, body: Buffer.concat(chunks), truncated: false })))
+      res.on('error', (e: Error) => finish(() => reject(e)))
+    })
+    req.on('error', (e) => finish(() => reject(e)))
+    req.end()
+  })
+}
+
+/** GET with http(s)-only, public-address-only (checked on every redirect hop), a total timeout and a body size cap. */
+async function guardedFetch(url: string, maxBytes: number): Promise<Fetched> {
+  const deadline = Date.now() + TIMEOUT_MS
+  let current = url
+  for (let hop = 0; hop <= MAX_REDIRECTS; hop++) {
+    const target = await assertPublicHttpUrl(current)
+    const res = await requestOnce(target.toString(), maxBytes, deadline - Date.now())
+    if (!('redirect' in res)) return res
+    current = new URL(res.redirect, target).toString()
   }
+  throw new Error('Too many redirects')
+}
+
+/** Fetch a page's HTML (truncated at MAX_BYTES). */
+async function fetchHtml(url: string): Promise<string> {
+  const res = await guardedFetch(url, MAX_BYTES)
+  if (res.status < 200 || res.status >= 300) throw new Error(`Request failed: ${res.status}`)
+  return res.body.toString('utf8')
 }
 
 export async function fetchLinkPreview(url: string): Promise<LinkPreviewData> {
@@ -55,25 +92,13 @@ const IMAGE_EXT: Record<string, string> = {
   'image/avif': '.avif', 'image/x-icon': '.ico', 'image/vnd.microsoft.icon': '.ico'
 }
 
-/** Download a remote image (http/https, real image content-type, size-capped). Returns null on any failure. */
+/** Download a remote image (http/https, public address, real image content-type, size-capped). Returns null on any failure. */
 export async function downloadImage(url: string): Promise<{ bytes: Buffer; mime: string; ext: string } | null> {
   try {
-    const parsed = new URL(url)
-    if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') return null
-    const controller = new AbortController()
-    const timer = setTimeout(() => controller.abort(), TIMEOUT_MS)
-    try {
-      const res = await net.fetch(parsed.toString(), { signal: controller.signal, redirect: 'follow' })
-      const mime = (res.headers.get('content-type') ?? '').split(';')[0].trim().toLowerCase()
-      if (!res.ok || !IMAGE_EXT[mime]) return null
-      const declared = Number(res.headers.get('content-length') ?? 0)
-      if (declared > IMAGE_MAX_BYTES) return null
-      const bytes = Buffer.from(await res.arrayBuffer())
-      if (!bytes.byteLength || bytes.byteLength > IMAGE_MAX_BYTES) return null
-      return { bytes, mime, ext: IMAGE_EXT[mime] }
-    } finally {
-      clearTimeout(timer)
-    }
+    const res = await guardedFetch(url, IMAGE_MAX_BYTES)
+    const mime = res.contentType.split(';')[0].trim().toLowerCase()
+    if (res.status < 200 || res.status >= 300 || !IMAGE_EXT[mime] || res.truncated || !res.body.byteLength) return null
+    return { bytes: res.body, mime, ext: IMAGE_EXT[mime] }
   } catch {
     return null
   }
