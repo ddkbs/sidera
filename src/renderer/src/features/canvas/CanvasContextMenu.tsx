@@ -1,4 +1,4 @@
-import { AskAI, BoxSelect, ChartsMenu, Copy, GitBranch, Maximize } from '@/components/icons'
+import { AskAI, BoxSelect, ChartsMenu, Copy, GitBranch, Maximize, Table2 } from '@/components/icons'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -66,6 +66,18 @@ export function CanvasMenuItems({ onAction }: { onAction: (a: CanvasAction) => v
   )
 }
 
+/** Board-level items for the canvas right-click menu (not shared with the toolbar overflow). */
+function CanvasBoardMenuItems({ onAction }: { onAction: (a: CanvasAction) => void }) {
+  return (
+    <>
+      <DropdownMenuSeparator />
+      <DropdownMenuItem onClick={() => onAction('properties')}>
+        <Table2 /> Properties…
+      </DropdownMenuItem>
+    </>
+  )
+}
+
 interface Props {
   /** Screen position of the right-click, or null when closed. */
   at: { x: number; y: number } | null
@@ -82,6 +94,7 @@ export function CanvasContextMenu({ at, onClose, onAction }: Props) {
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start" className="w-56" onCloseAutoFocus={(e) => e.preventDefault()}>
         <CanvasMenuItems onAction={onAction} />
+        <CanvasBoardMenuItems onAction={onAction} />
       </DropdownMenuContent>
     </DropdownMenu>
   )

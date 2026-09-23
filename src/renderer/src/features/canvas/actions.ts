@@ -46,6 +46,7 @@ export type CanvasAction =
   | 'autolayout'
   | 'fit'
   | 'organize'
+  | 'properties'
   | `chart:${ChartType}`
 
 /** Insert entries shared by the toolbar overflow and the right-click menu, in menu order. */

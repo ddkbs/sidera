@@ -1,6 +1,6 @@
 import { record } from '@/lib/undo'
 import { recordDelete } from '@/lib/undo-actions'
-import { Copy, Folder as FolderIcon, LayoutDashboard, Pencil, Plus, Sparkles, Trash2 } from '@/components/icons'
+import { Copy, Folder as FolderIcon, LayoutDashboard, Pencil, Plus, Sparkles, Table2, Trash2 } from '@/components/icons'
 import { useState, type ReactElement } from 'react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
@@ -27,6 +27,7 @@ import {
 } from '@/store/api'
 import { navigate, openTab, queueChatMessage } from '@/store/ui'
 import type { Whiteboard } from '@shared/types'
+import { WhiteboardPropertiesDialog } from '@/features/canvas/WhiteboardPropertiesDialog'
 
 async function organizeWithAi(dispatch: ReturnType<typeof useAppDispatch>, board: Whiteboard): Promise<void> {
   const hasKey = await window.chat.hasKey()
@@ -55,6 +56,7 @@ export function BoardMenu({ board, children }: { board: Whiteboard; children: Re
   const { data: folders = [] } = useListFoldersQuery()
   const [dialog, setDialog] = useState<'rename' | 'delete' | null>(null)
   const [name, setName] = useState(board.name)
+  const [propertiesFor, setPropertiesFor] = useState<string | null>(null)
 
   return (
     <>
@@ -68,6 +70,9 @@ export function BoardMenu({ board, children }: { board: Whiteboard; children: Re
           </ContextMenuItem>
           <ContextMenuItem onSelect={() => (setName(board.name), setDialog('rename'))}>
             <Pencil /> Rename
+          </ContextMenuItem>
+          <ContextMenuItem onSelect={() => setPropertiesFor(board.id)}>
+            <Table2 /> Properties…
           </ContextMenuItem>
           <ContextMenuItem onSelect={() => void organizeWithAi(dispatch, board)}>
             <Sparkles /> Organize with AI
@@ -164,6 +169,7 @@ export function BoardMenu({ board, children }: { board: Whiteboard; children: Re
           )}
         </DialogContent>
       </Dialog>
+      <WhiteboardPropertiesDialog whiteboardId={propertiesFor} onClose={() => setPropertiesFor(null)} />
     </>
   )
 }

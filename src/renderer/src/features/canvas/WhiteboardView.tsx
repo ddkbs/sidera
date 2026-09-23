@@ -51,6 +51,7 @@ import { invert, opLabel, type HistoryOp } from './history'
 import { record } from '@/lib/undo'
 import { CanvasToolbar, TOOLS } from './CanvasToolbar'
 import { CanvasContextMenu } from './CanvasContextMenu'
+import { WhiteboardPropertiesDialog } from './WhiteboardPropertiesDialog'
 import { EdgeMenu, type ConnectionPatch } from './EdgeMenu'
 import { SelectionToolbar } from './SelectionToolbar'
 import { arrange, bounds, type ArrangeMode } from './arrange'
@@ -167,6 +168,7 @@ function Canvas({ detail }: { detail: WhiteboardDetail }) {
   const [viewing, setViewing] = useState<{ refId: string; name: string; mime: string } | null>(null)
   const [edgeMenu, setEdgeMenu] = useState<{ id: string; x: number; y: number } | null>(null)
   const [paneMenu, setPaneMenu] = useState<{ x: number; y: number; flow: { x: number; y: number } } | null>(null)
+  const [propertiesOpen, setPropertiesOpen] = useState(false)
   /** Where an action started that finishes in a dialog (add existing card, link preview). */
   const insertPos = useRef<{ x: number; y: number } | null>(null)
   /** Right-button press, to tell a right-click apart from a right-drag pan. */
@@ -650,6 +652,10 @@ function Canvas({ detail }: { detail: WhiteboardDetail }) {
         if ('data' in res && res.data) await place('whiteboard', { x: c.x - 130, y: c.y - 70 }, { refId: res.data.id })
         return
       }
+      if (a === 'properties') {
+        setPropertiesOpen(true)
+        return
+      }
       if (a === 'organize') {
         const hasKey = await window.chat.hasKey()
         if (!hasKey) {
@@ -953,6 +959,7 @@ function Canvas({ detail }: { detail: WhiteboardDetail }) {
         }}
       />
       <FindOnBoard />
+      {propertiesOpen && <WhiteboardPropertiesDialog whiteboardId={boardId} onClose={() => setPropertiesOpen(false)} />}
       {sketchId && (
         <Suspense fallback={null}>
           <SketchEditor
