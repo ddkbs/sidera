@@ -117,6 +117,10 @@ export const api = createApi({
       queryFn: (id) => call('duplicateWhiteboard', id),
       invalidatesTags: ['Whiteboard']
     }),
+    updateWhiteboardProperties: b.mutation<Res<'updateWhiteboardProperties'>, { whiteboardId: string; properties: Arg<'updateWhiteboardProperties'>[1] }>({
+      queryFn: ({ whiteboardId, properties }) => call('updateWhiteboardProperties', whiteboardId, properties),
+      invalidatesTags: (_r, _e, { whiteboardId }) => [{ type: 'Whiteboard', id: whiteboardId }, 'Whiteboard']
+    }),
 
     // folders
     listFolders: b.query<Res<'listFolders'>, void>({
@@ -325,6 +329,7 @@ export const {
   useDeleteWhiteboardMutation,
   useMoveWhiteboardToFolderMutation,
   useDuplicateWhiteboardMutation,
+  useUpdateWhiteboardPropertiesMutation,
   useListFoldersQuery,
   useCreateFolderMutation,
   useRenameFolderMutation,
