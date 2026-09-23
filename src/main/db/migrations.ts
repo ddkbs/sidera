@@ -212,5 +212,8 @@ export const migrations: string[] = [
     updated_at INTEGER NOT NULL
   );
   CREATE INDEX pdf_highlights_file_idx ON pdf_highlights(file_id, page);
+  `,
+  /* 10: whiteboard properties */ `
+  ALTER TABLE whiteboards ADD COLUMN properties TEXT NOT NULL DEFAULT '[]';
   `
 ]

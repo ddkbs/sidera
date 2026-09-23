@@ -160,6 +160,22 @@ describe('whiteboards', () => {
     // original is untouched
     expect(api.getWhiteboard(board.id)!.objects).toHaveLength(2)
   })
+
+  it('stores free-form key/value properties on a whiteboard', () => {
+    const board = api.createWhiteboard({ name: 'Notes' })
+    expect(board.properties).toEqual([])
+
+    const properties = [
+      { id: 'p1', key: 'Autor', value: 'Jane Doe' },
+      { id: 'p2', key: 'Datum', value: '2026-09-23' }
+    ]
+    const updated = api.updateWhiteboardProperties(board.id, properties)
+    expect(updated.properties).toEqual(properties)
+
+    // persists across reads
+    expect(api.getWhiteboard(board.id)!.whiteboard.properties).toEqual(properties)
+    expect(api.listWhiteboards().find((w) => w.id === board.id)!.properties).toEqual(properties)
+  })
 })
 
 describe('inbox', () => {

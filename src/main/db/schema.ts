@@ -66,6 +66,7 @@ export const whiteboards = sqliteTable('whiteboards', {
   parentId: text('parent_id'),
   folderId: text('folder_id'),
   viewport: text('viewport').notNull(),
+  properties: text('properties').notNull().default('[]'),
   createdAt: integer('created_at').notNull(),
   updatedAt: integer('updated_at').notNull(),
   deletedAt: integer('deleted_at')

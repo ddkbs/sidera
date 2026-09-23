@@ -59,6 +59,13 @@ export interface TagProperty {
   position: number
 }
 
+/** Free-form key/value metadata pair on a whiteboard (e.g. "Autor" -> "Jane"). */
+export interface WhiteboardProperty {
+  id: ID
+  key: string
+  value: string
+}
+
 export interface Whiteboard {
   id: ID
   name: string
@@ -66,6 +73,7 @@ export interface Whiteboard {
   /** sidebar folder this whiteboard is filed under, or null for top level */
   folderId: ID | null
   viewport: { x: number; y: number; zoom: number }
+  properties: WhiteboardProperty[]
   createdAt: number
   updatedAt: number
 }

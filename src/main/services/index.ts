@@ -145,6 +145,7 @@ export function createServices(
     parentId: r.parentId,
     folderId: r.folderId,
     viewport: json(r.viewport, { x: 0, y: 0, zoom: 1 }),
+    properties: json(r.properties, []),
     createdAt: r.createdAt,
     updatedAt: r.updatedAt
   })
@@ -755,7 +756,7 @@ export function createServices(
 
     createWhiteboard({ name, parentId = null, folderId = null }) {
       const t = now()
-      const row = { id: nanoid(), name, parentId, folderId, viewport: JSON.stringify({ x: 0, y: 0, zoom: 1 }), createdAt: t, updatedAt: t, deletedAt: null }
+      const row = { id: nanoid(), name, parentId, folderId, viewport: JSON.stringify({ x: 0, y: 0, zoom: 1 }), properties: '[]', createdAt: t, updatedAt: t, deletedAt: null }
       db.insert(s.whiteboards).values(row).run()
       onChange('whiteboards')
       return toBoard(row)
@@ -768,6 +769,15 @@ export function createServices(
       db.update(s.whiteboards).set(patch).where(eq(s.whiteboards.id, id)).run()
       if (name !== undefined) onChange('whiteboards')
       return toBoard(db.select().from(s.whiteboards).where(eq(s.whiteboards.id, id)).get()!)
+    },
+
+    updateWhiteboardProperties(whiteboardId, properties) {
+      db.update(s.whiteboards)
+        .set({ properties: JSON.stringify(properties), updatedAt: now() })
+        .where(eq(s.whiteboards.id, whiteboardId))
+        .run()
+      onChange('whiteboards')
+      return toBoard(db.select().from(s.whiteboards).where(eq(s.whiteboards.id, whiteboardId)).get()!)
     },
 
     /** Soft delete (restorable). Objects referencing it on other boards are hidden meanwhile. */
