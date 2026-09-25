@@ -396,7 +396,7 @@ export function createServices(
     return rows.map((r) => ({
       id: r.id,
       title: r.title,
-      excerpt: r.contentText.slice(0, 280),
+      excerpt: r.contentText.slice(0, 4000),
       color: r.color ?? null,
       icon: r.icon ?? null,
       updatedAt: r.updatedAt,
