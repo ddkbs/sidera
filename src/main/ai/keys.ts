@@ -24,6 +24,13 @@ export class KeyStore {
   private file: string
   private legacyFile: string
   private cache: Partial<Record<AiProviderId, string>> = {}
+  /**
+   * True when an encrypted key file exists but couldn't be decrypted — e.g. the macOS Keychain item
+   * (named after the OS-level app name) doesn't match after a product rename, or Keychain access was
+   * denied. Treated as "no key stored" rather than a crash; the UI can use this to show a one-time
+   * "please re-enter your API key" hint instead of silently looking like the key was just never set.
+   */
+  private decryptError = false
 
   constructor(dataDir: string) {
     this.file = join(dataDir, 'ai-keys.bin')
@@ -40,7 +47,13 @@ export class KeyStore {
       this.cache = parsed
     } catch {
       this.cache = {}
+      this.decryptError = true
     }
+  }
+
+  /** See `decryptError` above. */
+  hadDecryptError(): boolean {
+    return this.decryptError
   }
 
   private migrateLegacy(): void {

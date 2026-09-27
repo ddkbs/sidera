@@ -270,6 +270,8 @@ export const CHAT_EVENT = 'chat:event'
 export interface ProviderStatus {
   provider: AiProviderId
   hasKey: boolean
+  /** True when a stored key exists but couldn't be decrypted (see KeyStore) — worth a "re-enter your key" hint. */
+  keyReadError?: boolean
 }
 
 /** Chat bridge (separate from CanvasApi because it streams). */
