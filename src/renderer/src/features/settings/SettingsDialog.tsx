@@ -3,7 +3,7 @@ import { toast } from 'sonner'
 import type { DataInfo, McpConnections, ProviderStatus } from '@shared/api'
 import { AI_PROVIDERS, getProviderMeta, type AiProviderId } from '@shared/ai'
 import type { FontPref, ThemePref } from '@shared/settings'
-import { AskAI, ArrowUpRight, CircleCheck, Command, Download, File, Home, KeyRound, Palette, Pencil, RotateCcw, Server, Settings, Upload, User, UserPlus } from '@/components/icons'
+import { AskAI, ArrowUpRight, Check, CircleCheck, Command, Download, File, Home, KeyRound, Palette, Pencil, RotateCcw, Server, Settings, Upload, User, UserPlus } from '@/components/icons'
 import { Orb } from '@/components/Orb'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog'
@@ -245,11 +245,40 @@ function QuickCaptureRow() {
 }
 
 const FONTS: { value: FontPref; label: string; note: string }[] = [
-  { value: 'jost', label: 'Jost', note: 'Geometric, Futura-inspired (bundled)' },
-  { value: 'futura', label: 'Futura', note: 'macOS system font (limited weights)' },
-  { value: 'geist', label: 'Geist', note: 'Neutral grotesque (bundled)' },
-  { value: 'system', label: 'SF Pro', note: 'macOS system UI font' }
+  { value: 'geist', label: 'Geist', note: 'Neutral grotesque, bundled with the app' },
+  { value: 'system', label: 'SF Pro', note: "macOS system font — matches your Mac's UI" }
 ]
+const SAMPLE = 'The quick brown fox — Ideas connect on the canvas.'
+
+function FontOption({ font, selected, onSelect }: { font: (typeof FONTS)[number]; selected: boolean; onSelect: () => void }) {
+  return (
+    <button
+      type="button"
+      role="radio"
+      aria-checked={selected}
+      onClick={onSelect}
+      className={cn(
+        'relative flex flex-col gap-3 rounded-xl border p-4 text-left transition outline-none hover:bg-accent',
+        'focus-visible:ring-2 focus-visible:ring-ring',
+        selected ? 'border-foreground/40 bg-accent/60 ring-2 ring-foreground/10' : 'border-border'
+      )}
+      style={{ fontFamily: FONT_STACKS[font.value] }}
+    >
+      {selected && (
+        <span className="absolute right-3 top-3 flex size-5 items-center justify-center rounded-full bg-foreground text-background">
+          <Check className="size-3" />
+        </span>
+      )}
+      <div className="text-4xl leading-none">Aa</div>
+      <div>
+        <div className="text-sm font-medium">{font.label}</div>
+        <div className="text-xs text-muted-foreground">{font.note}</div>
+      </div>
+      <div className="border-t pt-3 text-sm text-foreground/80">{SAMPLE}</div>
+      <div className="text-lg font-medium">{SAMPLE}</div>
+    </button>
+  )
+}
 
 function Appearance() {
   const dispatch = useAppDispatch()
@@ -257,18 +286,22 @@ function Appearance() {
   return (
     <div>
       <div className="mb-2 text-sm font-medium">Font</div>
-      <div className="mb-6 grid grid-cols-2 gap-2">
+      <div
+        role="radiogroup"
+        aria-label="Font"
+        className="mb-6 grid grid-cols-2 gap-3"
+        onKeyDown={(e) => {
+          if (!['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(e.key)) return
+          e.preventDefault()
+          const i = FONTS.findIndex((f) => f.value === s.font)
+          const dir = e.key === 'ArrowLeft' || e.key === 'ArrowUp' ? -1 : 1
+          const next = FONTS[(i + dir + FONTS.length) % FONTS.length]
+          dispatch(updateSettings({ font: next.value }))
+          ;(e.currentTarget.querySelectorAll('[role="radio"]')[FONTS.indexOf(next)] as HTMLElement | undefined)?.focus()
+        }}
+      >
         {FONTS.map((f) => (
-          <button
-            key={f.value}
-            onClick={() => dispatch(updateSettings({ font: f.value }))}
-            className={cn('rounded-xl border p-3 text-left transition hover:bg-accent', s.font === f.value && 'border-foreground/40 ring-2 ring-foreground/10')}
-          >
-            <div className="text-2xl" style={{ fontFamily: FONT_STACKS[f.value] }}>
-              Ag {f.label}
-            </div>
-            <div className="mt-1 text-xs text-muted-foreground">{f.note}</div>
-          </button>
+          <FontOption key={f.value} font={f} selected={s.font === f.value} onSelect={() => dispatch(updateSettings({ font: f.value }))} />
         ))}
       </div>
       <Row title="Text size" description={`${s.fontSize}px`}>
