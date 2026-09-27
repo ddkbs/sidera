@@ -5,6 +5,7 @@ import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import { Provider } from 'react-redux'
 import { App } from './App'
+import { SignInScreen } from './features/auth/SignInScreen'
 import { CaptureApp } from './features/capture/CaptureApp'
 import { store } from './store'
 import { settingsLoaded } from './store/settings'
@@ -17,13 +18,20 @@ if (isCapture) {
   document.body.style.setProperty('background', 'transparent', 'important')
 }
 
-// Settings must be known before first paint (theme, font, shortcuts).
-const settings = await window.app.getSettings()
-store.dispatch(settingsLoaded(settings))
-if (!isCapture && !settings.restoreLastView) store.dispatch(resetTabs())
+const root = createRoot(document.getElementById('root')!)
 
-createRoot(document.getElementById('root')!).render(
-  <StrictMode>
-    <Provider store={store}>{isCapture ? <CaptureApp /> : <App />}</Provider>
-  </StrictMode>
-)
+if (!window.auth.session) {
+  // Signed out: only the sign-in screen (main reloads this window once a session is open).
+  if (!isCapture) root.render(<StrictMode><SignInScreen /></StrictMode>)
+} else {
+  // Settings must be known before first paint (theme, font, shortcuts).
+  const settings = await window.app.getSettings()
+  store.dispatch(settingsLoaded(settings))
+  if (!isCapture && !settings.restoreLastView) store.dispatch(resetTabs())
+
+  root.render(
+    <StrictMode>
+      <Provider store={store}>{isCapture ? <CaptureApp /> : <App />}</Provider>
+    </StrictMode>
+  )
+}

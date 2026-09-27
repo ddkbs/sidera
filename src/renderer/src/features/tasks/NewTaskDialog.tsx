@@ -11,6 +11,7 @@ import { useAddTaskMutation, useListProfilesQuery } from '@/store/api'
 import type { TaskPriority, TaskStatus } from '@shared/types'
 import { PRIORITY_LABEL, STATUS_LABEL } from './model'
 import { AssigneePicker, CardPicker, DueLabel, DuePicker, PriorityIcon, PriorityPicker, StatusIcon, StatusPicker, type CardTarget } from './TaskProperties'
+import { storageKey } from '@/lib/storage'
 
 export interface NewTaskDefaults {
   status?: TaskStatus
@@ -20,7 +21,7 @@ export interface NewTaskDefaults {
   card?: CardTarget
 }
 
-const TARGET_KEY = 'canvascl.tasks.target'
+const TARGET_KEY = storageKey('canvascl.tasks.target')
 const loadTarget = (): CardTarget => {
   try {
     const t = JSON.parse(localStorage.getItem(TARGET_KEY) ?? 'null') as CardTarget | null

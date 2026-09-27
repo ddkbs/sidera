@@ -25,6 +25,7 @@ import {
   IconCoffee as ObraCoffee,
   IconMusicalNoteSingle as ObraMusic,
   IconLock as ObraLock,
+  IconLogOut,
   IconBug as ObraBug,
   IconBarChart,
   IconBarChartBox,
@@ -299,6 +300,7 @@ export const Megaphone = ObraMegaphone
 export const Coffee = ObraCoffee
 export const Music = ObraMusic
 export const Lock = ObraLock
+export const LogOut = IconLogOut
 export const Bug = ObraBug
 
 /** Obra has no undo/redo glyph — drawn in the same 24px, 1.5-stroke style. */

@@ -10,12 +10,16 @@ const SERVER_NAME = 'canvascl'
 
 export const claudeDesktopConfigPath = (): string => join(homedir(), 'Library', 'Application Support', 'Claude', 'claude_desktop_config.json')
 
-/** Command that launches this app as a headless stdio MCP server (works for dev and packaged builds). */
-export function stdioLaunchSpec(dataDir: string): { command: string; args: string[]; env: Record<string, string> } {
+/**
+ * Command that launches this app as a headless stdio MCP server (works for dev and packaged builds).
+ * Without `dataDir` the server serves whichever local account was signed in most recently, so Claude
+ * Desktop follows account switches; pass a folder to pin it (dev folders, guest workspace).
+ */
+export function stdioLaunchSpec(dataDir: string | null): { command: string; args: string[]; env: Record<string, string> } {
   return {
     command: process.execPath,
     args: app.isPackaged ? ['--mcp-stdio'] : [app.getAppPath(), '--mcp-stdio'],
-    env: { CANVASCL_DATA_DIR: dataDir }
+    env: dataDir ? { CANVASCL_DATA_DIR: dataDir } : {}
   }
 }
 

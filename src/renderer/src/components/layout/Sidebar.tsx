@@ -37,8 +37,9 @@ import {
 } from '@/store/api'
 import { type View, navigate, openTab, setChatOpen, setPaletteOpen, toggleSidebar } from '@/store/ui'
 import type { Folder, Whiteboard } from '@shared/types'
+import { storageKey } from '@/lib/storage'
 
-const COLLAPSED_KEY = 'canvascl.folders.collapsed'
+const COLLAPSED_KEY = storageKey('canvascl.folders.collapsed')
 const WHITEBOARD_DND = 'application/x-canvascl-whiteboard'
 const FOLDER_DND = 'application/x-canvascl-folder'
 
