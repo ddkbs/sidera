@@ -73,7 +73,7 @@ function TabItem({ id, view, index, active, closable }: { id: string; view: View
 
 export function TabBar() {
   const dispatch = useAppDispatch()
-  const { tabs, activeTabId, sidebarOpen } = useAppSelector((s) => s.ui)
+  const { tabs, activeTabId, sidebarOpen, fullscreen } = useAppSelector((s) => s.ui)
   const undoState = useUndoState()
   const undoKey = formatBinding(useBinding('edit.undo'))
   const redoKey = formatBinding(useBinding('edit.redo'))
@@ -82,7 +82,13 @@ export function TabBar() {
   const navBtn =
     'no-drag grid size-7 place-items-center rounded-md text-muted-foreground transition hover:bg-accent hover:text-foreground disabled:opacity-30 disabled:hover:bg-transparent'
   return (
-    <div data-tour="tab-bar" className={cn('drag-region flex h-10 shrink-0 items-stretch border-b bg-sidebar', !sidebarOpen && 'pl-20')}>
+    <div
+      data-tour="tab-bar"
+      className={cn(
+        'drag-region flex h-10 shrink-0 items-stretch border-b bg-sidebar transition-[padding-left] duration-200',
+        !sidebarOpen && !fullscreen && 'pl-20'
+      )}
+    >
       <div className="flex items-center gap-0.5 px-2">
         {!sidebarOpen && (
           <button className={navBtn} onClick={() => dispatch(toggleSidebar())} aria-label="Show sidebar">

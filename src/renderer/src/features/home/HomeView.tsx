@@ -3,12 +3,13 @@ import { ArrowRight, BookOpen, LayoutDashboard, Plus } from '@/components/icons'
 import { CardIcon } from '@/components/CardIcon'
 import { motion } from 'motion/react'
 import { Button } from '@/components/ui/button'
-import { useAppDispatch } from '@/store'
+import { useAppDispatch, useAppSelector } from '@/store'
 import { useCreateCardMutation, useCreateWhiteboardMutation, useListCardsQuery, useListWhiteboardsQuery } from '@/store/api'
 import { navigate, openCard, setChatOpen } from '@/store/ui'
 
 export function HomeView() {
   const dispatch = useAppDispatch()
+  const theme = useAppSelector((s) => s.ui.theme)
   const { data: boards = [] } = useListWhiteboardsQuery()
   const { data: cards = [] } = useListCardsQuery({ limit: 8 })
   const [createWhiteboard] = useCreateWhiteboardMutation()
@@ -24,7 +25,10 @@ export function HomeView() {
             title="Ask AI"
             aria-label="Ask AI"
           >
-            <ThinkingOrb state="connecting" size={64} />
+            {/* Explicit theme: relying on "auto" ancestor-class detection can pick up the OS's
+                prefers-color-scheme instead of our resolved app theme when they disagree,
+                rendering the dark palette (light ink) on a light background. */}
+            <ThinkingOrb state="connecting" size={64} theme={theme} />
           </button>
           <div className="min-w-0">
             <motion.h1 initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} className="text-3xl font-semibold tracking-tight">

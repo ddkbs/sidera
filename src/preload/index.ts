@@ -8,6 +8,7 @@ import {
   type AppBridge,
   type AskUserAnswer,
   DB_CHANGED,
+  FULLSCREEN_CHANGED,
   MCP_ACTIVITY,
   type ChatBridge,
   type ChatEvent,
@@ -36,6 +37,12 @@ const events = {
     const listener = (): void => cb()
     ipcRenderer.on('app:open-settings', listener)
     return () => ipcRenderer.removeListener('app:open-settings', listener)
+  },
+  /** native macOS fullscreen entered/left. */
+  onFullscreenChanged(cb: (fullscreen: boolean) => void): () => void {
+    const listener = (_: unknown, fullscreen: boolean): void => cb(fullscreen)
+    ipcRenderer.on(FULLSCREEN_CHANGED, listener)
+    return () => ipcRenderer.removeListener(FULLSCREEN_CHANGED, listener)
   }
 }
 
@@ -70,7 +77,8 @@ const appBridge: AppBridge = {
   getMcpConnections: () => ipcRenderer.invoke('app:getMcpConnections'),
   connectClaude: (target) => ipcRenderer.invoke('app:connectClaude', target),
   openCapture: () => ipcRenderer.invoke('app:openCapture'),
-  hideCapture: () => ipcRenderer.invoke('app:hideCapture')
+  hideCapture: () => ipcRenderer.invoke('app:hideCapture'),
+  isFullScreen: () => ipcRenderer.invoke('app:isFullScreen')
 }
 
 // Taken once per page load: main reloads every window when the session changes.

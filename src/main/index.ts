@@ -3,7 +3,7 @@ import { join } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { app, BrowserWindow, ipcMain, net, protocol, shell } from 'electron'
 import Database from 'better-sqlite3'
-import { CHAT_EVENT, type AskUserAnswer } from '@shared/api'
+import { CHAT_EVENT, FULLSCREEN_CHANGED, type AskUserAnswer } from '@shared/api'
 import { getProviderMeta, resolveBaseUrl, type AiProviderId } from '@shared/ai'
 import {
   GUEST_NAMESPACE,
@@ -345,6 +345,7 @@ async function bootstrap(): Promise<void> {
   // Signed out there is no capture target: open the main window (sign-in screen) instead.
   ipcMain.handle('app:openCapture', () => (session ? showCaptureWindow() : showMain()))
   ipcMain.handle('app:hideCapture', () => hideCaptureWindow())
+  ipcMain.handle('app:isFullScreen', () => win?.isFullScreen() ?? false)
 
   ipcMain.handle('app:getSettings', () => settings().get())
   ipcMain.handle('app:setSettings', async (_e, patch: SettingsPatch) => {
@@ -450,6 +451,8 @@ function createWindow(): void {
   })
   const w = win
   w.once('ready-to-show', () => w.show())
+  w.on('enter-full-screen', () => w.webContents.send(FULLSCREEN_CHANGED, true))
+  w.on('leave-full-screen', () => w.webContents.send(FULLSCREEN_CHANGED, false))
   // First open of a fresh knowledge base: show the welcome board (once).
   w.webContents.on('did-finish-load', () => {
     const s = session

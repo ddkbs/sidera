@@ -220,6 +220,9 @@ export interface McpActivity {
   at: number
 }
 
+/** Event pushed to the renderer whenever the main window enters/leaves native macOS fullscreen. */
+export const FULLSCREEN_CHANGED = 'app:fullscreen-changed'
+
 /** A choice offered to the user by the `ask_user_questions` chat-local tool. */
 export interface AskUserOption {
   label: string
@@ -320,4 +323,6 @@ export interface AppBridge {
   /** Quick-capture window (see src/main/capture.ts). */
   openCapture(): Promise<void>
   hideCapture(): Promise<void>
+  /** Whether the main window is currently in native macOS fullscreen. */
+  isFullScreen(): Promise<boolean>
 }

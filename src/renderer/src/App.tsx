@@ -4,7 +4,7 @@ import { Toaster } from '@/components/ui/sonner'
 import { AppShell } from '@/components/layout/AppShell'
 import { api, scopeTags } from '@/store/api'
 import { useAppDispatch } from '@/store'
-import { openSettings, pushActivity } from '@/store/ui'
+import { openSettings, pushActivity, setFullscreen } from '@/store/ui'
 import { settingsLoaded } from '@/store/settings'
 import { useAppearance } from '@/lib/appearance'
 
@@ -27,6 +27,18 @@ export function App() {
 
   useEffect(() => window.events.onMcpActivity((a) => dispatch(pushActivity(a))), [dispatch])
   useEffect(() => window.events.onOpenSettings(() => dispatch(openSettings(undefined))), [dispatch])
+
+  useEffect(() => {
+    void window.app.isFullScreen().then((fullscreen) => dispatch(setFullscreen(fullscreen)))
+    return window.events.onFullscreenChanged((fullscreen) => dispatch(setFullscreen(fullscreen)))
+  }, [dispatch])
+
+  // Dev-only: `window.__devSetFullscreen(bool)` simulates enter/leave-full-screen for devShot,
+  // since real native fullscreen can't be triggered headlessly.
+  useEffect(() => {
+    if (!import.meta.env.DEV) return
+    ;(window as unknown as { __devSetFullscreen?: (v: boolean) => void }).__devSetFullscreen = (v) => dispatch(setFullscreen(v))
+  }, [dispatch])
 
   return (
     <TooltipProvider delayDuration={300}>
