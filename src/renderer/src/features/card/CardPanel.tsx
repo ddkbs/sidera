@@ -19,8 +19,9 @@ import { CardIcon } from '@/components/CardIcon'
 import { color as paletteColor } from '@/lib/colors'
 import { PropertyList } from './PropertyList'
 import { TagPicker } from './TagPicker'
+import { storageKey } from '@/lib/storage'
 
-const DOCK_KEY = 'canvascl.card.dock'
+const DOCK_KEY = storageKey('canvascl.card.dock')
 
 /**
  * The card window. By default a centered overlay (~900px) over the whole app; the

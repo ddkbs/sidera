@@ -1,5 +1,6 @@
 import { createSlice, nanoid, type PayloadAction } from '@reduxjs/toolkit'
 import type { McpActivity } from '@shared/api'
+import { UI_KEY } from '@/lib/storage'
 
 export type View =
   | { type: 'whiteboard'; id: string }
@@ -66,7 +67,7 @@ const same = (a: View, b: View) => JSON.stringify(a) === JSON.stringify(b)
 
 const stored = (() => {
   try {
-    return JSON.parse(localStorage.getItem('canvascl.ui') ?? '{}') as Partial<UiState>
+    return JSON.parse(localStorage.getItem(UI_KEY) ?? '{}') as Partial<UiState>
   } catch {
     return {}
   }

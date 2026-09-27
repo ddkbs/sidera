@@ -44,6 +44,7 @@ import { TaskBoard } from './TaskBoard'
 import { TaskDetailPanel } from './TaskDetailPanel'
 import { TaskList, taskKey } from './TaskList'
 import { PriorityIcon, StatusIcon } from './TaskProperties'
+import { storageKey } from '@/lib/storage'
 
 interface Prefs {
   mode: TaskViewMode
@@ -52,7 +53,7 @@ interface Prefs {
   collapsed: string[]
 }
 
-const PREFS_KEY = 'canvascl.tasks.prefs'
+const PREFS_KEY = storageKey('canvascl.tasks.prefs')
 const DEFAULT_PREFS: Prefs = { mode: 'list', groupBy: 'status', filters: EMPTY_FILTERS, collapsed: ['done'] }
 
 const loadPrefs = (): Prefs => {

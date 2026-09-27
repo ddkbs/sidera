@@ -3,6 +3,7 @@ import { useDispatch, useSelector } from 'react-redux'
 import { api } from './api'
 import { settingsSlice } from './settings'
 import { ui } from './ui'
+import { UI_KEY } from '@/lib/storage'
 
 export const store = configureStore({
   reducer: { ui: ui.reducer, settings: settingsSlice.reducer, [api.reducerPath]: api.reducer },
@@ -13,7 +14,7 @@ store.subscribe(() => {
   const { sidebarOpen, tabs, activeTabId, chatOpen, pdf, pdfWidth, pdfListOpen } = store.getState().ui
   try {
     localStorage.setItem(
-      'canvascl.ui',
+      UI_KEY,
       JSON.stringify({
         sidebarOpen,
         tabs: tabs.map(({ id, view }) => ({ id, view })),
