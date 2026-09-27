@@ -72,7 +72,7 @@
 }
 
 @theme inline {
-  --font-sans: var(--app-font, 'Jost Variable'), 'Futura', ui-sans-serif, system-ui, sans-serif;
+  --font-sans: var(--app-font, 'Geist'), ui-sans-serif, system-ui, sans-serif;
   --font-mono: 'Geist Mono', ui-monospace, monospace;
   --color-background: var(--background);
   --color-foreground: var(--foreground);

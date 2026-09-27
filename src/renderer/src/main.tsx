@@ -1,5 +1,4 @@
 import './assets-path'
-import '@fontsource-variable/jost'
 import './fonts.css'
 import './index.css'
 import { StrictMode } from 'react'

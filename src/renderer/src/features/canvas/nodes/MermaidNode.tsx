@@ -136,7 +136,7 @@ export const MermaidNode = memo(function MermaidNode({ id, data, selected }: Nod
   useEffect(() => {
     const mTheme = theme === 'dark' ? 'dark' : 'neutral'
     if (initializedTheme !== mTheme) {
-      mermaid.initialize({ startOnLoad: false, theme: mTheme, securityLevel: 'strict', fontFamily: 'Jost Variable, sans-serif' })
+      mermaid.initialize({ startOnLoad: false, theme: mTheme, securityLevel: 'strict', fontFamily: 'Geist, sans-serif' })
       initializedTheme = mTheme
     }
     let cancelled = false
