@@ -95,6 +95,7 @@ async function openSession(kind: SessionKind, dataDir: string, acc: StoredAccoun
   accountId = acc?.id ?? null
   sessionInfo = { kind, account: acc ? registry.toPublic(acc) : null, storageNamespace: storageNamespaceFor(kind, acc) }
   if (acc) syncProfileFromAccount(s, acc)
+  else if (kind === 'guest') syncProfileFromAccount(s, { name: 'Guest', color: 'gray' })
   await s.restartMcp()
   const qc = s.settings.get().quickCapture
   applyCaptureShortcut(qc.enabled ? qc.accelerator : null)

@@ -3,7 +3,8 @@ import { toast } from 'sonner'
 import type { DataInfo, McpConnections, ProviderStatus } from '@shared/api'
 import { AI_PROVIDERS, getProviderMeta, type AiProviderId } from '@shared/ai'
 import type { FontPref, ThemePref } from '@shared/settings'
-import { AskAI, ArrowUpRight, CircleCheck, Command, Download, File, Home, KeyRound, Palette, Pencil, RotateCcw, Server, Settings, Upload, User, UserPlus } from '@/components/icons'
+import { AskAI, ArrowUpRight, CircleCheck, Command, Download, File, Home, KeyRound, Palette, Pencil, RotateCcw, Server, Settings, Upload, User, UserCircle, UserPlus } from '@/components/icons'
+import { AccountSettings } from '@/features/auth/AccountSettings'
 import { Orb } from '@/components/Orb'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog'
@@ -24,6 +25,7 @@ import { ShortcutsSettings } from './ShortcutsSettings'
 
 const SECTIONS = [
   { id: 'general', label: 'General', Icon: Settings },
+  { id: 'account', label: 'Account', Icon: UserCircle },
   { id: 'profile', label: 'Profile', Icon: User },
   { id: 'appearance', label: 'Appearance', Icon: Palette },
   { id: 'editor', label: 'Editor & canvas', Icon: Pencil },
@@ -61,6 +63,7 @@ export function SettingsDialog() {
         <div className="min-w-0 flex-1 overflow-y-auto px-8 py-7">
           <h2 className="mb-6 text-lg font-semibold">{current.label}</h2>
           {current.id === 'general' && <General />}
+          {current.id === 'account' && <AccountSettings />}
           {current.id === 'profile' && <ProfileSettings />}
           {current.id === 'appearance' && <Appearance />}
           {current.id === 'editor' && <EditorCanvas />}
