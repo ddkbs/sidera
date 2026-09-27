@@ -1,7 +1,7 @@
 import { useState, type ReactNode } from 'react'
 import { toast } from 'sonner'
 import type { ThemePref } from '@shared/settings'
-import { Bell, Check, Ellipsis, Keyboard, Palette, Pencil, Settings, UserPlus } from '@/components/icons'
+import { Bell, Check, Compass, Ellipsis, Keyboard, Palette, Pencil, Settings, UserPlus } from '@/components/icons'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -24,6 +24,7 @@ import { useGetActiveProfileQuery, useGetMcpInfoQuery, useListProfilesQuery, use
 import { updateSettings } from '@/store/settings'
 import { openProfileDialog, openSettings, setShortcutsOpen } from '@/store/ui'
 import { ProfileAvatar } from './ProfileAvatar'
+import { onboarding } from '@/features/onboarding/controller'
 
 const mcpPort = (url: string | null | undefined, fallback: number): number => {
   try {
@@ -105,6 +106,10 @@ export function ProfileMenuContent({ side = 'top', align = 'start' }: { side?: '
         Keyboard shortcuts
         <DropdownMenuShortcut>{shortcutsKey}</DropdownMenuShortcut>
       </DropdownMenuItem>
+      <DropdownMenuItem onSelect={() => onboarding.startTour()}>
+        <Compass />
+        Take the tour
+      </DropdownMenuItem>
       <DropdownMenuSeparator />
       <DropdownMenuItem onSelect={() => dispatch(openSettings('mcp'))} className="text-xs text-muted-foreground">
         <span className="grid size-4 place-items-center">
@@ -143,7 +148,7 @@ export function ProfileFooter({ status }: { status?: ReactNode }) {
   const hover = 'transition hover:bg-sidebar-accent hover:text-foreground'
   return (
     <DropdownMenu open={open} onOpenChange={setOpen}>
-      <div className="flex items-center gap-0.5 border-t border-sidebar-border p-2">
+      <div data-tour="account" className="flex items-center gap-0.5 border-t border-sidebar-border p-2">
         <DropdownMenuTrigger asChild>
           <button
             data-testid="profile-row"

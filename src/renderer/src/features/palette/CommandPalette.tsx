@@ -11,6 +11,7 @@ import {
   PanelLeft,
   Plus,
   Sparkles,
+  Compass,
   Upload
 } from '@/components/icons'
 import { Button } from '@/components/ui/button'
@@ -24,6 +25,7 @@ import { useEffect, useState } from 'react'
 import { CommandDialog, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList, CommandSeparator, CommandShortcut } from '@/components/ui/command'
 import { useAppDispatch, useAppSelector } from '@/store'
 import { useClipUrlMutation, useCreateCardMutation, useCreateWhiteboardMutation, useGetWhiteboardQuery, useListTagsQuery, useSearchQuery } from '@/store/api'
+import { onboarding } from '@/features/onboarding/controller'
 import { navigate, openCard, openSettings, queueChatMessage, setPaletteOpen, toggleSidebar } from '@/store/ui'
 
 export function CommandPalette() {
@@ -178,8 +180,11 @@ export function CommandPalette() {
                 <CommandItem value="mcp" onSelect={run(() => dispatch(openSettings('mcp')))}>
                   <Sparkles /> Connect AI via MCP
                 </CommandItem>
-                <CommandItem value="restart-tour" onSelect={run(() => dispatch(updateSettings({ tourCompleted: false })))}>
-                  <Sparkles /> Restart onboarding tour
+                <CommandItem value="take-the-tour" onSelect={run(() => onboarding.startTour())}>
+                  <Compass /> Take the tour again
+                </CommandItem>
+                <CommandItem value="welcome-screens" onSelect={run(() => onboarding.showWelcome())}>
+                  <Sparkles /> Show welcome screens
                 </CommandItem>
                 {view.type === 'whiteboard' && currentBoard && (
                   <CommandItem

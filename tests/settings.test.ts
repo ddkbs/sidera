@@ -9,6 +9,15 @@ describe('settings', () => {
     expect(b.shortcuts).toEqual({})
     expect(mergeSettings(DEFAULT_SETTINGS, null)).toBe(DEFAULT_SETTINGS)
   })
+
+  it('maps the legacy tourCompleted flag onto onboarding.welcomeSeen', () => {
+    const legacy = { tourCompleted: true } as unknown as Parameters<typeof mergeSettings>[1]
+    const s = mergeSettings(DEFAULT_SETTINGS, legacy)
+    expect(s.onboarding).toEqual({ welcomeSeen: true, tourCompletedAt: null })
+    expect('tourCompleted' in s).toBe(false)
+    const t = mergeSettings(s, { onboarding: { tourCompletedAt: 42 } })
+    expect(t.onboarding).toEqual({ welcomeSeen: true, tourCompletedAt: 42 })
+  })
 })
 
 describe('shortcuts', async () => {

@@ -12,7 +12,7 @@ import { store, useAppDispatch, useAppSelector } from '@/store'
 import { back, closeTab, cycleTab, forward, navigate, openSettings, openTab, setChatOpen, setPaletteOpen, toggleSidebar } from '@/store/ui'
 import { useCommands } from '@/lib/shortcuts'
 import { SettingsDialog } from '@/features/settings/SettingsDialog'
-import { Tour } from '@/features/onboarding/Tour'
+import { Onboarding } from '@/features/onboarding/Onboarding'
 import { TabBar } from './TabBar'
 import { ChatPanel } from '@/features/chat/ChatPanel'
 import { PdfReader } from '@/features/pdf/PdfReader'
@@ -76,7 +76,7 @@ export function AppShell() {
       <ShortcutsDialog />
       <SettingsDialog />
       <ProfileDialog />
-      <Tour />
+      <Onboarding />
     </div>
   )
 }
