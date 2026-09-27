@@ -9,7 +9,7 @@ import { Input } from '@/components/ui/input'
 import { cn } from '@/lib/utils'
 import { ProfileAvatar } from '@/features/profile/ProfileAvatar'
 import { AccountForm, FormError, Spinner } from './AccountForm'
-import { BrandMark } from './BrandMark'
+import { LogoTile } from '@/components/Logo'
 
 /** Account to expand on the sign-in screen after "Switch account" → a password-protected account. */
 export const PRESELECT_KEY = 'canvascl.auth.preselect'
@@ -78,7 +78,7 @@ export function SignInScreen() {
       <main className="relative flex flex-1 items-center justify-center overflow-y-auto px-6 py-16">
         <div className="w-full max-w-[380px]">
           <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} transition={{ duration: 0.4, ease }}>
-            <BrandMark className="mb-6 size-11 drop-shadow-sm" />
+            <LogoTile className="mb-6 size-11" />
           </motion.div>
           {accounts && (
             <AnimatePresence mode="wait" initial={true}>
