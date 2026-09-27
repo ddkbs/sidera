@@ -1,20 +1,19 @@
 // Dev only (macOS): `npm run dev` runs the stock Electron.app, so the Dock, ⌘-Tab and the app menu say "Electron"
 // with Electron's icon. Patch that local bundle's name + icon to CanvasCL. Idempotent; packaged builds use electron-builder.
 const { execFileSync } = require('node:child_process')
-const { copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } = require('node:fs')
-const { tmpdir } = require('node:os')
+const { copyFileSync, existsSync, readFileSync, writeFileSync } = require('node:fs')
 const { join } = require('node:path')
 
 if (process.platform !== 'darwin') process.exit(0)
 const root = join(__dirname, '..')
 const bundle = join(root, 'node_modules/electron/dist/Electron.app')
 const plist = join(bundle, 'Contents/Info.plist')
-const icon = join(root, 'build/icon.png')
-if (!existsSync(plist) || !existsSync(icon)) process.exit(0)
+const icns = join(root, 'build/icon.icns')
+if (!existsSync(plist) || !existsSync(icns)) process.exit(0)
 
 const NAME = 'CanvasCL'
 const stamp = join(bundle, '../.canvascl-brand')
-const iconHash = require('node:crypto').createHash('sha1').update(readFileSync(icon)).digest('hex')
+const iconHash = require('node:crypto').createHash('sha1').update(readFileSync(icns)).digest('hex')
 if (existsSync(stamp) && readFileSync(stamp, 'utf8') === iconHash) process.exit(0)
 
 const buddy = (cmd) => execFileSync('/usr/libexec/PlistBuddy', ['-c', cmd, plist])
@@ -26,19 +25,8 @@ for (const key of ['CFBundleName', 'CFBundleDisplayName']) {
   }
 }
 
-// build/icon.png → .icns via sips + iconutil (both ship with macOS)
-const tmp = mkdtempSync(join(tmpdir(), 'canvascl-icon-'))
-const set = join(tmp, 'icon.iconset')
-mkdirSync(set)
-for (const size of [16, 32, 128, 256, 512]) {
-  execFileSync('sips', ['-z', String(size), String(size), icon, '--out', join(set, `icon_${size}x${size}.png`)], { stdio: 'ignore' })
-  execFileSync('sips', ['-z', String(size * 2), String(size * 2), icon, '--out', join(set, `icon_${size}x${size}@2x.png`)], { stdio: 'ignore' })
-}
-const icns = join(tmp, 'icon.icns')
-execFileSync('iconutil', ['-c', 'icns', set, '-o', icns])
+// build/icon.icns is rendered natively per size by `npm run icon` (scripts/make-icon.cjs)
 copyFileSync(icns, join(bundle, 'Contents/Resources/electron.icns'))
-copyFileSync(icns, join(root, 'build/icon.icns'))
-rmSync(tmp, { recursive: true, force: true })
 
 // the patched plist invalidates Electron's signature → re-sign ad hoc so macOS still launches it
 execFileSync('codesign', ['--force', '--deep', '--sign', '-', bundle], { stdio: 'ignore' })
