@@ -4,7 +4,7 @@ import { copyFile, mkdir, readFile, stat, writeFile } from 'node:fs/promises'
 import { basename, dirname, extname, isAbsolute, join, relative } from 'node:path'
 import { app, BrowserWindow, dialog, ipcMain, net, protocol, shell } from 'electron'
 import { nanoid } from 'nanoid'
-import { CHAT_EVENT, DB_CHANGED, MCP_ACTIVITY, type AskUserAnswer, type DbChangeScope } from '@shared/api'
+import { CHAT_EVENT, DB_CHANGED, FULLSCREEN_CHANGED, MCP_ACTIVITY, type AskUserAnswer, type DbChangeScope } from '@shared/api'
 import { getProviderMeta, resolveBaseUrl, type AiProviderId } from '@shared/ai'
 import { withSourceHeader } from '@shared/html'
 import { SETTINGS_CHANGED, type SettingsPatch } from '@shared/settings'
@@ -261,6 +261,7 @@ async function bootstrap(): Promise<void> {
   applyCaptureShortcut(settings.get().quickCapture.enabled ? settings.get().quickCapture.accelerator : null)
   ipcMain.handle('app:openCapture', () => showCaptureWindow())
   ipcMain.handle('app:hideCapture', () => hideCaptureWindow())
+  ipcMain.handle('app:isFullScreen', () => win?.isFullScreen() ?? false)
 
   ipcMain.handle('app:getSettings', () => settings.get())
   ipcMain.handle('app:setSettings', async (_e, patch: SettingsPatch) => {
@@ -368,6 +369,8 @@ function createWindow(): void {
     }
   })
   win.once('ready-to-show', () => win?.show())
+  win.on('enter-full-screen', () => win?.webContents.send(FULLSCREEN_CHANGED, true))
+  win.on('leave-full-screen', () => win?.webContents.send(FULLSCREEN_CHANGED, false))
   if (!app.isPackaged && process.env.CANVASCL_SHOT) void devShot(win)
   win.on('closed', () => (win = null))
   hardenWindow(win, rendererUrl())

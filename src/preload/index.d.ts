@@ -7,6 +7,7 @@ declare global {
       onDbChanged(cb: (scopes: DbChangeScope[]) => void): () => void
       onMcpActivity(cb: (a: McpActivity) => void): () => void
       onOpenSettings(cb: () => void): () => void
+      onFullscreenChanged(cb: (fullscreen: boolean) => void): () => void
     }
     platform: string
     chat: ChatBridge

@@ -58,6 +58,8 @@ export interface UiState {
   /** resolved from settings.theme + OS appearance */
   theme: 'light' | 'dark'
   activity: McpActivity[]
+  /** native macOS fullscreen — traffic lights are hidden, so layout can reclaim their space */
+  fullscreen: boolean
 }
 
 const HOME: View = { type: 'home' }
@@ -95,7 +97,8 @@ const initialState: UiState = {
   shortcutsOpen: false,
   profileDialog: null,
   activity: [],
-  theme: matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
+  theme: matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light',
+  fullscreen: false
 }
 
 const active = (s: UiState): Tab => s.tabs.find((t) => t.id === s.activeTabId) ?? s.tabs[0]
@@ -199,7 +202,8 @@ export const ui = createSlice({
     setShortcutsOpen: (s, a: PayloadAction<boolean>) => void (s.shortcutsOpen = a.payload),
     openProfileDialog: (s, a: PayloadAction<{ id: string | null } | null>) => void (s.profileDialog = a.payload),
     setResolvedTheme: (s, a: PayloadAction<'light' | 'dark'>) => void (s.theme = a.payload),
-    pushActivity: (s, a: PayloadAction<McpActivity>) => void (s.activity = [a.payload, ...s.activity].slice(0, 30))
+    pushActivity: (s, a: PayloadAction<McpActivity>) => void (s.activity = [a.payload, ...s.activity].slice(0, 30)),
+    setFullscreen: (s, a: PayloadAction<boolean>) => void (s.fullscreen = a.payload)
   }
 })
 
@@ -231,5 +235,6 @@ export const {
   setShortcutsOpen,
   openProfileDialog,
   setResolvedTheme,
-  pushActivity
+  pushActivity,
+  setFullscreen
 } = ui.actions
