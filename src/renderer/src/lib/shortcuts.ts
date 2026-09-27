@@ -7,10 +7,10 @@ export { eventToBinding, eventToBindings, formatBinding, normalize } from './key
 export interface CommandDef {
   id: string
   label: string
-  group: 'General' | 'Navigation' | 'Whiteboard tools' | 'Whiteboard editing' | 'Tasks'
+  group: 'General' | 'Navigation' | 'Whiteboard tools' | 'Whiteboard editing' | 'Tasks' | 'Onboarding'
   binding: string
   /** only active inside this view; commands of different scopes may share a binding */
-  scope?: 'whiteboard' | 'tasks'
+  scope?: 'whiteboard' | 'tasks' | 'onboarding'
   /** fire even while typing in an input/editor (only sensible for modifier combos) */
   global?: boolean
 }
@@ -50,7 +50,11 @@ export const COMMANDS: CommandDef[] = [
   { id: 'tasks.next', scope: 'tasks', label: 'Next task', group: 'Tasks', binding: 'Down' },
   { id: 'tasks.prev', scope: 'tasks', label: 'Previous task', group: 'Tasks', binding: 'Up' },
   { id: 'tasks.open', scope: 'tasks', label: 'Open selected task', group: 'Tasks', binding: 'Enter' },
-  { id: 'tasks.close', scope: 'tasks', label: 'Close task details', group: 'Tasks', binding: 'Esc' }
+  { id: 'tasks.close', scope: 'tasks', label: 'Close task details', group: 'Tasks', binding: 'Esc' },
+  { id: 'onboarding.next', scope: 'onboarding', label: 'Next step', group: 'Onboarding', binding: 'Right', global: true },
+  { id: 'onboarding.confirm', scope: 'onboarding', label: 'Continue', group: 'Onboarding', binding: 'Enter' },
+  { id: 'onboarding.back', scope: 'onboarding', label: 'Previous step', group: 'Onboarding', binding: 'Left', global: true },
+  { id: 'onboarding.skip', scope: 'onboarding', label: 'Skip / close', group: 'Onboarding', binding: 'Esc', global: true }
 ]
 
 for (const c of COMMANDS) c.binding = normalize(c.binding)
@@ -82,7 +86,12 @@ export const shortcutRecording = { active: false }
  * Register handlers for commands. Handlers return `false` to let the event pass through
  * (e.g. copy when nothing is selected); anything else prevents the default action.
  */
-export function useCommands(handlers: Partial<Record<string, (e: KeyboardEvent) => unknown>>, enabled = true): void {
+export function useCommands(
+  handlers: Partial<Record<string, (e: KeyboardEvent) => unknown>>,
+  enabled = true,
+  /** listen in the capture phase so these handlers win over every other view (modal overlays like the onboarding) */
+  capture = false
+): void {
   const bindings = useBindings()
   const ref = useRef(handlers)
   ref.current = handlers
@@ -100,7 +109,7 @@ export function useCommands(handlers: Partial<Record<string, (e: KeyboardEvent) 
         return
       }
     }
-    window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
-  }, [bindings, enabled])
+    window.addEventListener('keydown', onKey, capture)
+    return () => window.removeEventListener('keydown', onKey, capture)
+  }, [bindings, enabled, capture])
 }

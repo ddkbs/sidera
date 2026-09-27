@@ -22,6 +22,7 @@ import { settingsLoaded, updateSettings } from '@/store/settings'
 import { openProfileDialog, setSettingsOpen, setSettingsSection } from '@/store/ui'
 import { ProfileAvatar } from '@/features/profile/ProfileAvatar'
 import { ShortcutsSettings } from './ShortcutsSettings'
+import { onboarding } from '@/features/onboarding/controller'
 
 const SECTIONS = [
   { id: 'general', label: 'General', Icon: Settings },
@@ -183,16 +184,27 @@ function General() {
         <Switch checked={s.restoreLastView} onCheckedChange={(v) => dispatch(updateSettings({ restoreLastView: v }))} />
       </Row>
       <QuickCaptureRow />
-      <Row title="Onboarding tour" description="Replay the guided tour of the sidebar, tabs, canvas and AI features.">
-        <Button
-          variant="outline"
-          onClick={() => {
-            dispatch(setSettingsOpen(false))
-            void dispatch(updateSettings({ tourCompleted: false }))
-          }}
-        >
-          Restart tour
-        </Button>
+      <Row title="Onboarding" description="Replay the welcome screens or the guided tour of the sidebar, canvas and AI features.">
+        <div className="flex gap-2">
+          <Button
+            variant="ghost"
+            onClick={() => {
+              dispatch(setSettingsOpen(false))
+              onboarding.showWelcome()
+            }}
+          >
+            Welcome
+          </Button>
+          <Button
+            variant="outline"
+            onClick={() => {
+              dispatch(setSettingsOpen(false))
+              onboarding.startTour()
+            }}
+          >
+            Take the tour
+          </Button>
+        </div>
       </Row>
     </div>
   )

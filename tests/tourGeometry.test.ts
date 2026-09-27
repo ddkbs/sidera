@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { clampToViewport, placePopover } from '../src/renderer/src/features/onboarding/geometry'
+import { clampToViewport, placePopover, sameRect, spotlightRect } from '../src/renderer/src/features/onboarding/geometry'
 
 const viewport = { width: 1200, height: 800 }
 const popover = { width: 320, height: 180 }
@@ -56,5 +56,39 @@ describe('clampToViewport', () => {
     const pos = clampToViewport({ x: -50, y: 5000 }, popover, viewport, 12)
     expect(pos.x).toBe(12)
     expect(pos.y).toBe(viewport.height - popover.height - 12)
+  })
+})
+
+describe('placement details', () => {
+  it('honours a preferred side when it fits', () => {
+    const target = { x: 500, y: 300, width: 100, height: 40 }
+    expect(placePopover(target, popover, viewport, 16, 12, 'bottom').side).toBe('bottom')
+    expect(placePopover(target, popover, viewport, 16, 12, 'top').side).toBe('top')
+  })
+
+  it('aims the arrow at the target centre even when the popover slides', () => {
+    const target = { x: 20, y: 740, width: 200, height: 40 } // bottom-left: popover must slide up
+    const p = placePopover(target, popover, viewport)
+    expect(p.side).toBe('right')
+    expect(p.arrow).toBeLessThanOrEqual(popover.height - 18)
+    expect(p.arrow).toBeGreaterThanOrEqual(18)
+  })
+
+  it('reports center without a target', () => {
+    expect(placePopover(null, popover, viewport).side).toBe('center')
+  })
+})
+
+describe('spotlightRect', () => {
+  it('pads the target and keeps it inside the viewport', () => {
+    expect(spotlightRect({ x: 100, y: 100, width: 50, height: 20 }, viewport, 8)).toEqual({ x: 92, y: 92, width: 66, height: 36 })
+    const r = spotlightRect({ x: -40, y: 780, width: 100, height: 100 }, viewport, 8, 4)
+    expect(r.x).toBe(4)
+    expect(r.y + r.height).toBe(viewport.height - 4)
+  })
+
+  it('compares rects with sub-pixel tolerance', () => {
+    expect(sameRect({ x: 1, y: 1, width: 2, height: 2 }, { x: 1.2, y: 1, width: 2, height: 2 })).toBe(true)
+    expect(sameRect({ x: 1, y: 1, width: 2, height: 2 }, null)).toBe(false)
   })
 })

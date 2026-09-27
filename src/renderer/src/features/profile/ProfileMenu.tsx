@@ -1,7 +1,7 @@
 import { useState, type ReactNode } from 'react'
 import { toast } from 'sonner'
 import type { ThemePref } from '@shared/settings'
-import { Bell, Check, Ellipsis, Keyboard, LogOut, Palette, Pencil, Settings, Upload, UserPlus, Users } from '@/components/icons'
+import { Bell, Check, Compass, Ellipsis, Keyboard, LogOut, Palette, Pencil, Settings, Upload, UserPlus, Users } from '@/components/icons'
 import { Badge } from '@/components/ui/badge'
 import {
   DropdownMenu,
@@ -26,6 +26,7 @@ import { updateSettings } from '@/store/settings'
 import { openProfileDialog, openSettings, setShortcutsOpen } from '@/store/ui'
 import { openSaveGuestDialog, signOut, switchToAccount, useAuthSession, useOtherAccounts } from '@/features/auth/AccountDialogs'
 import { ProfileAvatar } from './ProfileAvatar'
+import { onboarding } from '@/features/onboarding/controller'
 
 const mcpPort = (url: string | null | undefined, fallback: number): number => {
   try {
@@ -113,6 +114,10 @@ export function ProfileMenuContent({ side = 'top', align = 'start' }: { side?: '
         <Keyboard />
         Keyboard shortcuts
         <DropdownMenuShortcut>{shortcutsKey}</DropdownMenuShortcut>
+      </DropdownMenuItem>
+      <DropdownMenuItem onSelect={() => onboarding.startTour()}>
+        <Compass />
+        Take the tour
       </DropdownMenuItem>
       {session?.kind === 'account' && (
         <>
@@ -217,7 +222,7 @@ export function ProfileFooter({ status }: { status?: ReactNode }) {
   return (
     <DropdownMenu open={open} onOpenChange={setOpen}>
       {guest && <GuestBanner />}
-      <div className="flex items-center gap-0.5 border-t border-sidebar-border p-2">
+      <div data-tour="account" className="flex items-center gap-0.5 border-t border-sidebar-border p-2">
         <DropdownMenuTrigger asChild>
           <button
             data-testid="profile-row"

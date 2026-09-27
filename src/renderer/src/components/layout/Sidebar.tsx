@@ -214,6 +214,7 @@ export function Sidebar() {
             Home
           </NavItem>
           <NavItem
+            tour="nav-tasks"
             icon={<ListChecks className="size-4" />}
             active={view.type === 'tasks'}
             onClick={(e) => go({ type: 'tasks' }, e)}
@@ -222,6 +223,7 @@ export function Sidebar() {
             Tasks
           </NavItem>
           <NavItem
+            tour="nav-library"
             icon={<BookOpen className="size-4" />}
             active={view.type === 'library' && !view.tagId}
             onClick={(e) => go({ type: 'library', tagId: null, mode: 'table' }, e)}
@@ -232,6 +234,7 @@ export function Sidebar() {
           <ContextMenu>
             <ContextMenuTrigger asChild>
               <div
+                data-tour="hub"
                 className="flex flex-1 flex-col"
                 onDragOver={(e) => {
                   if (e.dataTransfer.types.includes(WHITEBOARD_DND) || e.dataTransfer.types.includes(FOLDER_DND)) {
@@ -551,9 +554,10 @@ function BoardItem({ board, tree, depth }: { board: Whiteboard; tree: Map<string
   )
 }
 
-function NavItem(props: { icon: ReactNode; active?: boolean; onClick: (e: React.MouseEvent) => void; children: ReactNode; className?: string; badge?: string }) {
+function NavItem(props: { icon: ReactNode; active?: boolean; onClick: (e: React.MouseEvent) => void; children: ReactNode; className?: string; badge?: string; tour?: string }) {
   return (
     <button
+      data-tour={props.tour}
       onClick={props.onClick}
       className={cn(
         'flex h-7 min-w-0 items-center gap-2 rounded-md px-2 text-left transition-colors hover:bg-sidebar-accent',
