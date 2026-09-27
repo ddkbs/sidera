@@ -1,7 +1,8 @@
 import type { AiProviderId } from './ai'
 
 export type ThemePref = 'light' | 'dark' | 'system'
-export type FontPref = 'jost' | 'futura' | 'geist' | 'system'
+export type FontPref = 'geist' | 'system'
+export const FONT_VALUES: FontPref[] = ['geist', 'system']
 
 export interface AppSettings {
   theme: ThemePref
@@ -25,7 +26,7 @@ export interface AppSettings {
 
 export const DEFAULT_SETTINGS: AppSettings = {
   theme: 'system',
-  font: 'jost',
+  font: 'geist',
   fontSize: 15,
   restoreLastView: true,
   editor: { spellcheck: true },
@@ -47,6 +48,9 @@ export function mergeSettings(base: AppSettings, patch: SettingsPatch | undefine
   const out = { ...base } as Record<string, unknown>
   for (const [k, v] of Object.entries(patch)) {
     if (v === undefined) continue
+    // Drop legacy/unknown font values (e.g. removed 'jost'/'futura') so old settings.json files
+    // fall back to the current default instead of pointing at a font that no longer exists.
+    if (k === 'font' && !FONT_VALUES.includes(v as FontPref)) continue
     const current = (base as unknown as Record<string, unknown>)[k]
     out[k] = v && typeof v === 'object' && !Array.isArray(v) && current && typeof current === 'object' && k !== 'shortcuts' ? { ...current, ...v } : v
   }

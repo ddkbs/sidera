@@ -4,10 +4,8 @@ import { useAppDispatch, useAppSelector } from '@/store'
 import { setResolvedTheme } from '@/store/ui'
 
 export const FONT_STACKS: Record<FontPref, string> = {
-  jost: "'Jost Variable'",
-  futura: "'Futura', 'Jost Variable'",
   geist: "'Geist'",
-  system: '-apple-system, BlinkMacSystemFont'
+  system: "-apple-system, BlinkMacSystemFont, 'SF Pro Text', 'SF Pro Display'"
 }
 
 /** Resolves theme (from preference + OS appearance) and applies font CSS vars to the document. */
