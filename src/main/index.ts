@@ -1,90 +1,64 @@
-import { mkdirSync, readdirSync, statSync } from 'node:fs'
+import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs'
+import { join } from 'node:path'
 import { pathToFileURL } from 'node:url'
-import { copyFile, mkdir, readFile, stat, writeFile } from 'node:fs/promises'
-import { basename, dirname, extname, isAbsolute, join, relative } from 'node:path'
-import { app, BrowserWindow, dialog, ipcMain, net, protocol, shell } from 'electron'
-import { nanoid } from 'nanoid'
-import { CHAT_EVENT, DB_CHANGED, MCP_ACTIVITY, type AskUserAnswer, type DbChangeScope } from '@shared/api'
+import { app, BrowserWindow, ipcMain, net, protocol, shell } from 'electron'
+import Database from 'better-sqlite3'
+import { CHAT_EVENT, type AskUserAnswer } from '@shared/api'
 import { getProviderMeta, resolveBaseUrl, type AiProviderId } from '@shared/ai'
-import { withSourceHeader } from '@shared/html'
+import {
+  GUEST_NAMESPACE,
+  namespacedKey,
+  type AccountPatch,
+  type AuthResult,
+  type AuthStatus,
+  type NewAccountInput,
+  type SessionInfo,
+  type SessionKind
+} from '@shared/auth'
+import { APP_NAME } from '@shared/brand'
 import { SETTINGS_CHANGED, type SettingsPatch } from '@shared/settings'
-import { SettingsStore } from './settings'
+import { AccountRegistry, type StoredAccount } from './accounts'
 import { applyCaptureShortcut, hideCaptureWindow, showCaptureWindow, teardownCapture, toAccelerator } from './capture'
 import { createTray, destroyTray } from './tray'
-import { addToClaudeCode, addToClaudeDesktop, isInClaudeCode, isInClaudeDesktop, stdioLaunchSpec } from './integrations'
-import { existsSync } from 'node:fs'
-import { ChatAgent } from './ai/chat'
-import { KeyStore } from './ai/keys'
+import { addToClaudeCode, addToClaudeDesktop, isInClaudeCode, isInClaudeDesktop } from './integrations'
 import { listModels as listOpenAiModels } from './ai/openaiCompatible'
-import { openDatabase } from './db/client'
 import { registerIpc } from './ipc'
-import { startHttpMcp, startStdioMcp } from './mcp/server'
-import { createServices } from './services'
-import { exportCards, importCards } from './services/markdown'
-import { seedWelcome } from './services/seed'
-import { downloadImage, fetchLinkPreview, fetchPageForClip } from './web'
+import { startStdioMcp } from './mcp/server'
+import { Session } from './session'
 import { hardenWindow, rendererUrl } from './windowSecurity'
 
 const STDIO = process.argv.includes('--mcp-stdio')
-// One stable data folder for dev and packaged builds: ~/Library/Application Support/CanvasCL
+// One stable data folder for dev and packaged builds: ~/Library/Application Support/CanvasCL.
+// Deliberately NOT APP_NAME: renaming the product must never move everyone's data.
 app.setName('CanvasCL')
+/** Dev/test escape hatch: open this folder directly, no accounts, no sign-in screen (devShot, tests, stdio). */
+const DEV_DATA_DIR = process.env.CANVASCL_DATA_DIR
+/** Dev-only: account registry in a scratch folder, WITH the sign-in screen (to verify the auth flow). */
+const AUTH_ROOT = !app.isPackaged && !DEV_DATA_DIR ? process.env.CANVASCL_AUTH_ROOT : undefined
 // Automated UI checks get their own browser profile so they never collide with a running app (localStorage lock, cache).
-if (process.env.CANVASCL_SHOT && process.env.CANVASCL_DATA_DIR) app.setPath('userData', join(process.env.CANVASCL_DATA_DIR, 'userdata'))
-const dataDir = process.env.CANVASCL_DATA_DIR ?? join(app.getPath('userData'), 'data')
-const filesDir = join(dataDir, 'files')
-mkdirSync(filesDir, { recursive: true })
+if (process.env.CANVASCL_SHOT && DEV_DATA_DIR) app.setPath('userData', join(DEV_DATA_DIR, 'userdata'))
+if (AUTH_ROOT) app.setPath('userData', join(AUTH_ROOT, 'userdata'))
+const registry = new AccountRegistry(AUTH_ROOT ?? app.getPath('userData'))
 
 let win: BrowserWindow | null = null
-let changeTimer: NodeJS.Timeout | null = null
-const pending = new Set<DbChangeScope>()
-const emit = (scope: DbChangeScope): void => {
-  pending.add(scope)
-  if (changeTimer) return
-  changeTimer = setTimeout(() => {
-    win?.webContents.send(DB_CHANGED, [...pending])
-    pending.clear()
-    changeTimer = null
-  }, 30)
-}
+let session: Session | null = null
+let sessionInfo: SessionInfo | null = null
+let accountId: string | null = null
 
-const db = openDatabase(join(dataDir, 'canvascl.db'))
-const settings = new SettingsStore(dataDir)
-const services = createServices(db, emit, {
-  get: () => settings.get().activeProfileId,
-  set: (id) => {
-    if (settings.get().activeProfileId === id) return
-    win?.webContents.send(SETTINGS_CHANGED, settings.set({ activeProfileId: id }))
-  }
-})
-// deleted cards/whiteboards stay restorable (undo) for 30 days
-services.purgeDeleted(30 * 24 * 60 * 60 * 1000)
-
-const MIME: Record<string, string> = {
-  '.pdf': 'application/pdf',
-  '.png': 'image/png',
-  '.jpg': 'image/jpeg',
-  '.jpeg': 'image/jpeg',
-  '.gif': 'image/gif',
-  '.webp': 'image/webp',
-  '.svg': 'image/svg+xml',
-  '.md': 'text/markdown',
-  '.txt': 'text/plain'
+const requireSession = (): Session => {
+  if (!session) throw new Error('Not signed in')
+  return session
 }
-// importFileData (paste/drop of raw bytes, e.g. a clipboard image) accepts the same mimes as importFiles plus a few more image types
-const EXT_BY_MIME: Record<string, string> = {
-  ...Object.fromEntries(Object.entries(MIME).map(([ext, mime]) => [mime, ext])),
-  'image/bmp': '.bmp',
-  'image/heic': '.heic',
-  'image/heif': '.heif'
-}
-const DATA_MIME_ALLOWLIST = new Set([...Object.values(MIME), 'image/bmp', 'image/heic', 'image/heif'])
-const MAX_IMPORT_BYTES = 25 * 1024 * 1024
-const OPENABLE_EXTS = new Set(['.pdf', '.png', '.jpg', '.jpeg', '.gif', '.webp', '.bmp', '.heic', '.heif', '.md', '.txt'])
 
 if (STDIO) {
   app.dock?.hide()
   process.stdin.on('end', () => app.quit())
-  app.whenReady().then(() => startStdioMcp(services, app.getVersion()))
+  // Serves the account that was signed in most recently (or the pinned CANVASCL_DATA_DIR).
+  app.whenReady().then(() => {
+    const dataDir = DEV_DATA_DIR ?? registry.activeDataDir() ?? registry.legacyDir
+    session = new Session({ dataDir, kind: DEV_DATA_DIR ? 'dev' : 'account', version: app.getVersion(), window: () => null, interactive: false })
+    return startStdioMcp(session.services, app.getVersion())
+  })
 } else {
   protocol.registerSchemesAsPrivileged([
     { scheme: 'canvascl-file', privileges: { standard: true, secure: true, supportFetchAPI: true, stream: true, corsEnabled: true } }
@@ -92,13 +66,236 @@ if (STDIO) {
   void bootstrap()
 }
 
+// ─── session lifecycle ────────────────────────────────────────────────────────────────────────────
+
+/** Reads who used the pre-accounts data folder, so the "Welcome back" screen can prefill the name. */
+function peekLegacyProfile(dataDir: string): { name?: string | null; color?: string | null } | null {
+  let activeId: string | undefined
+  try {
+    activeId = (JSON.parse(readFileSync(join(dataDir, 'settings.json'), 'utf8')) as { activeProfileId?: string }).activeProfileId
+  } catch {
+    activeId = undefined
+  }
+  const db = new Database(join(dataDir, 'canvascl.db'), { readonly: true, fileMustExist: true })
+  try {
+    const rows = db.prepare('SELECT id, name, color FROM profiles ORDER BY created_at').all() as { id: string; name: string; color: string }[]
+    return rows.find((r) => r.id === activeId) ?? rows[0] ?? null
+  } finally {
+    db.close()
+  }
+}
+
+const storageNamespaceFor = (kind: SessionKind, acc: StoredAccount | null): string =>
+  kind === 'guest' ? GUEST_NAMESPACE : kind === 'dev' || !acc || acc.dataDir === registry.legacyDir ? '' : acc.id
+
+async function openSession(kind: SessionKind, dataDir: string, acc: StoredAccount | null = null): Promise<void> {
+  await closeSession()
+  const s = new Session({ dataDir, kind, version: app.getVersion(), window: () => win })
+  session = s
+  accountId = acc?.id ?? null
+  sessionInfo = { kind, account: acc ? registry.toPublic(acc) : null, storageNamespace: storageNamespaceFor(kind, acc) }
+  if (acc) syncProfileFromAccount(s, acc)
+  await s.restartMcp()
+  const qc = s.settings.get().quickCapture
+  applyCaptureShortcut(qc.enabled ? qc.accelerator : null)
+}
+
+/** The account's name & color are its identity: mirror them onto the knowledge base's active profile (authorship). */
+function syncProfileFromAccount(s: Session, acc: Pick<StoredAccount, 'name' | 'color'>): void {
+  try {
+    const p = s.services.getActiveProfile()
+    if (p.name !== acc.name || p.color !== acc.color) s.services.updateProfile({ id: p.id, name: acc.name, color: acc.color })
+  } catch (e) {
+    console.warn('[accounts] could not sync profile', e)
+  }
+}
+
+/** Ends the current session. A guest session's workspace is wiped unless `keepGuest` (save-as-account). */
+async function closeSession(keepGuest = false): Promise<void> {
+  const s = session
+  if (!s) return
+  if (accountId) registry.setAvatar(accountId, s.avatarRelativePath())
+  session = null
+  sessionInfo = null
+  accountId = null
+  // the capture panel's renderer belongs to the old account: drop it with its global shortcut
+  teardownCapture()
+  await s.close()
+  if (s.kind === 'guest' && !keepGuest) registry.wipeGuest()
+}
+
+/** Reload the main window so the renderer starts fresh for the new session (or the sign-in screen). */
+function reloadWindows(): void {
+  if (win && !win.isDestroyed()) win.webContents.reload()
+  else if (app.isReady()) createWindow()
+}
+
+/** Removes renderer localStorage keys of a namespace (deleted account, previous guest). */
+async function clearNamespace(namespace: string): Promise<void> {
+  if (!namespace || !win || win.isDestroyed()) return
+  const suffix = namespacedKey('', namespace)
+  await win.webContents
+    .executeJavaScript(`for (const k of Object.keys(localStorage)) if (k.endsWith(${JSON.stringify(suffix)})) localStorage.removeItem(k)`)
+    .catch(() => undefined)
+}
+
+const failures = new Map<string, number>()
+/** Slows down repeated wrong passwords (local brute-force deterrent, not real security). */
+async function throttle(id: string): Promise<void> {
+  const n = failures.get(id) ?? 0
+  if (n) await new Promise((r) => setTimeout(r, Math.min(250 * 2 ** n, 4000)))
+}
+
+const fail = (e: unknown): AuthResult => ({ ok: false, error: e instanceof Error ? e.message : String(e) })
+
+async function signInTo(acc: StoredAccount, staySignedIn: boolean): Promise<AuthResult> {
+  if (!existsSync(acc.dataDir)) return { ok: false, error: 'This account’s data folder is missing.' }
+  if (sessionInfo?.kind === 'guest') await clearNamespace(GUEST_NAMESPACE)
+  registry.markSignedIn(acc.id, staySignedIn)
+  await openSession('account', acc.dataDir, registry.get(acc.id) ?? acc)
+  reloadWindows()
+  return { ok: true }
+}
+
+function registerAuthIpc(): void {
+  const noAccounts = (): AuthResult | null => (DEV_DATA_DIR ? { ok: false, error: 'Accounts are disabled while CANVASCL_DATA_DIR is set.' } : null)
+
+  ipcMain.on('auth:sessionSync', (e) => (e.returnValue = sessionInfo))
+  ipcMain.handle('auth:status', (): AuthStatus => ({ session: sessionInfo, lastAccountId: registry.lastAccountId }))
+  ipcMain.handle('auth:listAccounts', () => registry.list())
+
+  ipcMain.handle('auth:createAccount', async (_e, input: NewAccountInput): Promise<AuthResult> => {
+    const blocked = noAccounts()
+    if (blocked) return blocked
+    try {
+      return await signInTo(registry.create(input), input.staySignedIn ?? true)
+    } catch (e) {
+      return fail(e)
+    }
+  })
+
+  ipcMain.handle('auth:setupAccount', async (_e, id: string, input: NewAccountInput): Promise<AuthResult> => {
+    try {
+      return await signInTo(registry.finishSetup(id, input), input.staySignedIn ?? true)
+    } catch (e) {
+      return fail(e)
+    }
+  })
+
+  ipcMain.handle('auth:signIn', async (_e, id: string, password?: string, staySignedIn = true): Promise<AuthResult> => {
+    const blocked = noAccounts()
+    if (blocked) return blocked
+    const acc = registry.get(id)
+    if (!acc) return { ok: false, error: 'Account not found' }
+    if (acc.needsSetup) return { ok: false, error: 'Finish setting up this account first' }
+    await throttle(id)
+    if (!registry.verifyPassword(id, password)) {
+      failures.set(id, (failures.get(id) ?? 0) + 1)
+      return { ok: false, error: 'Wrong password' }
+    }
+    failures.delete(id)
+    try {
+      return await signInTo(acc, staySignedIn)
+    } catch (e) {
+      return fail(e)
+    }
+  })
+
+  ipcMain.handle('auth:continueAsGuest', async (): Promise<AuthResult> => {
+    const blocked = noAccounts()
+    if (blocked) return blocked
+    try {
+      await closeSession()
+      await clearNamespace(GUEST_NAMESPACE)
+      registry.signedOut()
+      await openSession('guest', registry.prepareGuest())
+      reloadWindows()
+      return { ok: true }
+    } catch (e) {
+      return fail(e)
+    }
+  })
+
+  ipcMain.handle('auth:saveGuestAsAccount', async (_e, input: NewAccountInput): Promise<AuthResult> => {
+    if (session?.kind !== 'guest') return { ok: false, error: 'Not in a guest session' }
+    try {
+      registry.validate(input)
+    } catch (e) {
+      return fail(e)
+    }
+    // The database must be closed before its folder moves.
+    await closeSession(true)
+    try {
+      const acc = registry.saveGuestAsAccount(input)
+      // keep the guest's tabs & UI state: copy them to the new account's namespace
+      await win?.webContents
+        .executeJavaScript(
+          `for (const k of Object.keys(localStorage)) if (k.endsWith(${JSON.stringify(namespacedKey('', GUEST_NAMESPACE))})) { localStorage.setItem(k.slice(0, -${GUEST_NAMESPACE.length + 1}) + ${JSON.stringify(namespacedKey('', acc.id))}, localStorage.getItem(k)); localStorage.removeItem(k) }`
+        )
+        .catch(() => undefined)
+      return await signInTo(acc, input.staySignedIn ?? true)
+    } catch (e) {
+      // e.g. the move failed: reopen the guest workspace untouched
+      if (existsSync(registry.guestDir)) await openSession('guest', registry.guestDir)
+      reloadWindows()
+      return fail(e)
+    }
+  })
+
+  ipcMain.handle('auth:signOut', async () => {
+    if (DEV_DATA_DIR) return
+    await closeSession()
+    await clearNamespace(GUEST_NAMESPACE)
+    registry.signedOut()
+    reloadWindows()
+  })
+
+  ipcMain.handle('auth:updateAccount', (_e, patch: AccountPatch): AuthResult => {
+    if (!accountId || !session) return { ok: false, error: 'Not signed in to an account' }
+    try {
+      const acc = registry.update(accountId, patch)
+      if (patch.name !== undefined || patch.color !== undefined) syncProfileFromAccount(session, acc)
+      sessionInfo = { ...sessionInfo!, account: registry.toPublic(acc) }
+      return { ok: true }
+    } catch (e) {
+      return fail(e)
+    }
+  })
+
+  ipcMain.handle('auth:deleteAccount', async (_e, id: string, password?: string): Promise<AuthResult> => {
+    const acc = registry.get(id)
+    if (!acc) return { ok: false, error: 'Account not found' }
+    await throttle(id)
+    if (!registry.verifyPassword(id, password)) {
+      failures.set(id, (failures.get(id) ?? 0) + 1)
+      return { ok: false, error: 'Wrong password' }
+    }
+    failures.delete(id)
+    const wasActive = accountId === id
+    if (wasActive) await closeSession()
+    try {
+      // Never hard-delete someone's knowledge base: it goes to the Trash and can be put back.
+      if (existsSync(acc.dataDir)) await shell.trashItem(acc.dataDir)
+    } catch (e) {
+      if (wasActive) await openSession('account', acc.dataDir, acc)
+      return fail(e)
+    }
+    registry.remove(id)
+    await clearNamespace(storageNamespaceFor('account', acc))
+    if (wasActive) reloadWindows()
+    return { ok: true }
+  })
+}
+
+// ─── app ──────────────────────────────────────────────────────────────────────────────────────────
+
 async function bootstrap(): Promise<void> {
   await app.whenReady()
 
   protocol.handle('canvascl-file', async (req) => {
     // canvascl-file://files/<id> — ids live in the path because hostnames are lower-cased
     const id = decodeURIComponent(new URL(req.url).pathname.replace(/^\//, ''))
-    const f = services.getFile(id)
+    const f = session?.services.getFile(id)
     if (!f) return new Response('Not found', { status: 404 })
     const res = await net.fetch(pathToFileURL(f.path).toString())
     const headers = new Headers(res.headers)
@@ -110,175 +307,63 @@ async function bootstrap(): Promise<void> {
     return new Response(res.body, { status: res.status, headers })
   })
 
-  let mcpUrl: string | null = null
-  let mcpServer: import('node:http').Server | null = null
-  registerIpc({
-    ...services,
-    async importFiles(paths) {
-      let filePaths = (paths ?? []).filter((p) => MIME[extname(p).toLowerCase()])
-      if (!paths) {
-        const res = await dialog.showOpenDialog(win!, {
-          properties: ['openFile', 'multiSelections'],
-          filters: [{ name: 'Documents & images', extensions: Object.keys(MIME).map((e) => e.slice(1)) }]
-        })
-        if (res.canceled) return []
-        filePaths = res.filePaths
-      }
-      return Promise.all(
-        filePaths.map(async (p) => {
-          const ext = extname(p).toLowerCase()
-          const dest = join(filesDir, nanoid() + ext)
-          await copyFile(p, dest)
-          const { size } = await stat(dest)
-          return services.registerFile({ name: basename(p), mime: MIME[ext] ?? 'application/octet-stream', path: dest, size })
-        })
-      )
-    },
-    async importFileData({ name, mime, dataBase64 }) {
-      if (!DATA_MIME_ALLOWLIST.has(mime)) throw new Error(`Unsupported file type: ${mime}`)
-      const buf = Buffer.from(dataBase64, 'base64')
-      if (buf.length > MAX_IMPORT_BYTES) throw new Error('File too large (max 25 MB)')
-      const ext = extname(name || '').toLowerCase() || EXT_BY_MIME[mime] || ''
-      const dest = join(filesDir, nanoid() + ext)
-      await writeFile(dest, buf)
-      return services.registerFile({ name: name?.trim() || `pasted${ext}`, mime, path: dest, size: buf.length })
-    },
-    async getFileUrl(id) {
-      return services.getFile(id) ? `canvascl-file://files/${encodeURIComponent(id)}` : null
-    },
-    async openFile(id) {
-      // Only files we imported ourselves (looked up by id, must live in the files dir) — never a renderer-supplied path.
-      const file = services.getFile(id)
-      if (!file) throw new Error(`File not found: ${id}`)
-      const rel = relative(filesDir, file.path)
-      if (!rel || rel.startsWith('..') || isAbsolute(rel)) throw new Error('File is outside the data folder')
-      // SVG/HTML-ish files could run script in a browser: only hand inert document/image types to the OS.
-      if (!OPENABLE_EXTS.has(extname(file.path).toLowerCase())) throw new Error('This file type cannot be opened externally')
-      const err = await shell.openPath(file.path)
-      if (err) throw new Error(err)
-    },
-    async fetchLinkPreview(url) {
-      const preview = await fetchLinkPreview(url)
-      // The renderer's CSP only allows local images: cache og:image and favicon in the data dir (also works offline
-      // and doesn't ping the site every time a board is opened).
-      const cache = async (remote: string | undefined, label: string): Promise<string | undefined> => {
-        if (!remote) return undefined
-        const img = await downloadImage(remote)
-        if (!img) return undefined
-        const dest = join(filesDir, nanoid() + img.ext)
-        await writeFile(dest, img.bytes)
-        const file = services.registerFile({ name: `${label}${img.ext}`, mime: img.mime, path: dest, size: img.bytes.byteLength })
-        return `canvascl-file://files/${encodeURIComponent(file.id)}`
-      }
-      const host = (() => {
-        try {
-          return new URL(url).hostname
-        } catch {
-          return 'link'
-        }
-      })()
-      const [image, favicon] = await Promise.all([cache(preview.image, `${host}-preview`), cache(preview.favicon, `${host}-favicon`)])
-      return { ...preview, image, favicon, remoteImage: preview.image, remoteFavicon: preview.favicon }
-    },
-    async clipUrl(input) {
-      const { title, markdown } = await fetchPageForClip(input.url)
-      return services.createCard({ title, markdown: withSourceHeader(input.url, markdown), tagIds: input.tagIds })
-    },
-    async exportMarkdown() {
-      const res = await dialog.showOpenDialog(win!, { title: 'Export cards as Markdown', properties: ['openDirectory', 'createDirectory'] })
-      if (res.canceled || !res.filePaths[0]) return null
-      const dir = join(res.filePaths[0], `CanvasCL export ${new Date().toISOString().slice(0, 10)}`)
-      const files = exportCards(services)
-      for (const f of files) {
-        const target = join(dir, f.name)
-        await mkdir(dirname(target), { recursive: true })
-        await writeFile(target, f.content, 'utf8')
-      }
-      return { count: files.length, dir }
-    },
-    async importMarkdown() {
-      const res = await dialog.showOpenDialog(win!, {
-        title: 'Import Markdown files',
-        properties: ['openFile', 'multiSelections'],
-        filters: [{ name: 'Markdown', extensions: ['md', 'markdown', 'txt'] }]
-      })
-      if (res.canceled) return { count: 0 }
-      const files = await Promise.all(res.filePaths.map(async (p) => ({ name: basename(p), content: await readFile(p, 'utf8') })))
-      return { count: importCards(services, files) }
-    },
-    async getMcpInfo() {
-      const spec = stdioLaunchSpec(dataDir)
-      return { running: !!mcpUrl, url: mcpUrl, stdioCommand: [spec.command, ...spec.args].map((a) => `"${a}"`).join(' ') }
-    }
-  })
+  registerIpc(() => requireSession().handlers)
+  registerAuthIpc()
 
-  const reportActivity = (tool: string, args: Record<string, unknown>): void => {
-    win?.webContents.send(MCP_ACTIVITY, { tool, args: JSON.stringify(args).slice(0, 200), at: Date.now() })
-  }
-  const keys = new KeyStore(dataDir)
-  const getActiveConfig = (): { provider: AiProviderId; model: string; baseUrl?: string; apiKey: string | null; webSearch: boolean } => {
-    const ai = settings.get().ai
-    return { provider: ai.provider, model: ai.model, baseUrl: ai.baseUrl, apiKey: keys.resolve(ai.provider), webSearch: ai.webSearch === true }
-  }
-  const chat = new ChatAgent(services, app.getVersion(), getActiveConfig, reportActivity)
-  ipcMain.handle('chat:send', (_e, text: string) => chat.send(text, (ev) => win?.webContents.send(CHAT_EVENT, ev)))
-  ipcMain.handle('chat:stop', () => chat.stop())
-  ipcMain.handle('chat:reset', () => chat.reset())
-  ipcMain.handle('chat:hasKey', () => keys.hasKey(settings.get().ai.provider))
-  ipcMain.handle('chat:setKey', (_e, key: string | null) => keys.set(settings.get().ai.provider, key))
+  const chat = (): Session['chat'] => requireSession().chat
+  const keys = (): Session['keys'] => requireSession().keys
+  const settings = (): Session['settings'] => requireSession().settings
+  ipcMain.handle('chat:send', (_e, text: string) => {
+    const s = requireSession()
+    return s.chat.send(text, (ev) => s.send(CHAT_EVENT, ev))
+  })
+  ipcMain.handle('chat:stop', () => chat().stop())
+  ipcMain.handle('chat:reset', () => chat().reset())
+  ipcMain.handle('chat:hasKey', () => keys().hasKey(settings().get().ai.provider))
+  ipcMain.handle('chat:setKey', (_e, key: string | null) => keys().set(settings().get().ai.provider, key))
   ipcMain.handle('chat:getProviderStatus', () =>
     (['anthropic', 'openai', 'gemini', 'mistral', 'xai', 'openrouter', 'ollama', 'custom'] as AiProviderId[]).map((provider) => ({
       provider,
-      hasKey: getProviderMeta(provider).needsKey ? keys.hasKey(provider) : true
+      hasKey: getProviderMeta(provider).needsKey ? keys().hasKey(provider) : true
     }))
   )
-  ipcMain.handle('chat:setProviderKey', (_e, provider: AiProviderId, key: string | null) => keys.set(provider, key))
-  ipcMain.handle('chat:answerQuestions', (_e, requestId: string, answers: AskUserAnswer[]) => chat.answerQuestions(requestId, answers))
-  ipcMain.handle('chat:skipQuestions', (_e, requestId: string) => chat.skipQuestions(requestId))
+  ipcMain.handle('chat:setProviderKey', (_e, provider: AiProviderId, key: string | null) => keys().set(provider, key))
+  ipcMain.handle('chat:answerQuestions', (_e, requestId: string, answers: AskUserAnswer[]) => chat().answerQuestions(requestId, answers))
+  ipcMain.handle('chat:skipQuestions', (_e, requestId: string) => chat().skipQuestions(requestId))
   ipcMain.handle('chat:listModels', async (_e, provider: AiProviderId, baseUrl?: string) => {
     if (provider === 'anthropic') {
-      const client = new (await import('@anthropic-ai/sdk')).default({ apiKey: keys.resolve('anthropic') ?? undefined })
+      const client = new (await import('@anthropic-ai/sdk')).default({ apiKey: keys().resolve('anthropic') ?? undefined })
       const page = await client.models.list()
       const ids: string[] = []
       for await (const m of page) ids.push(m.id)
       return ids.sort()
     }
-    return listOpenAiModels(keys.resolve(provider), resolveBaseUrl(provider, baseUrl))
+    return listOpenAiModels(keys().resolve(provider), resolveBaseUrl(provider, baseUrl))
   })
 
-  const restartMcp = async (): Promise<void> => {
-    await new Promise<void>((r) => (mcpServer ? mcpServer.close(() => r()) : r()))
-    mcpServer = null
-    mcpUrl = null
-    const { httpEnabled, port } = settings.get().mcp
-    if (!httpEnabled) return
-    const started = await startHttpMcp(services, app.getVersion(), reportActivity, port)
-    mcpServer = started?.server ?? null
-    mcpUrl = started?.url ?? null
-  }
-  await restartMcp()
-
-  applyCaptureShortcut(settings.get().quickCapture.enabled ? settings.get().quickCapture.accelerator : null)
-  ipcMain.handle('app:openCapture', () => showCaptureWindow())
+  // Signed out there is no capture target: open the main window (sign-in screen) instead.
+  ipcMain.handle('app:openCapture', () => (session ? showCaptureWindow() : showMain()))
   ipcMain.handle('app:hideCapture', () => hideCaptureWindow())
 
-  ipcMain.handle('app:getSettings', () => settings.get())
+  ipcMain.handle('app:getSettings', () => settings().get())
   ipcMain.handle('app:setSettings', async (_e, patch: SettingsPatch) => {
-    const before = settings.get()
-    const next = settings.set(patch)
+    const s = requireSession()
+    const before = s.settings.get()
+    const next = s.settings.set(patch)
     if (patch.quickCapture) {
       const ok = applyCaptureShortcut(next.quickCapture.enabled ? next.quickCapture.accelerator : null)
       if (!ok) {
-        const reverted = settings.set({ quickCapture: { enabled: false } })
-        win?.webContents.send(SETTINGS_CHANGED, reverted)
+        const reverted = s.settings.set({ quickCapture: { enabled: false } })
+        s.send(SETTINGS_CHANGED, reverted)
         throw new Error(`Could not register "${next.quickCapture.accelerator}" — it may already be used by another app.`)
       }
     }
-    if (before.mcp.httpEnabled !== next.mcp.httpEnabled || before.mcp.port !== next.mcp.port) await restartMcp()
-    win?.webContents.send(SETTINGS_CHANGED, next)
+    if (before.mcp.httpEnabled !== next.mcp.httpEnabled || before.mcp.port !== next.mcp.port) await s.restartMcp()
+    s.send(SETTINGS_CHANGED, next)
     return next
   })
   ipcMain.handle('app:getDataInfo', () => {
+    const { dataDir, filesDir } = requireSession()
     const dbPath = join(dataDir, 'canvascl.db')
     const size = (p: string): number => (existsSync(p) ? statSync(p).size : 0)
     return {
@@ -290,39 +375,29 @@ async function bootstrap(): Promise<void> {
       version: app.getVersion()
     }
   })
-  ipcMain.handle('app:revealDataDir', () => shell.openPath(dataDir))
-  ipcMain.handle('app:getMcpConnections', async () => ({
-    desktop: isInClaudeDesktop(),
-    code: await isInClaudeCode(),
-    httpUrl: mcpUrl,
-    stdio: stdioLaunchSpec(dataDir)
-  }))
+  ipcMain.handle('app:revealDataDir', () => shell.openPath(requireSession().dataDir))
+  ipcMain.handle('app:getMcpConnections', async () => {
+    const s = requireSession()
+    return { desktop: isInClaudeDesktop(), code: await isInClaudeCode(), httpUrl: s.mcpUrl, stdio: s.stdioSpec() }
+  })
   ipcMain.handle('app:connectClaude', async (_e, target: 'desktop' | 'code') => {
-    if (target === 'desktop') return addToClaudeDesktop(stdioLaunchSpec(dataDir))
-    if (!mcpUrl) return { ok: false, message: 'Enable the HTTP MCP server first (Settings → MCP).' }
-    return addToClaudeCode(mcpUrl)
+    const s = requireSession()
+    if (target === 'desktop') {
+      if (s.kind === 'guest') return { ok: false, message: 'Save the guest workspace as an account before connecting Claude Desktop.' }
+      return addToClaudeDesktop(s.stdioSpec())
+    }
+    if (!s.mcpUrl) return { ok: false, message: 'Enable the HTTP MCP server first (Settings → MCP).' }
+    return addToClaudeCode(s.mcpUrl)
   })
 
-  // Detect writes from other processes (e.g. `--mcp-stdio` instances) and refresh the UI
-  let dataVersion = db.$client.pragma('data_version', { simple: true })
-  setInterval(() => {
-    const v = db.$client.pragma('data_version', { simple: true })
-    if (v !== dataVersion) {
-      dataVersion = v
-      emit('all')
+  if (DEV_DATA_DIR) await openSession('dev', DEV_DATA_DIR)
+  else {
+    registry.migrateLegacy(peekLegacyProfile)
+    const auto = registry.autoSignInAccount()
+    if (auto && existsSync(auto.dataDir)) {
+      registry.markSignedIn(auto.id, true)
+      await openSession('account', auto.dataDir, auto)
     }
-  }, 1500)
-
-  if (seedWelcome(services) && !process.env.CANVASCL_SHOT) {
-    const board = services.listWhiteboards()[0]
-    // open the welcome board on first launch
-    app.once('browser-window-created', (_e, w) =>
-      w.webContents.once('did-finish-load', () =>
-        w.webContents.executeJavaScript(
-          `localStorage.getItem('canvascl.ui') || (localStorage.setItem('canvascl.ui', JSON.stringify({ view: { type: 'whiteboard', id: ${JSON.stringify(board.id)} } })), location.reload())`
-        )
-      )
-    )
   }
 
   createWindow()
@@ -330,11 +405,15 @@ async function bootstrap(): Promise<void> {
   app.on('activate', () => (!win || win.isDestroyed()) && createWindow())
   if (!process.env.CANVASCL_SHOT)
     createTray({
-      captureAccelerator: () => (settings.get().quickCapture.enabled ? toAccelerator(settings.get().quickCapture.accelerator) : null),
+      captureAccelerator: () => {
+        const qc = session?.settings.get().quickCapture
+        return qc?.enabled ? toAccelerator(qc.accelerator) : null
+      },
+      canCapture: () => !!session,
       openMain: showMain,
       openSettings: () => {
         showMain()
-        win?.webContents.send('app:open-settings')
+        if (session) win?.webContents.send('app:open-settings')
       }
     })
 }
@@ -355,6 +434,7 @@ function createWindow(): void {
     minWidth: 900,
     minHeight: 600,
     show: false,
+    title: APP_NAME,
     titleBarStyle: 'hiddenInset',
     trafficLightPosition: { x: 14, y: 14 },
     backgroundColor: '#fafafa',
@@ -367,12 +447,22 @@ function createWindow(): void {
       backgroundThrottling: !process.env.CANVASCL_SHOT
     }
   })
-  win.once('ready-to-show', () => win?.show())
-  if (!app.isPackaged && process.env.CANVASCL_SHOT) void devShot(win)
-  win.on('closed', () => (win = null))
-  hardenWindow(win, rendererUrl())
-  if (process.env.ELECTRON_RENDERER_URL) void win.loadURL(process.env.ELECTRON_RENDERER_URL)
-  else void win.loadFile(join(__dirname, '../renderer/index.html'))
+  const w = win
+  w.once('ready-to-show', () => w.show())
+  // First open of a fresh knowledge base: show the welcome board (once).
+  w.webContents.on('did-finish-load', () => {
+    const s = session
+    if (!s?.welcomeBoardId || !sessionInfo || process.env.CANVASCL_SHOT) return
+    const key = JSON.stringify(namespacedKey('canvascl.ui', sessionInfo.storageNamespace))
+    const ui = JSON.stringify(JSON.stringify({ view: { type: 'whiteboard', id: s.welcomeBoardId } }))
+    s.welcomeBoardId = null
+    void w.webContents.executeJavaScript(`localStorage.getItem(${key}) || (localStorage.setItem(${key}, ${ui}), location.reload())`)
+  })
+  if (!app.isPackaged && process.env.CANVASCL_SHOT) void devShot(w)
+  w.on('closed', () => (win = null))
+  hardenWindow(w, rendererUrl())
+  if (process.env.ELECTRON_RENDERER_URL) void w.loadURL(process.env.ELECTRON_RENDERER_URL)
+  else void w.loadFile(join(__dirname, '../renderer/index.html'))
 }
 
 app.on('window-all-closed', () => {
@@ -382,7 +472,11 @@ app.on('will-quit', () => {
   teardownCapture()
   destroyTray()
 })
-app.on('before-quit', () => db.$client.close())
+app.on('before-quit', () => {
+  // closes the database synchronously; the guest workspace survives a quit and is wiped on the next guest start
+  if (session && accountId) registry.setAvatar(accountId, session.avatarRelativePath())
+  void session?.close()
+})
 
 /** Dev-only: run a script in the renderer, capture a screenshot, optionally quit. Used for automated UI checks. */
 async function devShot(w: BrowserWindow): Promise<void> {

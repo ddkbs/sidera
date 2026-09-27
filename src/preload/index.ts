@@ -1,6 +1,7 @@
 import { contextBridge, ipcRenderer, webUtils } from 'electron'
 import { SETTINGS_CHANGED, type AppSettings } from '@shared/settings'
 import type { AiProviderId } from '@shared/ai'
+import type { AuthBridge, SessionInfo } from '@shared/auth'
 import {
   API_METHODS,
   CHAT_EVENT,
@@ -72,6 +73,24 @@ const appBridge: AppBridge = {
   hideCapture: () => ipcRenderer.invoke('app:hideCapture')
 }
 
+// Taken once per page load: main reloads every window when the session changes.
+const session = ipcRenderer.sendSync('auth:sessionSync') as SessionInfo | null
+
+const auth: AuthBridge = {
+  session,
+  status: () => ipcRenderer.invoke('auth:status'),
+  listAccounts: () => ipcRenderer.invoke('auth:listAccounts'),
+  createAccount: (input) => ipcRenderer.invoke('auth:createAccount', input),
+  setupAccount: (id, input) => ipcRenderer.invoke('auth:setupAccount', id, input),
+  signIn: (id, password, staySignedIn) => ipcRenderer.invoke('auth:signIn', id, password, staySignedIn),
+  continueAsGuest: () => ipcRenderer.invoke('auth:continueAsGuest'),
+  saveGuestAsAccount: (input) => ipcRenderer.invoke('auth:saveGuestAsAccount', input),
+  signOut: () => ipcRenderer.invoke('auth:signOut'),
+  updateAccount: (patch) => ipcRenderer.invoke('auth:updateAccount', patch),
+  deleteAccount: (id, password) => ipcRenderer.invoke('auth:deleteAccount', id, password)
+}
+
+contextBridge.exposeInMainWorld('auth', auth)
 contextBridge.exposeInMainWorld('api', api)
 contextBridge.exposeInMainWorld('app', appBridge)
 contextBridge.exposeInMainWorld('chat', chat)

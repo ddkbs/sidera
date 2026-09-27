@@ -67,3 +67,8 @@ export interface AuthBridge {
 }
 
 export const MIN_PASSWORD_LENGTH = 4
+
+/** Renderer localStorage key for the given session namespace ('' keeps the bare key: legacy account, dev folders). */
+export const namespacedKey = (key: string, namespace: string): string => (namespace ? `${key}@${namespace}` : key)
+
+export const GUEST_NAMESPACE = 'guest'

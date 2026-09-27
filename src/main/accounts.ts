@@ -293,6 +293,12 @@ export class AccountRegistry {
     return this.guestDir
   }
 
+  /** Throws the same validation errors `create` would, without writing anything. */
+  validate(input: NewAccountInput, selfId?: string): void {
+    this.validName(this.read(), input.name, selfId)
+    passwordHashFor(input.password)
+  }
+
   /** Turns the guest workspace into a real account: moves the folder to `accounts/<id>` and registers it. */
   saveGuestAsAccount(input: NewAccountInput): StoredAccount {
     if (!existsSync(this.guestDir)) throw new Error('There is no guest workspace to save')
