@@ -1,5 +1,5 @@
 // Dev only (macOS): `npm run dev` runs the stock Electron.app, so the Dock, ⌘-Tab and the app menu say "Electron"
-// with Electron's icon. Patch that local bundle's name + icon to CanvasCL. Idempotent; packaged builds use electron-builder.
+// with Electron's icon. Patch that local bundle's name + icon to Sidera. Idempotent; packaged builds use electron-builder.
 const { execFileSync } = require('node:child_process')
 const { copyFileSync, existsSync, readFileSync, writeFileSync } = require('node:fs')
 const { join } = require('node:path')
@@ -11,7 +11,7 @@ const plist = join(bundle, 'Contents/Info.plist')
 const icns = join(root, 'build/icon.icns')
 if (!existsSync(plist) || !existsSync(icns)) process.exit(0)
 
-const NAME = 'CanvasCL'
+const NAME = 'Sidera'
 const stamp = join(bundle, '../.canvascl-brand')
 const iconHash = require('node:crypto').createHash('sha1').update(readFileSync(icns)).digest('hex')
 if (existsSync(stamp) && readFileSync(stamp, 'utf8') === iconHash) process.exit(0)

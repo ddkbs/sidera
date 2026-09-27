@@ -1,6 +1,6 @@
 {
   "name": "canvascl",
-  "productName": "CanvasCL",
+  "productName": "Sidera",
   "version": "0.1.0",
   "description": "Free, open-source, MCP-first visual knowledge base",
   "main": "./out/main/index.js",
@@ -93,8 +93,9 @@
     "zod": "^4.6.5"
   },
   "build": {
-    "appId": "dev.canvascl.app",
-    "productName": "CanvasCL",
+    "appId": "app.sidera.desktop",
+    "productName": "Sidera",
+    "artifactName": "Sidera-${version}-${arch}.${ext}",
     "mac": {
       "category": "public.app-category.productivity",
       "target": [
