@@ -29,7 +29,11 @@ import { hardenWindow, rendererUrl } from './windowSecurity'
 
 const STDIO = process.argv.includes('--mcp-stdio')
 // One stable data folder for dev and packaged builds: ~/Library/Application Support/CanvasCL.
-// Deliberately NOT APP_NAME: renaming the product must never move everyone's data.
+// Deliberately NOT APP_NAME: renaming the product must never move everyone's data. Because this is pinned
+// (rather than derived from the product name), `userDataMigration.ts`'s move-old-folder logic is never
+// exercised in this app today — there is no "old" vs "new" OS-derived folder to reconcile. It stays as a
+// unit-tested, unused-by-default safety net: if this pin is ever removed in favor of `APP_NAME`, wire
+// `migrateUserDataIfNeeded` in right here, before `app.setName` / `app.getPath('userData')`.
 app.setName('CanvasCL')
 /** Dev/test escape hatch: open this folder directly, no accounts, no sign-in screen (devShot, tests, stdio). */
 const DEV_DATA_DIR = process.env.CANVASCL_DATA_DIR
@@ -325,7 +329,8 @@ async function bootstrap(): Promise<void> {
   ipcMain.handle('chat:getProviderStatus', () =>
     (['anthropic', 'openai', 'gemini', 'mistral', 'xai', 'openrouter', 'ollama', 'custom'] as AiProviderId[]).map((provider) => ({
       provider,
-      hasKey: getProviderMeta(provider).needsKey ? keys().hasKey(provider) : true
+      hasKey: getProviderMeta(provider).needsKey ? keys().hasKey(provider) : true,
+      keyReadError: getProviderMeta(provider).needsKey && !keys().hasKey(provider) && keys().hadDecryptError()
     }))
   )
   ipcMain.handle('chat:setProviderKey', (_e, provider: AiProviderId, key: string | null) => keys().set(provider, key))
