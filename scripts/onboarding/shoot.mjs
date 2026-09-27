@@ -33,6 +33,8 @@ const ui = (view, extra = '') => `(async () => {
   setTimeout(() => location.reload(), 50)
 })()`
 const zoomStep = `document.documentElement.style.zoom = '${ZOOM}'; window.dispatchEvent(new Event('resize')); 1`
+/** park the pointer on empty space so no hover state (connection handles, row highlight) ends up in a shot */
+const park = '@click 700 860'
 const board = `(await window.api.listWhiteboards()).find((b) => b.name.startsWith('Atlas'))`
 const tag = (name) => `(await window.api.listTags()).find((t) => t.name === ${JSON.stringify(name)})`
 
@@ -74,7 +76,7 @@ function run(theme) {
   const steps = [seed, settings]
   const keep = []
   for (const s of shots) {
-    steps.push(...s.steps)
+    steps.push(...s.steps, park)
     keep.push({ name: s.name, index: steps.length - 1 })
   }
   writeFileSync(join(dir, 'steps.js'), steps.join('\n---\n'))

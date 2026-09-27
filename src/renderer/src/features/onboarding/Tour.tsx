@@ -4,7 +4,7 @@ import { createPortal } from 'react-dom'
 import { ArrowLeft, ArrowRight, Check, X } from '@/components/icons'
 import { Button } from '@/components/ui/button'
 import { Kbd } from '@/components/ui/kbd'
-import { formatBinding, useBindings, useCommands } from '@/lib/shortcuts'
+import { COMMAND_BY_ID, formatBinding, useBindings, useCommands } from '@/lib/shortcuts'
 import { cn } from '@/lib/utils'
 import { store, useAppDispatch } from '@/store'
 import { useListWhiteboardsQuery } from '@/store/api'
@@ -12,9 +12,12 @@ import { navigate, toggleSidebar } from '@/store/ui'
 import { placePopover, sameRect, spotlightRect, type Rect, type Size } from './geometry'
 import { TOUR_STEPS, type TourStep } from './steps'
 
-const POPOVER_WIDTH = 348
-/** how long to wait for a step's target (navigation + render) before falling back to a centered popover */
-const TARGET_TIMEOUT_MS = 1400
+const POPOVER_WIDTH = 380
+/**
+ * How long to wait for a step's target (navigation + render) before showing a centered popover. Kept short
+ * so the old spotlight never lingers; if the target shows up later the spotlight simply glides to it.
+ */
+const TARGET_TIMEOUT_MS = 300
 const SPRING = { type: 'spring', stiffness: 260, damping: 32, mass: 0.9 } as const
 
 /** First visible element carrying `data-tour="<id>"` (some ids exist twice, e.g. with the sidebar hidden). */
@@ -41,8 +44,9 @@ function usePrepareStep(step: TourStep): void {
 }
 
 /** Follows the step's target every frame (handles resize, scrolling, sidebar/panel animations). */
-function useTargetRect(step: TourStep): { rect: Rect | null; viewport: Size } {
+function useTargetRect(step: TourStep): { rect: Rect | null; viewport: Size; missing: boolean } {
   const [rect, setRect] = useState<Rect | null>(null)
+  const [missing, setMissing] = useState(false)
   const [viewport, setViewport] = useState<Size>({ width: window.innerWidth, height: window.innerHeight })
   useEffect(() => {
     let raf = 0
@@ -59,15 +63,17 @@ function useTargetRect(step: TourStep): { rect: Rect | null; viewport: Size } {
         const r = el.getBoundingClientRect()
         const next = { x: r.x, y: r.y, width: r.width, height: r.height }
         setRect((prev) => (sameRect(prev, next) ? prev : next))
+        setMissing(false)
       } else if (!step.target || performance.now() - started > TARGET_TIMEOUT_MS) {
         setRect(null) // centered fallback
+        setMissing(!!step.target)
       }
       raf = requestAnimationFrame(tick)
     }
     tick()
     return () => cancelAnimationFrame(raf)
   }, [step])
-  return { rect, viewport }
+  return { rect, viewport, missing }
 }
 
 export function Tour({ onClose }: { onClose: (completed: boolean) => void }) {
@@ -75,11 +81,10 @@ export function Tour({ onClose }: { onClose: (completed: boolean) => void }) {
   const step = TOUR_STEPS[index]
   const last = index === TOUR_STEPS.length - 1
   usePrepareStep(step)
-  const { rect, viewport } = useTargetRect(step)
+  const { rect, viewport, missing } = useTargetRect(step)
   const bindings = useBindings()
 
   const popoverRef = useRef<HTMLDivElement>(null)
-  const nextRef = useRef<HTMLButtonElement>(null)
   const [size, setSize] = useState<Size>({ width: POPOVER_WIDTH, height: 200 })
   useLayoutEffect(() => {
     const el = popoverRef.current
@@ -88,7 +93,7 @@ export function Tour({ onClose }: { onClose: (completed: boolean) => void }) {
     ro.observe(el)
     return () => ro.disconnect()
   }, [])
-  useEffect(() => nextRef.current?.focus({ preventScroll: true }), [index])
+  useEffect(() => popoverRef.current?.focus({ preventScroll: true }), [])
 
   const next = (): void => (last ? onClose(true) : setIndex((i) => i + 1))
   const back = (): void => setIndex((i) => Math.max(0, i - 1))
@@ -101,7 +106,7 @@ export function Tour({ onClose }: { onClose: (completed: boolean) => void }) {
   const radius = hole ? Math.min(12, hole.height / 2) : 0
 
   const hints = [
-    ...(step.shortcuts ?? []).map((id) => ({ label: null as string | null, keys: bindings[id] ? formatBinding(bindings[id]) : '' })),
+    ...(step.shortcuts ?? []).map((id) => ({ label: COMMAND_BY_ID[id]?.label ?? '', keys: bindings[id] ? formatBinding(bindings[id]) : '' })),
     ...(step.keys ?? [])
   ].filter((h) => h.keys)
 
@@ -145,10 +150,11 @@ export function Tour({ onClose }: { onClose: (completed: boolean) => void }) {
 
       <motion.div
         ref={popoverRef}
+        tabIndex={-1}
         role="dialog"
         aria-modal
         aria-labelledby="tour-title"
-        className="absolute rounded-2xl border bg-popover text-popover-foreground shadow-[0_24px_60px_-16px_rgba(0,0,0,0.45),0_2px_6px_rgba(0,0,0,0.08)]"
+        className="absolute rounded-2xl border bg-popover outline-none text-popover-foreground shadow-[0_24px_60px_-16px_rgba(0,0,0,0.45),0_2px_6px_rgba(0,0,0,0.08)]"
         style={{ width: POPOVER_WIDTH }}
         initial={{ opacity: 0, scale: 0.96, left: pos.x, top: pos.y }}
         animate={{ opacity: 1, scale: 1, left: pos.x, top: pos.y }}
@@ -156,10 +162,7 @@ export function Tour({ onClose }: { onClose: (completed: boolean) => void }) {
         onMouseDown={(e) => e.stopPropagation()}
       >
         {pos.side !== 'center' && <Arrow side={pos.side} offset={pos.arrow} />}
-        <div className="h-0.5 overflow-hidden rounded-t-2xl bg-muted">
-          <motion.div className="h-full bg-foreground/70" initial={false} animate={{ width: `${((index + 1) / TOUR_STEPS.length) * 100}%` }} transition={SPRING} />
-        </div>
-        <div className="relative p-5 pt-4">
+        <div className="relative p-5">
           <button
             onClick={() => onClose(false)}
             className="absolute top-3 right-3 grid size-7 place-items-center rounded-md text-muted-foreground transition hover:bg-accent hover:text-foreground"
@@ -168,15 +171,18 @@ export function Tour({ onClose }: { onClose: (completed: boolean) => void }) {
             <X className="size-3.5" />
           </button>
           <AnimatePresence mode="wait" initial={false}>
-            <motion.div key={step.id} initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -4 }} transition={{ duration: 0.16 }}>
-              <div className="text-[11px] font-medium tracking-wide text-muted-foreground uppercase tabular-nums">
-                {last ? 'Tour complete' : `Step ${index + 1} of ${TOUR_STEPS.length}`}
-              </div>
-              <h3 id="tour-title" className="mt-1.5 pr-6 text-[15px] leading-snug font-semibold tracking-tight">
+            <motion.div
+              key={step.id}
+              initial={{ opacity: 0, y: 4 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -4 }}
+              transition={{ duration: 0.16 }}
+            >
+              <h3 id="tour-title" className="pr-6 text-[15px] leading-snug font-semibold tracking-tight">
                 {last && <Check className="mr-1.5 inline size-4 -translate-y-px text-emerald-500" />}
                 {step.title}
               </h3>
-              <p className="mt-1.5 text-[13px] leading-relaxed text-muted-foreground">{step.body}</p>
+              <p className="mt-1.5 text-[13px] leading-relaxed text-muted-foreground">{missing && step.fallbackBody ? step.fallbackBody : step.body}</p>
               {hints.length > 0 && (
                 <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1.5">
                   {hints.map((h, i) => (
@@ -190,9 +196,22 @@ export function Tour({ onClose }: { onClose: (completed: boolean) => void }) {
             </motion.div>
           </AnimatePresence>
           <div className="mt-5 flex items-center justify-between">
-            <span className="text-xs text-muted-foreground tabular-nums">
-              {index + 1} / {TOUR_STEPS.length}
-            </span>
+            <div className="flex items-center gap-2.5">
+              <span className="text-xs font-medium text-muted-foreground tabular-nums">
+                {index + 1} / {TOUR_STEPS.length}
+              </span>
+              <div className="flex items-center gap-1" aria-hidden>
+                {TOUR_STEPS.map((s, i) => (
+                  <motion.span
+                    key={s.id}
+                    className={cn('block h-1 rounded-full', i <= index ? 'bg-foreground/70' : 'bg-foreground/15')}
+                    initial={false}
+                    animate={{ width: i === index ? 12 : 4 }}
+                    transition={SPRING}
+                  />
+                ))}
+              </div>
+            </div>
             <div className="flex items-center gap-1.5">
               {!last && (
                 <Button variant="ghost" size="sm" className="h-8 px-2.5 text-muted-foreground" onClick={() => onClose(false)}>
@@ -205,7 +224,7 @@ export function Tour({ onClose }: { onClose: (completed: boolean) => void }) {
                   Back
                 </Button>
               )}
-              <Button ref={nextRef} size="sm" className="h-8 gap-1 px-3" onClick={next}>
+              <Button size="sm" className="h-8 gap-1 px-3" onClick={next}>
                 {last ? 'Start exploring' : 'Next'}
                 {!last && <ArrowRight className="size-3.5" />}
               </Button>

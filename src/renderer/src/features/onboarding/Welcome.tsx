@@ -19,7 +19,7 @@ export function Welcome({ onDone }: { onDone: (next: 'tour' | 'explore') => void
   const port = useAppSelector((s) => s.settings.mcp.port)
   const slide = WELCOME_SLIDES[index]
   const last = index === WELCOME_SLIDES.length - 1
-  const primaryRef = useRef<HTMLButtonElement>(null)
+  const rootRef = useRef<HTMLDivElement>(null)
 
   const go = (i: number): void => {
     if (i < 0 || i >= WELCOME_SLIDES.length || i === index) return
@@ -36,7 +36,8 @@ export function Welcome({ onDone }: { onDone: (next: 'tour' | 'explore') => void
     true,
     true
   )
-  useEffect(() => primaryRef.current?.focus({ preventScroll: true }), [index])
+  // Take focus away from whatever was focused underneath (keys are handled via onboarding commands).
+  useEffect(() => rootRef.current?.focus({ preventScroll: true }), [])
 
   // Warm the cache so switching slides never shows a half-loaded screenshot.
   useEffect(() => {
@@ -47,10 +48,12 @@ export function Welcome({ onDone }: { onDone: (next: 'tour' | 'explore') => void
 
   return createPortal(
     <motion.div
+      ref={rootRef}
+      tabIndex={-1}
       role="dialog"
       aria-modal
       aria-label={`Welcome to ${APP_NAME}`}
-      className="fixed inset-0 z-[200] flex flex-col overflow-hidden bg-background text-foreground"
+      className="fixed inset-0 z-[200] flex flex-col overflow-hidden bg-background text-foreground outline-none"
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0, scale: 1.02, filter: 'blur(4px)' }}
@@ -61,7 +64,10 @@ export function Welcome({ onDone }: { onDone: (next: 'tour' | 'explore') => void
       {/* draggable title area (traffic lights sit top-left) */}
       <div className="drag-region relative flex h-12 shrink-0 items-center justify-end px-5">
         {!last && (
-          <button onClick={() => onDone('explore')} className="no-drag rounded-md px-2.5 py-1 text-[13px] text-muted-foreground transition hover:bg-accent hover:text-foreground">
+          <button
+            onClick={() => onDone('explore')}
+            className="no-drag rounded-md px-2.5 py-1 text-[13px] text-muted-foreground transition hover:bg-accent hover:text-foreground"
+          >
             Skip intro
           </button>
         )}
@@ -71,7 +77,7 @@ export function Welcome({ onDone }: { onDone: (next: 'tour' | 'explore') => void
         {/* text column */}
         <div className="flex max-w-[420px] flex-col justify-self-center lg:justify-self-start">
           <div className="flex items-center gap-2.5">
-            <img src={appIcon} alt="" className="size-7 rounded-[8px] shadow-sm" draggable={false} />
+            <img src={appIcon} alt="" className="size-7 rounded-[8px] shadow-sm ring-1 ring-border" draggable={false} />
             <span className="text-sm font-medium tracking-tight">{APP_NAME}</span>
           </div>
 
@@ -122,9 +128,19 @@ export function Welcome({ onDone }: { onDone: (next: 'tour' | 'explore') => void
           <div className="mt-8 flex items-center justify-between gap-6">
             <div className="flex items-center gap-1.5" role="tablist" aria-label="Slides">
               {WELCOME_SLIDES.map((s, i) => (
-                <button key={s.id} role="tab" aria-selected={i === index} aria-label={`Slide ${i + 1}: ${s.eyebrow}`} onClick={() => go(i)} className="group grid h-4 place-items-center">
+                <button
+                  key={s.id}
+                  role="tab"
+                  aria-selected={i === index}
+                  aria-label={`Slide ${i + 1}: ${s.eyebrow}`}
+                  onClick={() => go(i)}
+                  className="group grid h-4 place-items-center"
+                >
                   <motion.span
-                    className={cn('block h-1.5 rounded-full transition-colors', i === index ? 'bg-foreground' : 'bg-foreground/15 group-hover:bg-foreground/30')}
+                    className={cn(
+                      'block h-1.5 rounded-full transition-colors',
+                      i === index ? 'bg-foreground' : 'bg-foreground/15 group-hover:bg-foreground/30'
+                    )}
                     animate={{ width: i === index ? 22 : 6 }}
                     transition={{ duration: 0.3, ease: EASE }}
                   />
@@ -132,36 +148,42 @@ export function Welcome({ onDone }: { onDone: (next: 'tour' | 'explore') => void
               ))}
             </div>
             <div className="flex items-center gap-2">
-              {index > 0 && !last && (
+              {index > 0 && (
                 <Button variant="ghost" className="h-9 gap-1.5 px-3 text-muted-foreground" onClick={() => go(index - 1)}>
                   <ArrowLeft className="size-4" />
                   Back
                 </Button>
               )}
               {!last && (
-                <Button ref={primaryRef} className="h-9 gap-1.5 px-4" onClick={next}>
+                <Button className="h-9 gap-1.5 px-4" onClick={next}>
                   {index === 0 ? 'Get started' : 'Next'}
                   <ArrowRight className="size-4" />
                 </Button>
               )}
             </div>
           </div>
-          {last && (
-            <motion.div className="mt-5 flex flex-col gap-2 sm:flex-row" initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15, duration: 0.3, ease: EASE }}>
-              <Button ref={primaryRef} className="h-10 flex-1 gap-2 px-4" onClick={() => onDone('tour')}>
-                <Sparkles className="size-4" />
-                Take the 1-minute tour
-              </Button>
-              <Button variant="outline" className="h-10 flex-1 px-4" onClick={() => onDone('explore')}>
-                Explore on my own
-              </Button>
-            </motion.div>
-          )}
-          {last && (
-            <button onClick={() => go(index - 1)} className="mt-3 self-start text-xs text-muted-foreground transition hover:text-foreground">
-              ← Back
-            </button>
-          )}
+          {/* fixed height so the column never jumps when the final call-to-action appears */}
+          <div className="mt-5 h-10">
+            <AnimatePresence>
+              {last && (
+                <motion.div
+                  className="flex gap-2"
+                  initial={{ opacity: 0, y: 6 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ delay: 0.1, duration: 0.3, ease: EASE }}
+                >
+                  <Button className="h-10 flex-1 gap-2 px-4" onClick={() => onDone('tour')}>
+                    <Sparkles className="size-4" />
+                    Take the 1-minute tour
+                  </Button>
+                  <Button variant="outline" className="h-10 flex-1 px-4" onClick={() => onDone('explore')}>
+                    Explore on my own
+                  </Button>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
         </div>
 
         {/* screenshot */}
@@ -200,7 +222,7 @@ export function Welcome({ onDone }: { onDone: (next: 'tour' | 'explore') => void
                     <span className="size-1.5 rounded-full bg-emerald-500 shadow-[0_0_0_3px] shadow-emerald-500/20" />
                     MCP server · 127.0.0.1:{port}
                   </div>
-                  <code className="mt-1.5 block truncate font-mono text-[12px] text-foreground/90">
+                  <code className="mt-1.5 block truncate font-mono text-[11px] text-foreground/90">
                     <span className="text-muted-foreground">$ </span>claude mcp add --transport http {slug} http://127.0.0.1:{port}/mcp
                   </code>
                 </motion.div>

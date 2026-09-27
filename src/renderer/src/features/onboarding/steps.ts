@@ -5,6 +5,8 @@ export interface TourStep {
   id: string
   title: string
   body: string
+  /** shown instead of `body` when the target can't be found (e.g. no whiteboard exists yet) */
+  fallbackBody?: string
   /** matches the element's `data-tour` attribute; omit for a centered step */
   target?: string
   /** preferred side for the popover (falls back to whatever fits) */
@@ -40,6 +42,8 @@ export const TOUR_STEPS: TourStep[] = [
     id: 'canvas',
     title: 'Think on the canvas',
     body: 'Add cards, text, sections and connectors from this toolbar. Double-click empty space for a quick card, then drag from a card’s edge to connect it to another.',
+    fallbackBody:
+      'Create a whiteboard from the Hub or with ⌘K. Its toolbar adds cards, text, sections and connectors — double-click empty space for a quick card, then drag from a card’s edge to connect it.',
     target: 'canvas-toolbar',
     placement: 'right',
     needs: 'whiteboard',
