@@ -876,6 +876,7 @@ function Canvas({ detail }: { detail: WhiteboardDetail }) {
       }}
     >
       <ReactFlow<ObjectNode, ConnectionEdge>
+        proOptions={{ hideAttribution: true }}
         nodes={nodes}
         edges={edges}
         nodeTypes={nodeTypes}
