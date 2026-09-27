@@ -4,6 +4,7 @@ import { docToMarkdown, linkWikiRefs, markdownToDoc } from '@shared/doc'
 import { withSourceHeader } from '@shared/html'
 import { CHART_DEFS, defaultChart, SHAPE_COLUMNS, vennRows, type ChartData, type ChartOptions, type ChartType } from '@shared/charts'
 import { TASK_PRIORITIES, TASK_STATUSES, type Task } from '@shared/types'
+import { APP_NAME } from '@shared/brand'
 import type { Services } from '../services'
 import { fetchPageForClip } from '../web'
 
@@ -11,7 +12,7 @@ const ok = (value: unknown) => ({
   content: [{ type: 'text' as const, text: typeof value === 'string' ? value : JSON.stringify(value, null, 2) }]
 })
 
-/** Builds an MCP server exposing CanvasCL's knowledge base. Every tool delegates to services. */
+/** Builds an MCP server exposing Sidera's knowledge base. Every tool delegates to services. */
 export type ToolCallListener = (tool: string, args: Record<string, unknown>) => void
 
 export function createMcpServer(api: Services, version: string, onCall?: ToolCallListener): McpServer {
@@ -23,10 +24,10 @@ export function createMcpServer(api: Services, version: string, onCall?: ToolCal
     })
 
   const server = new McpServer(
-    { name: 'canvascl', version },
+    { name: 'sidera', version },
     {
       instructions:
-        'CanvasCL is a visual knowledge base. Cards hold Markdown-like notes, whiteboards arrange cards spatially, ' +
+        `${APP_NAME} is a visual knowledge base. Cards hold Markdown-like notes, whiteboards arrange cards spatially, ` +
         'and tags group cards and power kanban boards. ' +
         'Search before creating to avoid duplicate cards. Link other cards by writing [[Exact card title]] in Markdown — it becomes a real link with a backlink.'
     }

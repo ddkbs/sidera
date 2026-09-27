@@ -1,3 +1,4 @@
+import { APP_NAME } from '@shared/brand'
 import type { Services } from './index'
 
 /** Creates a welcome whiteboard on first launch (empty database only). Returns true if seeded. */
@@ -5,10 +6,10 @@ export function seedWelcome(api: Services): boolean {
   if (api.listWhiteboards().length || api.listCards({ limit: 1 }).length) return false
 
   const tag = api.createTag({ name: 'Getting started', color: 'blue' })
-  const board = api.createWhiteboard({ name: 'Welcome to CanvasCL' })
+  const board = api.createWhiteboard({ name: `Welcome to ${APP_NAME}` })
   const w = board.id
 
-  api.addObject({ whiteboardId: w, kind: 'text', x: 0, y: -170, width: 620, height: 56, data: { text: 'Welcome to CanvasCL 👋', size: 36 } })
+  api.addObject({ whiteboardId: w, kind: 'text', x: 0, y: -170, width: 620, height: 56, data: { text: `Welcome to ${APP_NAME} 👋`, size: 36 } })
   api.addObject({ whiteboardId: w, kind: 'section', x: -40, y: -60, width: 1120, height: 380, color: 'blue', data: { title: 'Basics' } })
 
   const cards = [
@@ -36,11 +37,10 @@ export function seedWelcome(api: Services): boolean {
 
   const mcp = api.createCard({
     title: 'Let AI agents help (MCP)',
-    markdown:
-      'CanvasCL runs a local MCP server. Connect Claude Code with:\n\n```\nclaude mcp add --transport http canvascl http://127.0.0.1:3845/mcp\n```\n\nThen ask it to *search my cards*, *create a card*, or *move items on my kanban*.',
+    markdown: `${APP_NAME} runs a local MCP server. Connect Claude Code with:\n\n\`\`\`\nclaude mcp add --transport http sidera http://127.0.0.1:3845/mcp\n\`\`\`\n\nThen ask it to *search my cards*, *create a card*, or *move items on my kanban*.`,
     tagIds: [tag.id]
   })
   api.addObject({ whiteboardId: w, kind: 'card', refId: mcp.id, x: 1180, y: 0, width: 360, height: 320 })
-  api.addObject({ whiteboardId: w, kind: 'mindmap', x: 0, y: 400, width: 520, height: 300, data: { source: 'CanvasCL\n  - Cards\n    - Backlinks\n  - Whiteboards\n    - Sections\n  - Tags\n    - Table\n    - Kanban' } })
+  api.addObject({ whiteboardId: w, kind: 'mindmap', x: 0, y: 400, width: 520, height: 300, data: { source: `${APP_NAME}\n  - Cards\n    - Backlinks\n  - Whiteboards\n    - Sections\n  - Tags\n    - Table\n    - Kanban` } })
   return true
 }

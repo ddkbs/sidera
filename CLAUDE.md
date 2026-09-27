@@ -1,7 +1,8 @@
-# CanvasCL — Claude Code guide
+# Sidera — Claude Code guide
 
 Free, open-source, MCP-first visual knowledge base: whiteboards, card library, kanban.
 macOS only, local-first. Keep answers & diffs small; don't re-explore what this file already says.
+Internal identifiers (npm package name, env vars, DB filename, localStorage keys, MCP tool names) intentionally stay `canvascl`/`CANVASCL_*` — only the user-facing product name changed to Sidera (see `src/shared/brand.ts`).
 
 ## Commands
 - `npm run dev` — electron-vite dev (HMR renderer); `predev` brands the local Electron.app as CanvasCL (name + build/icon.png, re-signed ad hoc) via `scripts/brand-electron.cjs`

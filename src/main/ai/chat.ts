@@ -4,6 +4,7 @@ import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js'
 import { nanoid } from 'nanoid'
 import type { AskUserAnswer, ChatEvent } from '@shared/api'
 import { resolveBaseUrl, supportsWebSearch, type AiProviderId } from '@shared/ai'
+import { APP_NAME } from '@shared/brand'
 import { todayISO } from '@shared/util'
 import type { Services } from '../services'
 import { createMcpServer, type ToolCallListener } from '../mcp/tools'
@@ -19,7 +20,7 @@ import {
 
 const MAX_TURNS = 20
 
-const SYSTEM = `You are the assistant built into CanvasCL, a local-first visual knowledge base (cards, whiteboards, tags with table/kanban views).
+const SYSTEM = `You are the assistant built into ${APP_NAME}, a local-first visual knowledge base (cards, whiteboards, tags with table/kanban views).
 You act on the user's knowledge base through the provided tools. Search before creating to avoid duplicates. When you create or change something, say briefly what you did and name the cards or whiteboards involved.
 Use ask_user_questions when a request is ambiguous and a few choices would clarify it; don't overuse it.
 Keep answers concise and use Markdown.`

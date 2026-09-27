@@ -20,7 +20,7 @@ export function toAccelerator(binding: string): string {
 function createCaptureWindow(): BrowserWindow {
   const w = new BrowserWindow({
     // macOS NSPanel with NSWindowStyleMaskNonactivatingPanel: takes keyboard focus and floats over any app
-    // (incl. full-screen ones) WITHOUT activating CanvasCL — so the main window never jumps to the front.
+    // (incl. full-screen ones) WITHOUT activating the app — so the main window never jumps to the front.
     type: 'panel',
     width: WIDTH,
     height: HEIGHT,

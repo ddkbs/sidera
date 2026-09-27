@@ -247,7 +247,7 @@ function QuickCaptureRow() {
   }
 
   return (
-    <Row title="Quick capture" description="Global shortcut opens a small capture window from anywhere, even while CanvasCL is in the background.">
+    <Row title="Quick capture" description={`Global shortcut opens a small capture window from anywhere, even while ${APP_NAME} is in the background.`}>
       <div className="flex items-center gap-2">
         <button
           onClick={() => setRecording((r) => !r)}
@@ -384,8 +384,8 @@ function McpSettings() {
     refetch()
   }
 
-  const desktopJson = conn ? JSON.stringify({ mcpServers: { canvascl: conn.stdio } }, null, 2) : ''
-  const codeCmd = `claude mcp add --scope user --transport http canvascl ${info?.url ?? `http://127.0.0.1:${s.port}/mcp`}`
+  const desktopJson = conn ? JSON.stringify({ mcpServers: { sidera: conn.stdio } }, null, 2) : ''
+  const codeCmd = `claude mcp add --scope user --transport http sidera ${info?.url ?? `http://127.0.0.1:${s.port}/mcp`}`
 
   return (
     <div className="space-y-8">
@@ -395,7 +395,7 @@ function McpSettings() {
           <div className="min-w-0 flex-1">
             <div className="font-medium">Connect Claude to your knowledge base</div>
             <p className="mt-0.5 text-sm text-muted-foreground">
-              Adds all {TOOL_NAMES.length} CanvasCL tools to Claude Desktop and Claude Code in one step. Your data never leaves this Mac.
+              Adds all {TOOL_NAMES.length} {APP_NAME} tools to Claude Desktop and Claude Code in one step. Your data never leaves this Mac.
             </p>
             <div className="mt-4 flex flex-wrap items-center gap-2">
               <Button disabled={busy} onClick={() => void connect(['desktop', 'code'])}>
@@ -517,7 +517,8 @@ export function AiSettings() {
 
   const meta = getProviderMeta(selected)
   const isActive = selected === s.ai.provider
-  const connected = status.find((p) => p.provider === selected)?.hasKey ?? false
+  const selectedStatus = status.find((p) => p.provider === selected)
+  const connected = selectedStatus?.hasKey ?? false
 
   useEffect(() => {
     setBaseUrl(selected === s.ai.provider ? (s.ai.baseUrl ?? '') : '')
@@ -599,25 +600,32 @@ export function AiSettings() {
                 </Button>
               </div>
             ) : (
-              <form
-                className="flex gap-2"
-                onSubmit={async (e) => {
-                  e.preventDefault()
-                  try {
-                    await window.chat.setProviderKey(selected, key)
-                    setKey('')
-                    refreshStatus()
-                    toast.success('API key saved')
-                  } catch (err) {
-                    toast.error(String(err))
-                  }
-                }}
-              >
-                <Input type="password" placeholder={meta.keyPlaceholder} value={key} onChange={(e) => setKey(e.target.value)} className="w-64" />
-                <Button type="submit" disabled={!key.trim()}>
-                  <KeyRound /> Save
-                </Button>
-              </form>
+              <>
+                {selectedStatus?.keyReadError && (
+                  <p className="mb-1.5 text-xs text-amber-600 dark:text-amber-400">
+                    Your saved key couldn't be read after the app update — please re-enter your API key.
+                  </p>
+                )}
+                <form
+                  className="flex gap-2"
+                  onSubmit={async (e) => {
+                    e.preventDefault()
+                    try {
+                      await window.chat.setProviderKey(selected, key)
+                      setKey('')
+                      refreshStatus()
+                      toast.success('API key saved')
+                    } catch (err) {
+                      toast.error(String(err))
+                    }
+                  }}
+                >
+                  <Input type="password" placeholder={meta.keyPlaceholder} value={key} onChange={(e) => setKey(e.target.value)} className="w-64" />
+                  <Button type="submit" disabled={!key.trim()}>
+                    <KeyRound /> Save
+                  </Button>
+                </form>
+              </>
             )}
           </div>
         )}
