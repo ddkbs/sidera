@@ -6,7 +6,9 @@ import { promisify } from 'node:util'
 import { app } from 'electron'
 
 const run = promisify(execFile)
-const SERVER_NAME = 'canvascl'
+const SERVER_NAME = 'sidera'
+/** Previous MCP server name (from the CanvasCL era) — removed on (re)connect so users don't end up with duplicate tools. */
+const STALE_SERVER_NAME = 'canvascl'
 
 export const claudeDesktopConfigPath = (): string => join(homedir(), 'Library', 'Application Support', 'Claude', 'claude_desktop_config.json')
 
@@ -39,7 +41,7 @@ export function isInClaudeDesktop(): boolean {
   }
 }
 
-/** Adds (or updates) the CanvasCL server in Claude Desktop's config. Keeps a .bak of the previous file. */
+/** Adds (or updates) the Sidera server in Claude Desktop's config. Keeps a .bak of the previous file. */
 export function addToClaudeDesktop(spec: ReturnType<typeof stdioLaunchSpec>): { ok: boolean; message: string } {
   const file = claudeDesktopConfigPath()
   let config: DesktopConfig
@@ -50,7 +52,11 @@ export function addToClaudeDesktop(spec: ReturnType<typeof stdioLaunchSpec>): { 
   }
   mkdirSync(dirname(file), { recursive: true })
   if (existsSync(file)) copyFileSync(file, file + '.bak')
-  config.mcpServers = { ...(config.mcpServers ?? {}), [SERVER_NAME]: spec }
+  const servers = { ...(config.mcpServers ?? {}) }
+  // Drop a stale entry from before the CanvasCL → Sidera rename so tools aren't registered twice.
+  delete servers[STALE_SERVER_NAME]
+  servers[SERVER_NAME] = spec
+  config.mcpServers = servers
   writeFileSync(file, JSON.stringify(config, null, 2))
   return { ok: true, message: 'Added to Claude Desktop — restart Claude Desktop to load the tools.' }
 }
@@ -87,12 +93,18 @@ export async function isInClaudeCode(): Promise<boolean | null> {
 export async function addToClaudeCode(url: string): Promise<{ ok: boolean; message: string }> {
   const cli = await findClaudeCli()
   if (!cli) return { ok: false, message: 'Claude Code CLI not found. Install it, or copy the command manually.' }
+  // Drop a stale entry from before the CanvasCL → Sidera rename so tools aren't registered twice.
+  try {
+    await run(cli, ['mcp', 'remove', '--scope', 'user', STALE_SERVER_NAME])
+  } catch {
+    // no stale entry to remove
+  }
   try {
     await run(cli, ['mcp', 'add', '--scope', 'user', '--transport', 'http', SERVER_NAME, url])
     return { ok: true, message: 'Added to Claude Code (all projects). Start a new session to use the tools.' }
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e)
-    if (/already exists/i.test(msg)) return { ok: true, message: 'Claude Code already has CanvasCL configured.' }
+    if (/already exists/i.test(msg)) return { ok: true, message: 'Claude Code already has Sidera configured.' }
     return { ok: false, message: msg.split('\n')[0] }
   }
 }

@@ -27,9 +27,20 @@ describe('Claude Desktop integration', () => {
     const spec = { command: '/Applications/CanvasCL.app/Contents/MacOS/CanvasCL', args: ['--mcp-stdio'], env: { CANVASCL_DATA_DIR: '/data' } }
     expect(addToClaudeDesktop(spec).ok).toBe(true)
     const written = JSON.parse(readFileSync(file, 'utf8'))
-    expect(written).toEqual({ mcpServers: { other: { command: 'x' }, canvascl: spec }, theme: 'dark' })
+    expect(written).toEqual({ mcpServers: { other: { command: 'x' }, sidera: spec }, theme: 'dark' })
     expect(existsSync(file + '.bak')).toBe(true)
     expect(isInClaudeDesktop()).toBe(true)
+  })
+
+  it('removes a stale pre-rename "canvascl" entry when (re)connecting', async () => {
+    const { addToClaudeDesktop, claudeDesktopConfigPath } = await import('../src/main/integrations')
+    const file = claudeDesktopConfigPath()
+    mkdirSync(join(file, '..'), { recursive: true })
+    writeFileSync(file, JSON.stringify({ mcpServers: { canvascl: { command: 'old' }, other: { command: 'x' } } }))
+    const spec = { command: 'new', args: [], env: {} }
+    expect(addToClaudeDesktop(spec).ok).toBe(true)
+    const written = JSON.parse(readFileSync(file, 'utf8'))
+    expect(written.mcpServers).toEqual({ other: { command: 'x' }, sidera: spec })
   })
 
   it('creates the config when Claude Desktop has none, and refuses to clobber invalid JSON', async () => {
