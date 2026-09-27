@@ -1,0 +1,6 @@
+<!-- macOS menu-bar template mark: black on transparent, heavier cut for 18pt. -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" fill="none">
+  <path d="M52 21H41A15 15 0 0 0 41 51A15 15 0 0 1 41 81H29" fill="none" stroke="#000" stroke-width="10" stroke-linecap="round"/>
+  <circle cx="29" cy="81" r="11" fill="#000"/>
+  <path d="M69 2C70.33 14.92 75.08 19.67 88 21C75.08 22.33 70.33 27.08 69 40C67.67 27.08 62.92 22.33 50 21C62.92 19.67 67.67 14.92 69 2Z" fill="#000"/>
+</svg>

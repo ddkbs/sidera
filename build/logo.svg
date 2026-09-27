@@ -1,0 +1,36 @@
+<!-- Sidera app icon master (macOS Big Sur+ grid: 824px body, 185px radius on a 1024 canvas). Rendered by scripts/make-icon.cjs. -->
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#2c2c31"/>
+      <stop offset="1" stop-color="#0a0a0c"/>
+    </linearGradient>
+    <radialGradient id="glow" cx=".5" cy="0" r=".9">
+      <stop offset="0" stop-color="#fff" stop-opacity=".09"/>
+      <stop offset="1" stop-color="#fff" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="rim" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#fff" stop-opacity=".28"/>
+      <stop offset=".45" stop-color="#fff" stop-opacity=".05"/>
+      <stop offset="1" stop-color="#fff" stop-opacity=".1"/>
+    </linearGradient>
+    <linearGradient id="ink" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#fff"/>
+      <stop offset="1" stop-color="#e4e4e8"/>
+    </linearGradient>
+    <filter id="drop" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="10" stdDeviation="12" flood-color="#000" flood-opacity=".3"/>
+    </filter>
+    <filter id="lift" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="6" stdDeviation="10" flood-color="#000" flood-opacity=".45"/>
+    </filter>
+  </defs>
+  <rect x="100" y="100" width="824" height="824" rx="185" fill="url(#bg)" filter="url(#drop)"/>
+  <rect x="100" y="100" width="824" height="824" rx="185" fill="url(#glow)"/>
+  <rect x="101.5" y="101.5" width="821" height="821" rx="183.5" fill="none" stroke="url(#rim)" stroke-width="3"/>
+  <svg x="232" y="232" width="560" height="560" viewBox="0 0 100 100" filter="url(#lift)">
+    <path d="M53 21H41A15.5 15.5 0 0 0 41 52A15.5 15.5 0 0 1 41 83H27" fill="none" stroke="url(#ink)" stroke-width="7.5" stroke-linecap="round"/>
+  <circle cx="27" cy="83" r="9" fill="url(#ink)"/>
+  <path d="M68 4C69.19 15.56 73.44 19.81 85 21C73.44 22.19 69.19 26.44 68 38C66.81 26.44 62.56 22.19 51 21C62.56 19.81 66.81 15.56 68 4Z" fill="url(#ink)"/>
+  </svg>
+</svg>

@@ -100,7 +100,7 @@
       "target": [
         "dmg"
       ],
-      "icon": "build/icon.png"
+      "icon": "build/icon.icns"
     },
     "files": [
       "out/**/*",

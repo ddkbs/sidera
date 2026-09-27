@@ -1,10 +1,12 @@
 import { useEffect, useState, type ReactNode } from 'react'
 import { toast } from 'sonner'
 import type { DataInfo, McpConnections, ProviderStatus } from '@shared/api'
+import { APP_NAME } from '@shared/brand'
 import { AI_PROVIDERS, getProviderMeta, type AiProviderId } from '@shared/ai'
 import type { FontPref, ThemePref } from '@shared/settings'
 import { AskAI, ArrowUpRight, Check, CircleCheck, Command, Download, File, Home, KeyRound, Palette, Pencil, RotateCcw, Server, Settings, Upload, User, UserCircle, UserPlus } from '@/components/icons'
 import { AccountSettings } from '@/features/auth/AccountSettings'
+import { LogoTile } from '@/components/Logo'
 import { Orb } from '@/components/Orb'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog'
@@ -723,9 +725,9 @@ function About() {
   return (
     <div className="space-y-4 text-sm">
       <div className="flex items-center gap-3">
-        <Orb online active={false} className="size-10 [&>span]:size-8" />
+        <LogoTile />
         <div>
-          <div className="text-base font-semibold">CanvasCL</div>
+          <div className="text-base font-semibold">{APP_NAME}</div>
           <div className="text-muted-foreground">Version {version}</div>
         </div>
       </div>
