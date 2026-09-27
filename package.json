@@ -54,6 +54,7 @@
     "clsx": "^2.1.1",
     "cmdk": "^1.1.1",
     "dagre": "^0.8.5",
+    "date-fns": "^4.4.0",
     "drizzle-kit": "^0.31.10",
     "electron": "^44.4.1",
     "electron-builder": "^26.15.3",
@@ -66,12 +67,14 @@
     "obra-icons-react": "^1.25.0",
     "radix-ui": "^1.6.7",
     "react": "^19.3.0",
+    "react-day-picker": "^10.0.1",
     "react-dom": "^19.3.0",
     "react-markdown": "^10.1.0",
     "react-pdf": "^11.0.0",
     "react-redux": "^9.3.0",
     "recharts": "^3.10.1",
     "remark-gfm": "^4.0.1",
+    "@shadcn/react": "^0.3.1",
     "sonner": "^2.0.8",
     "tailwind-merge": "^3.7.0",
     "tailwindcss": "^4.3.3",
@@ -84,29 +87,44 @@
   "dependencies": {
     "@anthropic-ai/sdk": "^0.126.0",
     "@modelcontextprotocol/sdk": "^1.30.0",
-    "@shadcn/react": "^0.3.1",
     "better-sqlite3": "^13.0.3",
-    "date-fns": "^4.4.0",
     "drizzle-orm": "^0.45.2",
     "nanoid": "^6.0.1",
     "openai": "^7.17.0",
-    "react-day-picker": "^10.0.1",
     "zod": "^4.6.5"
   },
   "build": {
     "appId": "app.sidera.desktop",
     "productName": "Sidera",
     "artifactName": "Sidera-${version}-${arch}.${ext}",
+    "electronLanguages": [
+      "en",
+      "de"
+    ],
     "mac": {
       "category": "public.app-category.productivity",
       "target": [
-        "dmg"
+        { "target": "dmg", "arch": ["arm64", "x64"] }
       ],
-      "icon": "build/icon.icns"
+      "icon": "build/icon.icns",
+      "identity": "-",
+      "hardenedRuntime": false,
+      "gatekeeperAssess": false
     },
+    "dmg": {
+      "title": "Sidera",
+      "artifactName": "Sidera-${version}-${arch}.${ext}"
+    },
+    "afterPack": "scripts/after-pack.cjs",
     "files": [
       "out/**/*",
-      "package.json"
+      "package.json",
+      "!**/*.map",
+      "!node_modules/**/*.ts",
+      "!node_modules/**/README*",
+      "!node_modules/**/CHANGELOG*",
+      "!node_modules/**/LICENSE*",
+      "!node_modules/**/license*"
     ],
     "asarUnpack": [
       "**/*.node"
