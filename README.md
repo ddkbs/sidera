@@ -1,44 +1,155 @@
-# CanvasCL
+<div align="center">
 
-A free, open-source, local-first visual knowledge base — whiteboards, a card library with backlinks & tags, kanban/table/list views — and **MCP-first**: every core action is exposed as an MCP tool so AI agents (Claude Desktop, Claude Code, …) can read and organize your knowledge.
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/logo-dark.svg">
+  <img src="docs/logo-light.svg" alt="Sidera" width="72">
+</picture>
 
-![CanvasCL whiteboard](docs/screenshot.png)
+# Sidera
+
+**Think visually. Your knowledge base is local, open and MCP-ready.**
+
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+![Platform](https://img.shields.io/badge/platform-macOS-black)
+![Local-first](https://img.shields.io/badge/data-local--first-4c1)
+
+</div>
+
+Sidera is a free, open-source, local-first visual knowledge base — whiteboards, a card
+library with backlinks and tags, kanban boards and tasks — built **MCP-first**: every core action is exposed
+as an MCP tool, so Claude Desktop, Claude Code or any other MCP client can read and organize your knowledge
+alongside you.
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/hero-dark.webp">
+  <img src="docs/screenshots/hero.webp" alt="A Sidera whiteboard with research and launch cards grouped in sections, connected by arrows, with a chart and a mindmap">
+</picture>
 
 ## Features
-- **Whiteboards** — infinite canvas (React Flow) with a floating tool bar: cards, text, colored sections, arrows with labels, nested whiteboards, mindmaps, Mermaid diagrams, Excalidraw sketches, PDFs & images. Undo/redo, copy/paste, ⌘F find, minimap & zoom controls.
-- **Cards** — rich text (Tiptap) with `/` commands, `@` links and backlinks; edit inline on the canvas or in the side panel; one card can live on many whiteboards.
-- **PDF reading** — select text in a PDF and turn it into a quote card linked to the source.
-- **Tags as databases** — table view with typed properties, kanban boards (drag & drop), list view.
-- **Tasks** — to-do checkboxes on any card, collected in a Tasks area with list & board views, status / priority / assignee / due date, filters, grouping and an activity timeline with comments; tasks added without a card go to an "Inbox" card.
-- **Search** — SQLite FTS5 across cards and whiteboards (⌘K).
-- **MCP-first** — local MCP server (HTTP + stdio) with 32 tools, live activity feed, and a built-in Claude assistant that uses the same tools.
-- **Tabs & settings** — open several whiteboards in tabs (⌘T, ⌘-click); settings for theme, font (Jost/Futura/Geist/SF), editor, MCP and fully rebindable shortcuts (⌘,).
-- **Local-first** — everything lives in `~/Library/Application Support/CanvasCL/data/` (SQLite database + imported files); Markdown export/import.
 
-## Stack
-Electron · electron-vite · React · TypeScript · Tailwind v4 · shadcn/ui · Redux Toolkit · Tiptap · SQLite (better-sqlite3 + Drizzle, FTS5) · React Flow · dnd-kit · cmdk · Motion · MCP SDK
+- **Whiteboards** — an infinite canvas (React Flow) with cards, colored sections, labeled connections,
+  mindmaps, Mermaid diagrams, charts, Excalidraw sketches, and imported PDFs & images. Undo/redo, ⌘F find,
+  minimap and zoom.
+- **Cards & backlinks** — rich text (Tiptap) with `/` commands and `@` mentions that create real backlinks;
+  one card can live on any number of whiteboards.
+- **Tags as databases** — tag a card and its tag becomes a table with typed properties, a kanban board, or a
+  list.
+- **Tasks** — checkboxes on any card, collected into a Tasks area with list/board views, priority, assignee,
+  due dates, filters and an activity timeline.
+- **Card library & search** — SQLite FTS5 search across every card and whiteboard, with instant results in
+  ⌘K.
+- **PDF reader** — select text in an imported PDF, save it as a colored highlight, and turn it into a quote
+  card linked back to the source page.
+- **AI chat, bring your own key** — an in-app Claude assistant (⌘J) that uses the exact same tools as the MCP
+  server, so anything an external agent can do, it can do too. Optional native web search for Anthropic and
+  OpenAI models.
+- **MCP server for every core action** — 34 tools over local HTTP or stdio, so Claude Desktop and Claude Code
+  can search, create and organize your whiteboards, cards, tags, kanban and tasks.
+- **Accounts & guest mode** — local accounts with an optional password, or a temporary guest workspace that's
+  wiped on sign-out. No cloud account, ever.
+- **Guided onboarding** — welcome slides and a spotlight tour to get to a first whiteboard in under two
+  minutes.
+- **Local-first** — everything lives in `~/Library/Application Support/CanvasCL/` (SQLite + imported files);
+  Markdown export/import any time.
 
-## Develop
+## Screenshots
+
+<table>
+<tr>
+<td width="50%">
+
+**Card library & ⌘K search**
+<img src="docs/screenshots/library-search.webp" alt="Instant search results in the command palette, over a table of tagged cards">
+
+</td>
+<td width="50%">
+
+**Tasks, across every card**
+<img src="docs/screenshots/tasks.webp" alt="A list of tasks grouped by status, with priority, assignee and due date">
+
+</td>
+</tr>
+<tr>
+<td width="50%">
+
+**PDF reader with highlights**
+<img src="docs/screenshots/pdf-reader.webp" alt="A PDF docked in the split-screen reader with a yellow highlight over a line of text">
+
+</td>
+<td width="50%">
+
+**AI chat, same tools as MCP**
+<img src="docs/screenshots/ai-chat.webp" alt="The in-app Claude chat connecting cards and adding a card of open questions to a whiteboard">
+
+</td>
+</tr>
+<tr>
+<td width="50%">
+
+**Connect Claude in one command**
+<img src="docs/screenshots/mcp-connect.webp" alt="The MCP settings panel with a one-line command to connect Claude Code">
+
+</td>
+<td width="50%">
+
+**Guided onboarding**
+<img src="docs/screenshots/welcome.webp" alt="The welcome slides shown on first launch">
+
+</td>
+</tr>
+</table>
+
+## Install
+
+Download the DMG for your Mac (Apple Silicon or Intel) from the [Releases](../../releases) page and drag
+Sidera into Applications. The app isn't notarized yet, so on first launch either run:
+
 ```bash
-npm install
-npm run dev
-npm test && npm run typecheck
+xattr -cr /Applications/Sidera.app
 ```
 
-## MCP
-Easiest: **Settings → MCP & Claude → Connect everything** (adds CanvasCL to Claude Desktop and Claude Code). While the app runs, an MCP server listens on `http://127.0.0.1:3845/mcp` (Streamable HTTP).
-Headless stdio mode: `CanvasCL --mcp-stdio`. Tools: `search_cards`, `get_card`, `create_card`, `update_card`, `clip_url`,
-`list_cards`, `list_tags`, `tag_card`, `create_property`, `set_card_property`, `list_whiteboards`, `get_whiteboard`, `create_whiteboard`, `add_card_to_whiteboard`,
-`add_section`, `organize_board`, `list_folders`, `create_folder`, `move_whiteboard_to_folder`, `add_chart`, `update_chart`, `add_mindmap`, `add_flowchart`, `update_diagram`, `connect_objects`, `get_kanban`, `move_kanban_item`, `list_tasks`, `add_task`, `update_task`, `complete_task`, `list_profiles`, `list_task_comments`, `add_task_comment`. Also exposes an
-`organize-board` prompt that guides an agent through grouping a whiteboard's objects and calling `organize_board`.
+or allow it under **System Settings → Privacy & Security → Open Anyway**.
 
-## In-app assistant
-Press **⌘J** (or *Ask AI*) for a chat panel powered by Claude (`claude-opus-5`, adaptive thinking, server-side refusal fallback). It uses **the same tools as the MCP server** via an in-process MCP client, so everything an external agent can do, the built-in assistant can do too. Bring your own Anthropic API key — it's stored encrypted with the macOS Keychain (`safeStorage`), or read from `ANTHROPIC_API_KEY`.
+You'll land on the sign-in screen — create a local account (password optional) or continue as a guest:
 
-**Web search (optional):** the globe button in the composer lets the assistant search the internet with the provider's native web search — Anthropic's `web_search` server tool, or OpenAI's hosted `web_search` tool (requests then go through the Responses API). Off by default because searches are billed on top of tokens; only available with OpenAI and Anthropic, and the model must support it. Cited sources are listed under the answer. For Anthropic, web search must be enabled for your organization in the Claude Console.
+<img src="docs/screenshots/signin.webp" alt="The Sidera sign-in screen, with an option to continue as a guest" width="520">
 
-## Data ownership
-⌘K → *Export all cards as Markdown* writes one `.md` file per card (front matter with id/tags). *Import Markdown files* does the reverse.
+## Connect to Claude (MCP)
+
+While Sidera is running, it exposes a local MCP server with all 34 tools (search, create and organize cards,
+whiteboards, tags, kanban and tasks). Easiest way in: **Settings → MCP & Claude → Connect everything**, which
+wires up both Claude Desktop and Claude Code. Or from a terminal:
+
+```bash
+claude mcp add --scope user --transport http sidera http://127.0.0.1:3845/mcp
+```
+
+Headless (no UI) stdio mode is also available: `Sidera --mcp-stdio`. Your data never leaves the Mac — the
+server only binds to `127.0.0.1`.
+
+## Build from source
+
+```bash
+npm install
+npm run dev             # electron-vite dev, HMR renderer
+npm test                # vitest, runs inside Electron's Node
+npm run typecheck       # tsc for the node + web projects
+npm run dist            # package a distributable app
+```
+
+## Tech stack
+
+Electron · electron-vite · React · TypeScript · Tailwind v4 · shadcn/ui · Redux Toolkit · Tiptap · SQLite
+(better-sqlite3 + Drizzle, FTS5) · React Flow · dnd-kit · cmdk · Motion · MCP SDK
+
+## Privacy
+
+Sidera is local-first: your database and imported files live in
+`~/Library/Application Support/CanvasCL/` and never touch a server unless you explicitly connect an AI
+provider or MCP client. Accounts are local (scrypt-hashed passwords, no cloud sync); guest workspaces are
+ephemeral and deleted on sign-out. Bring your own Anthropic/OpenAI API key for the in-app assistant — it's
+stored encrypted with the macOS Keychain.
 
 ## License
-MIT
+
+[MIT](LICENSE)
