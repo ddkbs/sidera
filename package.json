@@ -4,6 +4,7 @@
   "version": "0.1.0",
   "description": "Free, open-source, MCP-first visual knowledge base",
   "main": "./out/main/index.js",
+  "author": "ddkbs",
   "license": "MIT",
   "scripts": {
     "dev": "electron-vite dev",
