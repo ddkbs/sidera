@@ -8,11 +8,12 @@ import { DB_CHANGED, MCP_ACTIVITY, type CanvasApi, type DbChangeScope } from '@s
 import type { AiProviderId } from '@shared/ai'
 import type { SessionKind } from '@shared/auth'
 import { APP_NAME } from '@shared/brand'
+import { fileUrl } from '@shared/fileProtocol'
 import { withSourceHeader } from '@shared/html'
 import { SETTINGS_CHANGED } from '@shared/settings'
 import { ChatAgent } from './ai/chat'
 import { KeyStore } from './ai/keys'
-import { openDatabase, type DB } from './db/client'
+import { DB_FILENAME, migrateDbFilename, openDatabase, type DB } from './db/client'
 import { stdioLaunchSpec } from './integrations'
 import { startHttpMcp } from './mcp/server'
 import { createServices, type Services } from './services'
@@ -85,7 +86,8 @@ export class Session {
     this.kind = opts.kind
     this.filesDir = join(this.dataDir, 'files')
     mkdirSync(this.filesDir, { recursive: true })
-    this.db = openDatabase(join(this.dataDir, 'canvascl.db'))
+    migrateDbFilename(this.dataDir)
+    this.db = openDatabase(join(this.dataDir, DB_FILENAME))
     this.settings = new SettingsStore(this.dataDir)
     this.services = createServices(this.db, (s) => this.emit(s), {
       get: () => this.settings.get().activeProfileId,
@@ -150,8 +152,8 @@ export class Session {
     if (this.closed) return
     const { httpEnabled } = this.settings.get().mcp
     if (!httpEnabled) return
-    // CANVASCL_MCP_PORT overrides the setting (parallel dev/test runs)
-    const port = Number(process.env.CANVASCL_MCP_PORT) || this.settings.get().mcp.port
+    // SIDERA_MCP_PORT overrides the setting (parallel dev/test runs)
+    const port = Number(process.env.SIDERA_MCP_PORT) || this.settings.get().mcp.port
     const started = await startHttpMcp(this.services, this.opts.version, (tool, args) => this.reportActivity(tool, args), port)
     // signed out while the server was starting
     if (this.closed) {
@@ -240,7 +242,7 @@ export class Session {
         return services.registerFile({ name: name?.trim() || `pasted${ext}`, mime, path: dest, size: buf.length })
       },
       async getFileUrl(id) {
-        return services.getFile(id) ? `canvascl-file://files/${encodeURIComponent(id)}` : null
+        return services.getFile(id) ? fileUrl(id) : null
       },
       async openFile(id) {
         // Only files we imported ourselves (looked up by id, must live in the files dir) — never a renderer-supplied path.
@@ -264,7 +266,7 @@ export class Session {
           const dest = join(filesDir, nanoid() + img.ext)
           await writeFile(dest, img.bytes)
           const file = services.registerFile({ name: `${label}${img.ext}`, mime: img.mime, path: dest, size: img.bytes.byteLength })
-          return `canvascl-file://files/${encodeURIComponent(file.id)}`
+          return fileUrl(file.id)
         }
         const host = (() => {
           try {

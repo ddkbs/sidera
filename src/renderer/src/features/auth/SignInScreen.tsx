@@ -12,7 +12,7 @@ import { AccountForm, FormError, Spinner } from './AccountForm'
 import { LogoTile } from '@/components/Logo'
 
 /** Account to expand on the sign-in screen after "Switch account" → a password-protected account. */
-export const PRESELECT_KEY = 'canvascl.auth.preselect'
+export const PRESELECT_KEY = 'sidera.auth.preselect'
 
 type View = { kind: 'pick' } | { kind: 'create' } | { kind: 'setup'; account: PublicAccount }
 

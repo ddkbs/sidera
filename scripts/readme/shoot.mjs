@@ -7,7 +7,7 @@
  *   node scripts/readme/shoot.mjs
  *
  * Needs `cwebp` (brew install webp). Never touches the real data dir — everything runs against a
- * throw-away scratch dir. Env: CANVASCL_MCP_PORT (default 3860), README_SHOTS_DIR (scratch).
+ * throw-away scratch dir. Env: SIDERA_MCP_PORT (default 3860), README_SHOTS_DIR (scratch).
  */
 import { execFileSync, spawnSync } from 'node:child_process'
 import { existsSync, mkdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs'
@@ -19,7 +19,7 @@ import { buildSamplePdf, SAMPLE_HIGHLIGHTS } from './sample-pdf.mjs'
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '../..')
 const outDir = join(root, 'docs/screenshots')
 const scratch = process.env.README_SHOTS_DIR ?? join(tmpdir(), 'sidera-readme-shots')
-const port = process.env.CANVASCL_MCP_PORT ?? '3860'
+const port = process.env.SIDERA_MCP_PORT ?? '3860'
 const onboardingSeed = readFileSync(join(root, 'scripts/onboarding/seed.js'), 'utf8')
 const pdfBase64 = buildSamplePdf().toString('base64')
 
@@ -29,7 +29,7 @@ const HERO_WIDTH = 2000
 
 const ui = (view, extra = '') => `(async () => {
   ${extra}
-  localStorage['canvascl.ui'] = JSON.stringify({ sidebarOpen: true, chatOpen: ${view.chat ? 'true' : 'false'}, tabs: [{ id: 't1', view: ${view.expr} }], activeTabId: 't1'${view.pdf ? `, pdf: ${view.pdf}` : ''} })
+  localStorage['sidera.ui'] = JSON.stringify({ sidebarOpen: true, chatOpen: ${view.chat ? 'true' : 'false'}, tabs: [{ id: 't1', view: ${view.expr} }], activeTabId: 't1'${view.pdf ? `, pdf: ${view.pdf}` : ''} })
   setTimeout(() => location.reload(), 50)
 })()`
 const zoomStep = `document.documentElement.style.zoom = '${ZOOM}'; window.dispatchEvent(new Event('resize')); 1`
@@ -102,7 +102,7 @@ const shots = [
     ]
   },
   {
-    // The scratch shoot runs on CANVASCL_MCP_PORT=3860 to avoid colliding with a real running app;
+    // The scratch shoot runs on SIDERA_MCP_PORT=3860 to avoid colliding with a real running app;
     // cosmetically swap it back to the documented default (3845) so the screenshot matches the docs.
     name: 'mcp-connect',
     noPark: true,
@@ -135,11 +135,11 @@ function run(theme, list) {
     encoding: 'utf8',
     env: {
       ...process.env,
-      CANVASCL_MCP_PORT: port,
-      CANVASCL_DATA_DIR: join(dir, 'data'),
-      CANVASCL_SHOT: join(dir, 's.png'),
-      CANVASCL_SCRIPT: join(dir, 'steps.js'),
-      CANVASCL_QUIT: '1'
+      SIDERA_MCP_PORT: port,
+      SIDERA_DATA_DIR: join(dir, 'data'),
+      SIDERA_SHOT: join(dir, 's.png'),
+      SIDERA_SCRIPT: join(dir, 'steps.js'),
+      SIDERA_QUIT: '1'
     },
     timeout: 300_000
   })
@@ -157,7 +157,7 @@ function run(theme, list) {
   }
 }
 
-/** Sign-in screen: a brand-new CANVASCL_AUTH_ROOT (no accounts yet) so the "Get started" flow shows. */
+/** Sign-in screen: a brand-new SIDERA_AUTH_ROOT (no accounts yet) so the "Get started" flow shows. */
 function runSignIn() {
   const dir = join(scratch, 'signin')
   rmSync(dir, { recursive: true, force: true })
@@ -170,11 +170,11 @@ function runSignIn() {
     encoding: 'utf8',
     env: {
       ...process.env,
-      CANVASCL_MCP_PORT: port,
-      CANVASCL_AUTH_ROOT: dir,
-      CANVASCL_SHOT: join(dir, 's.png'),
-      CANVASCL_SCRIPT: join(dir, 'steps.js'),
-      CANVASCL_QUIT: '1'
+      SIDERA_MCP_PORT: port,
+      SIDERA_AUTH_ROOT: dir,
+      SIDERA_SHOT: join(dir, 's.png'),
+      SIDERA_SCRIPT: join(dir, 'steps.js'),
+      SIDERA_QUIT: '1'
     },
     timeout: 120_000
   })
@@ -200,11 +200,11 @@ function runWelcome() {
     encoding: 'utf8',
     env: {
       ...process.env,
-      CANVASCL_MCP_PORT: port,
-      CANVASCL_DATA_DIR: join(dir, 'data'),
-      CANVASCL_SHOT: join(dir, 's.png'),
-      CANVASCL_SCRIPT: join(dir, 'steps.js'),
-      CANVASCL_QUIT: '1'
+      SIDERA_MCP_PORT: port,
+      SIDERA_DATA_DIR: join(dir, 'data'),
+      SIDERA_SHOT: join(dir, 's.png'),
+      SIDERA_SCRIPT: join(dir, 'steps.js'),
+      SIDERA_QUIT: '1'
     },
     timeout: 120_000
   })

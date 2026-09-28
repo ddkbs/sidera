@@ -5,7 +5,7 @@ import { describe, expect, it } from 'vitest'
 import { AccountRegistry, hashPassword, verifyPasswordHash } from '../src/main/accounts'
 
 const setup = () => {
-  const root = mkdtempSync(join(tmpdir(), 'canvascl-accounts-'))
+  const root = mkdtempSync(join(tmpdir(), 'sidera-accounts-'))
   return { root, reg: new AccountRegistry(root) }
 }
 
@@ -84,10 +84,12 @@ describe('account registry', () => {
   it('adopts the legacy data folder once, in place, flagged for setup', () => {
     const { root, reg } = setup()
     mkdirSync(join(root, 'data'))
+    // 'canvascl.db' simulates a pre-rename install; migrateLegacy renames it to 'sidera.db' along the way.
     writeFileSync(join(root, 'data', 'canvascl.db'), 'x')
     const adopted = reg.migrateLegacy(() => ({ name: 'ddkbs', color: 'teal' }))!
     expect(adopted).toMatchObject({ name: 'ddkbs', color: 'teal', dataDir: join(root, 'data'), needsSetup: true })
-    expect(existsSync(join(root, 'data', 'canvascl.db'))).toBe(true)
+    expect(existsSync(join(root, 'data', 'canvascl.db'))).toBe(false)
+    expect(existsSync(join(root, 'data', 'sidera.db'))).toBe(true)
     expect(reg.migrateLegacy()).toBeNull()
     expect(reg.list()).toHaveLength(1)
     expect(reg.lastAccountId).toBe(adopted.id)
@@ -110,6 +112,7 @@ describe('account registry', () => {
   it('falls back to a default name when the legacy peek fails', () => {
     const { root, reg } = setup()
     mkdirSync(join(root, 'data'))
+    // pre-rename filename, same as above — exercises the same detection path
     writeFileSync(join(root, 'data', 'canvascl.db'), 'x')
     const adopted = reg.migrateLegacy(() => {
       throw new Error('locked')
@@ -121,9 +124,9 @@ describe('account registry', () => {
     const { root, reg } = setup()
     const dir = reg.prepareGuest()
     expect(dir).toBe(join(root, 'guest'))
-    writeFileSync(join(dir, 'canvascl.db'), 'guest data')
+    writeFileSync(join(dir, 'sidera.db'), 'guest data')
     reg.prepareGuest()
-    expect(existsSync(join(dir, 'canvascl.db'))).toBe(false)
+    expect(existsSync(join(dir, 'sidera.db'))).toBe(false)
     reg.wipeGuest()
     expect(existsSync(dir)).toBe(false)
   })
@@ -131,10 +134,10 @@ describe('account registry', () => {
   it('saves the guest workspace as a real account by moving the folder', () => {
     const { reg } = setup()
     const dir = reg.prepareGuest()
-    writeFileSync(join(dir, 'canvascl.db'), 'guest data')
+    writeFileSync(join(dir, 'sidera.db'), 'guest data')
     const acc = reg.saveGuestAsAccount({ name: 'Kept', password: 'pass' })
     expect(existsSync(dir)).toBe(false)
-    expect(readFileSync(join(acc.dataDir, 'canvascl.db'), 'utf8')).toBe('guest data')
+    expect(readFileSync(join(acc.dataDir, 'sidera.db'), 'utf8')).toBe('guest data')
     expect(reg.verifyPassword(acc.id, 'pass')).toBe(true)
     expect(() => reg.saveGuestAsAccount({ name: 'Again' })).toThrow(/no guest/)
   })

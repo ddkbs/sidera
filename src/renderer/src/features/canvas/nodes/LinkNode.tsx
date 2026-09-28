@@ -7,9 +7,9 @@ import type { ObjectNode } from '../types'
 import { Handles, Resizer } from './NodeChrome'
 
 /** Dispatched by the "Save as card" button; WhiteboardView clips the page and wires up the connection. */
-export const SAVE_LINK_EVENT = 'canvascl:save-link'
+export const SAVE_LINK_EVENT = 'sidera:save-link'
 /** Dispatched back by WhiteboardView once a save finishes (success or failure), so the button resets. */
-export const SAVE_LINK_DONE_EVENT = 'canvascl:save-link-done'
+export const SAVE_LINK_DONE_EVENT = 'sidera:save-link-done'
 
 export const LinkNode = memo(function LinkNode({ id, data, selected }: NodeProps<ObjectNode>) {
   const stored = data.object.data as Partial<LinkPreviewData> & { url: string }

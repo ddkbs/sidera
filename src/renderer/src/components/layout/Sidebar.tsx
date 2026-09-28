@@ -39,9 +39,9 @@ import { type View, navigate, openTab, setChatOpen, setPaletteOpen, toggleSideba
 import type { Folder, Whiteboard } from '@shared/types'
 import { storageKey } from '@/lib/storage'
 
-const COLLAPSED_KEY = storageKey('canvascl.folders.collapsed')
-const WHITEBOARD_DND = 'application/x-canvascl-whiteboard'
-const FOLDER_DND = 'application/x-canvascl-folder'
+const COLLAPSED_KEY = storageKey('sidera.folders.collapsed')
+const WHITEBOARD_DND = 'application/x-sidera-whiteboard'
+const FOLDER_DND = 'application/x-sidera-folder'
 
 function loadCollapsed(): Set<string> {
   try {

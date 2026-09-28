@@ -265,7 +265,7 @@ export interface Profile {
   name: string
   email: string | null
   avatarFileId: ID | null
-  /** canvascl-file:// URL of the avatar image, if any */
+  /** sidera-file:// URL of the avatar image, if any */
   avatarUrl: string | null
   /** TAG_COLORS key used as the initials background */
   color: string

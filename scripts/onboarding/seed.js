@@ -1,6 +1,6 @@
 // Renderer-side demo seed for the onboarding screenshots (run as the first devShot step).
 // Wipes the fresh scratch database and fills it with a realistic "product launch" workspace.
-// Only ever run this against a scratch CANVASCL_DATA_DIR — see scripts/onboarding/shoot.mjs.
+// Only ever run this against a scratch SIDERA_DATA_DIR — see scripts/onboarding/shoot.mjs.
 ;(async () => {
   const api = window.api
   for (const b of await api.listWhiteboards()) await api.deleteWhiteboard(b.id)

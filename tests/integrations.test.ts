@@ -9,7 +9,7 @@ describe('Claude Desktop integration', () => {
   const realHome = process.env.HOME
   let home: string
   beforeEach(() => {
-    home = mkdtempSync(join(tmpdir(), 'canvascl-home-'))
+    home = mkdtempSync(join(tmpdir(), 'sidera-home-'))
     process.env.HOME = home
   })
   afterEach(() => {
@@ -24,7 +24,7 @@ describe('Claude Desktop integration', () => {
     writeFileSync(file, JSON.stringify({ mcpServers: { other: { command: 'x' } }, theme: 'dark' }))
     expect(isInClaudeDesktop()).toBe(false)
 
-    const spec = { command: '/Applications/CanvasCL.app/Contents/MacOS/CanvasCL', args: ['--mcp-stdio'], env: { CANVASCL_DATA_DIR: '/data' } }
+    const spec = { command: '/Applications/Sidera.app/Contents/MacOS/Sidera', args: ['--mcp-stdio'], env: { SIDERA_DATA_DIR: '/data' } }
     expect(addToClaudeDesktop(spec).ok).toBe(true)
     const written = JSON.parse(readFileSync(file, 'utf8'))
     expect(written).toEqual({ mcpServers: { other: { command: 'x' }, sidera: spec }, theme: 'dark' })
@@ -33,6 +33,7 @@ describe('Claude Desktop integration', () => {
   })
 
   it('removes a stale pre-rename "canvascl" entry when (re)connecting', async () => {
+    // "canvascl" below is the legacy (pre-Sidera) MCP server name this test verifies gets cleaned up.
     const { addToClaudeDesktop, claudeDesktopConfigPath } = await import('../src/main/integrations')
     const file = claudeDesktopConfigPath()
     mkdirSync(join(file, '..'), { recursive: true })

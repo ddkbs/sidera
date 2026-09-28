@@ -9,10 +9,10 @@ export interface HighlightDrag {
   highlightId?: string
 }
 
-export const HIGHLIGHT_MIME = 'application/x-canvascl-highlight'
+export const HIGHLIGHT_MIME = 'application/x-sidera-highlight'
 
 /** Fired by the reader's "create card" action; a mounted whiteboard handles it and calls preventDefault(). */
-export const HIGHLIGHT_CARD_EVENT = 'canvascl:highlight-card'
+export const HIGHLIGHT_CARD_EVENT = 'sidera:highlight-card'
 
 export function setHighlightDrag(dt: DataTransfer, payload: HighlightDrag): void {
   dt.effectAllowed = 'copy'

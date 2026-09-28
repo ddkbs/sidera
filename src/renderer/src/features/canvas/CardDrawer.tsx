@@ -5,7 +5,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
 import { cn } from '@/lib/utils'
 import { useSearchQuery } from '@/store/api'
 
-export const CARD_MIME = 'application/x-canvascl-card'
+export const CARD_MIME = 'application/x-sidera-card'
 
 /** Floating card library on the canvas. Drag cards onto the whiteboard. */
 export function CardDrawer({ onBoard }: { onBoard: Set<string> }) {

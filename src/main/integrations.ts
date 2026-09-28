@@ -21,7 +21,7 @@ export function stdioLaunchSpec(dataDir: string | null): { command: string; args
   return {
     command: process.execPath,
     args: app.isPackaged ? ['--mcp-stdio'] : [app.getAppPath(), '--mcp-stdio'],
-    env: dataDir ? { CANVASCL_DATA_DIR: dataDir } : {}
+    env: dataDir ? { SIDERA_DATA_DIR: dataDir } : {}
   }
 }
 

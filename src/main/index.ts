@@ -16,10 +16,12 @@ import {
   type SessionKind
 } from '@shared/auth'
 import { APP_NAME } from '@shared/brand'
+import { FILE_PROTOCOL, LEGACY_FILE_PROTOCOL } from '@shared/fileProtocol'
 import { SETTINGS_CHANGED, type SettingsPatch } from '@shared/settings'
 import { AccountRegistry, type StoredAccount } from './accounts'
 import { applyCaptureShortcut, hideCaptureWindow, showCaptureWindow, teardownCapture, toAccelerator } from './capture'
 import { createTray, destroyTray } from './tray'
+import { DB_FILENAME, migrateDbFilename } from './db/client'
 import { addToClaudeCode, addToClaudeDesktop, isInClaudeCode, isInClaudeDesktop } from './integrations'
 import { listModels as listOpenAiModels } from './ai/openaiCompatible'
 import { registerIpc } from './ipc'
@@ -28,16 +30,17 @@ import { Session } from './session'
 import { hardenWindow, rendererUrl } from './windowSecurity'
 
 const STDIO = process.argv.includes('--mcp-stdio')
-// The data folder stays at its pre-rename location so a product rename never moves anyone's data;
-// set before setName, which would otherwise derive userData from the new name.
+// The data folder stays at its pre-rename location (the app's old name, "CanvasCL") so the Sidera rename
+// never moves anyone's data; set before setName, which would otherwise derive userData from the new name.
+// This literal is intentionally legacy — never rename it.
 app.setPath('userData', join(app.getPath('appData'), 'CanvasCL'))
 app.setName(APP_NAME)
 /** Dev/test escape hatch: open this folder directly, no accounts, no sign-in screen (devShot, tests, stdio). */
-const DEV_DATA_DIR = process.env.CANVASCL_DATA_DIR
+const DEV_DATA_DIR = process.env.SIDERA_DATA_DIR
 /** Dev-only: account registry in a scratch folder, WITH the sign-in screen (to verify the auth flow). */
-const AUTH_ROOT = !app.isPackaged && !DEV_DATA_DIR ? process.env.CANVASCL_AUTH_ROOT : undefined
+const AUTH_ROOT = !app.isPackaged && !DEV_DATA_DIR ? process.env.SIDERA_AUTH_ROOT : undefined
 // Automated UI checks get their own browser profile so they never collide with a running app (localStorage lock, cache).
-if (process.env.CANVASCL_SHOT && DEV_DATA_DIR) app.setPath('userData', join(DEV_DATA_DIR, 'userdata'))
+if (process.env.SIDERA_SHOT && DEV_DATA_DIR) app.setPath('userData', join(DEV_DATA_DIR, 'userdata'))
 if (AUTH_ROOT) app.setPath('userData', join(AUTH_ROOT, 'userdata'))
 const registry = new AccountRegistry(AUTH_ROOT ?? app.getPath('userData'))
 
@@ -54,7 +57,7 @@ const requireSession = (): Session => {
 if (STDIO) {
   app.dock?.hide()
   process.stdin.on('end', () => app.quit())
-  // Serves the account that was signed in most recently (or the pinned CANVASCL_DATA_DIR).
+  // Serves the account that was signed in most recently (or the pinned SIDERA_DATA_DIR).
   app.whenReady().then(() => {
     const dataDir = DEV_DATA_DIR ?? registry.activeDataDir() ?? registry.legacyDir
     session = new Session({ dataDir, kind: DEV_DATA_DIR ? 'dev' : 'account', version: app.getVersion(), window: () => null, interactive: false })
@@ -62,7 +65,9 @@ if (STDIO) {
   })
 } else {
   protocol.registerSchemesAsPrivileged([
-    { scheme: 'canvascl-file', privileges: { standard: true, secure: true, supportFetchAPI: true, stream: true, corsEnabled: true } }
+    { scheme: FILE_PROTOCOL, privileges: { standard: true, secure: true, supportFetchAPI: true, stream: true, corsEnabled: true } },
+    // Kept so cards/whiteboards saved before the CanvasCL → Sidera rename still resolve their image URLs.
+    { scheme: LEGACY_FILE_PROTOCOL, privileges: { standard: true, secure: true, supportFetchAPI: true, stream: true, corsEnabled: true } }
   ])
   void bootstrap()
 }
@@ -77,7 +82,8 @@ function peekLegacyProfile(dataDir: string): { name?: string | null; color?: str
   } catch {
     activeId = undefined
   }
-  const db = new Database(join(dataDir, 'canvascl.db'), { readonly: true, fileMustExist: true })
+  migrateDbFilename(dataDir)
+  const db = new Database(join(dataDir, DB_FILENAME), { readonly: true, fileMustExist: true })
   try {
     const rows = db.prepare('SELECT id, name, color FROM profiles ORDER BY created_at').all() as { id: string; name: string; color: string }[]
     return rows.find((r) => r.id === activeId) ?? rows[0] ?? null
@@ -160,7 +166,7 @@ async function signInTo(acc: StoredAccount, staySignedIn: boolean): Promise<Auth
 }
 
 function registerAuthIpc(): void {
-  const noAccounts = (): AuthResult | null => (DEV_DATA_DIR ? { ok: false, error: 'Accounts are disabled while CANVASCL_DATA_DIR is set.' } : null)
+  const noAccounts = (): AuthResult | null => (DEV_DATA_DIR ? { ok: false, error: 'Accounts are disabled while SIDERA_DATA_DIR is set.' } : null)
 
   ipcMain.on('auth:sessionSync', (e) => (e.returnValue = sessionInfo))
   ipcMain.handle('auth:status', (): AuthStatus => ({ session: sessionInfo, lastAccountId: registry.lastAccountId }))
@@ -294,8 +300,8 @@ function registerAuthIpc(): void {
 async function bootstrap(): Promise<void> {
   await app.whenReady()
 
-  protocol.handle('canvascl-file', async (req) => {
-    // canvascl-file://files/<id> — ids live in the path because hostnames are lower-cased
+  const handleFileProtocol = async (req: Request): Promise<Response> => {
+    // sidera-file://files/<id> (or the legacy canvascl-file:// scheme) — ids live in the path because hostnames are lower-cased
     const id = decodeURIComponent(new URL(req.url).pathname.replace(/^\//, ''))
     const f = session?.services.getFile(id)
     if (!f) return new Response('Not found', { status: 404 })
@@ -305,9 +311,12 @@ async function bootstrap(): Promise<void> {
     headers.set('Content-Type', f.mime)
     // Imported/downloaded files are untrusted: never let an SVG (or sniffed HTML) run script if opened as a document.
     headers.set('X-Content-Type-Options', 'nosniff')
-    headers.set('Content-Security-Policy', "default-src 'none'; img-src data: canvascl-file:; style-src 'unsafe-inline'; sandbox")
+    headers.set('Content-Security-Policy', `default-src 'none'; img-src data: ${FILE_PROTOCOL}: ${LEGACY_FILE_PROTOCOL}:; style-src 'unsafe-inline'; sandbox`)
     return new Response(res.body, { status: res.status, headers })
-  })
+  }
+  protocol.handle(FILE_PROTOCOL, handleFileProtocol)
+  // Kept so cards/whiteboards saved before the CanvasCL → Sidera rename still resolve their image URLs.
+  protocol.handle(LEGACY_FILE_PROTOCOL, handleFileProtocol)
 
   registerIpc(() => requireSession().handlers)
   registerAuthIpc()
@@ -368,7 +377,7 @@ async function bootstrap(): Promise<void> {
   })
   ipcMain.handle('app:getDataInfo', () => {
     const { dataDir, filesDir } = requireSession()
-    const dbPath = join(dataDir, 'canvascl.db')
+    const dbPath = join(dataDir, DB_FILENAME)
     const size = (p: string): number => (existsSync(p) ? statSync(p).size : 0)
     return {
       dataDir,
@@ -407,7 +416,7 @@ async function bootstrap(): Promise<void> {
   createWindow()
   // the hidden capture panel is also a BrowserWindow — only the main window counts here
   app.on('activate', () => (!win || win.isDestroyed()) && createWindow())
-  if (!process.env.CANVASCL_SHOT)
+  if (!process.env.SIDERA_SHOT)
     createTray({
       captureAccelerator: () => {
         const qc = session?.settings.get().quickCapture
@@ -448,7 +457,7 @@ function createWindow(): void {
       contextIsolation: true,
       nodeIntegration: false,
       webSecurity: true,
-      backgroundThrottling: !process.env.CANVASCL_SHOT
+      backgroundThrottling: !process.env.SIDERA_SHOT
     }
   })
   const w = win
@@ -458,13 +467,13 @@ function createWindow(): void {
   // First open of a fresh knowledge base: show the welcome board (once).
   w.webContents.on('did-finish-load', () => {
     const s = session
-    if (!s?.welcomeBoardId || !sessionInfo || process.env.CANVASCL_SHOT) return
-    const key = JSON.stringify(namespacedKey('canvascl.ui', sessionInfo.storageNamespace))
+    if (!s?.welcomeBoardId || !sessionInfo || process.env.SIDERA_SHOT) return
+    const key = JSON.stringify(namespacedKey('sidera.ui', sessionInfo.storageNamespace))
     const ui = JSON.stringify(JSON.stringify({ view: { type: 'whiteboard', id: s.welcomeBoardId } }))
     s.welcomeBoardId = null
     void w.webContents.executeJavaScript(`localStorage.getItem(${key}) || (localStorage.setItem(${key}, ${ui}), location.reload())`)
   })
-  if (!app.isPackaged && process.env.CANVASCL_SHOT) void devShot(w)
+  if (!app.isPackaged && process.env.SIDERA_SHOT) void devShot(w)
   w.on('closed', () => (win = null))
   hardenWindow(w, rendererUrl())
   if (process.env.ELECTRON_RENDERER_URL) void w.loadURL(process.env.ELECTRON_RENDERER_URL)
@@ -490,7 +499,7 @@ async function devShot(w: BrowserWindow): Promise<void> {
   w.webContents.on('console-message', (e) => e.level !== 'info' && e.level !== 'debug' && console.log(`[renderer:${e.level}]`, e.message.slice(0, 400)))
   await new Promise((r) => w.webContents.once('did-finish-load', () => r(null)))
   await new Promise((r) => setTimeout(r, 1500))
-  const steps = process.env.CANVASCL_SCRIPT ? (await readFile(process.env.CANVASCL_SCRIPT, 'utf8')).split('\n---\n') : ['']
+  const steps = process.env.SIDERA_SCRIPT ? (await readFile(process.env.SIDERA_SCRIPT, 'utf8')).split('\n---\n') : ['']
   for (const [i, step] of steps.entries()) {
     const cmd = step.trim().match(/^@(click|dblclick|drag|key|type)\s+(.*)$/)
     if (cmd) {
@@ -559,19 +568,19 @@ async function devShot(w: BrowserWindow): Promise<void> {
       console.log(`[shot] step ${i}: capture failed`)
       continue
     }
-    await writeFile(process.env.CANVASCL_SHOT!.replace('.png', `-${i}.png`), img.toPNG())
+    await writeFile(process.env.SIDERA_SHOT!.replace('.png', `-${i}.png`), img.toPNG())
     // Dev-only: also snapshot any other visible window (e.g. the quick-capture window), for verification scripts.
     for (const other of BrowserWindow.getAllWindows()) {
       if (other === w || !other.isVisible()) continue
       try {
         const otherImg = await other.webContents.capturePage()
-        await writeFile(process.env.CANVASCL_SHOT!.replace('.png', `-${i}-extra.png`), otherImg.toPNG())
+        await writeFile(process.env.SIDERA_SHOT!.replace('.png', `-${i}-extra.png`), otherImg.toPNG())
       } catch (e) {
         console.log(`[shot] step ${i}: extra window capture failed:`, e)
       }
     }
   }
-  if (process.env.CANVASCL_QUIT) {
+  if (process.env.SIDERA_QUIT) {
     // flush localStorage so follow-up runs start where this one ended
     await w.webContents.session.flushStorageData()
     app.exit(0)

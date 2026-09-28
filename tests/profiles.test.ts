@@ -59,7 +59,7 @@ describe('profiles', () => {
     const me = api.getActiveProfile()
     const img = api.registerFile({ name: 'me.png', mime: 'image/png', path: '/tmp/me.png', size: 10 })
     const pdf = api.registerFile({ name: 'cv.pdf', mime: 'application/pdf', path: '/tmp/cv.pdf', size: 10 })
-    expect(api.updateProfile({ id: me.id, avatarFileId: img.id }).avatarUrl).toBe(`canvascl-file://files/${img.id}`)
+    expect(api.updateProfile({ id: me.id, avatarFileId: img.id }).avatarUrl).toBe(`sidera-file://files/${img.id}`)
     expect(() => api.updateProfile({ id: me.id, avatarFileId: pdf.id })).toThrow(/image/)
     expect(api.updateProfile({ id: me.id, avatarFileId: null }).avatarUrl).toBeNull()
   })

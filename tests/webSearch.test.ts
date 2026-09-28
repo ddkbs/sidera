@@ -69,7 +69,7 @@ describe('anthropic web search', () => {
   })
 
   const content = [
-    { type: 'server_tool_use', id: 'srvtoolu_1', name: 'web_search', input: { query: 'canvascl release' } },
+    { type: 'server_tool_use', id: 'srvtoolu_1', name: 'web_search', input: { query: 'sidera release' } },
     {
       type: 'web_search_tool_result',
       tool_use_id: 'srvtoolu_1',
@@ -216,7 +216,7 @@ describe('OpenAiCompatibleAgent with web search (fake Responses SSE server)', ()
         res.writeHead(200, { 'Content-Type': 'text/event-stream' })
         const send = (obj: Record<string, unknown>) => res.write(`event: ${obj.type}\ndata: ${JSON.stringify(obj)}\n\n`)
         if (req.url?.includes('/responses') && call === 1) {
-          const ws = { type: 'web_search_call', id: 'ws_1', status: 'completed', action: { type: 'search', query: 'canvascl news' } }
+          const ws = { type: 'web_search_call', id: 'ws_1', status: 'completed', action: { type: 'search', query: 'sidera news' } }
           const fc = { type: 'function_call', id: 'fc_1', call_id: 'call_1', name: 'list_tags', arguments: '{}', status: 'completed' }
           send({ type: 'response.output_item.added', output_index: 0, sequence_number: 1, item: { ...ws, status: 'in_progress', action: { type: 'search' } } })
           send({ type: 'response.output_item.done', output_index: 0, sequence_number: 2, item: ws })
@@ -249,7 +249,7 @@ describe('OpenAiCompatibleAgent with web search (fake Responses SSE server)', ()
 
       expect(events).toEqual([
         { type: 'search' },
-        { type: 'search', query: 'canvascl news' },
+        { type: 'search', query: 'sidera news' },
         { type: 'tool', name: 'list_tags' },
         { type: 'text', delta: 'News.' },
         { type: 'sources', sources: [{ url: 'https://news.example/1', title: 'One' }] },

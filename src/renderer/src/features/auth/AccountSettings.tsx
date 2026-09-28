@@ -66,7 +66,7 @@ export function AccountSettings() {
     )
 
   if (!account)
-    return <p className="text-sm text-muted-foreground">Accounts are disabled for this window: it was opened on a fixed data folder (CANVASCL_DATA_DIR).</p>
+    return <p className="text-sm text-muted-foreground">Accounts are disabled for this window: it was opened on a fixed data folder (SIDERA_DATA_DIR).</p>
 
   return (
     <div>
