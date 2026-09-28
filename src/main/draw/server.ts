@@ -43,8 +43,8 @@ export interface DrawServerOptions {
   html: string
   /** Mac name shown on the device once paired */
   host: string
-  onStatus: (state: DrawState, reason?: string) => void
-  onReceived: (drawing: DrawSubmission) => void
+  onStatus: (state: DrawState, reason: string | undefined, sessionId: string) => void
+  onReceived: (drawing: DrawSubmission, sessionId: string) => void
   timeouts?: Partial<DrawTimeouts>
   log?: (msg: string) => void
 }
@@ -172,7 +172,7 @@ export class DrawServer {
   private setState(state: DrawState, reason?: string): void {
     if (this.state === 'closed') return
     this.state = state
-    this.opts.onStatus(state, reason)
+    this.opts.onStatus(state, reason, this.sessionId)
   }
 
   private tick(): void {
@@ -249,7 +249,7 @@ export class DrawServer {
         return { type: 'error', error: 'invalid-drawing', message: (e as Error).message }
       }
       this.log(`drawing received (${drawing.strokes.length} strokes)`)
-      this.opts.onReceived(drawing)
+      this.opts.onReceived(drawing, this.sessionId)
       this.setState('received')
       this.closeAfterReply = 'received'
       return { type: 'ok', done: true }

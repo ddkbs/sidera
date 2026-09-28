@@ -11,6 +11,8 @@ import { APP_NAME } from '@shared/brand'
 import { withSourceHeader } from '@shared/html'
 import { SETTINGS_CHANGED } from '@shared/settings'
 import { ChatAgent } from './ai/chat'
+import { companionHtml } from './draw/companion'
+import { DrawController } from './draw/controller'
 import { KeyStore } from './ai/keys'
 import { openDatabase, type DB } from './db/client'
 import { stdioLaunchSpec } from './integrations'
@@ -70,6 +72,8 @@ export class Session {
   readonly services: Services
   readonly chat: ChatAgent
   readonly handlers: Handlers
+  /** Sidera Draw (iPad companion): a short-lived LAN server, separate from MCP */
+  readonly draw: DrawController
   /** whiteboard seeded on first open — the window opens it once */
   welcomeBoardId: string | null = null
   mcpUrl: string | null = null
@@ -99,6 +103,7 @@ export class Session {
     this.keys = new KeyStore(this.dataDir)
     this.chat = new ChatAgent(this.services, opts.version, () => this.activeAiConfig(), (tool, args) => this.reportActivity(tool, args))
     this.handlers = this.buildHandlers()
+    this.draw = new DrawController(companionHtml, (channel, e) => this.send(channel, e))
 
     if (opts.interactive !== false) {
       // Detect writes from other processes (e.g. `--mcp-stdio` instances) and refresh the UI
@@ -196,7 +201,7 @@ export class Session {
     if (this.changeTimer) clearTimeout(this.changeTimer)
     this.watcher = this.changeTimer = null
     this.pending.clear()
-    const stopped = this.stopMcp()
+    const stopped = Promise.all([this.stopMcp(), this.draw.close('signed-out')]).then(() => undefined)
     this.db.$client.close()
     return stopped
   }

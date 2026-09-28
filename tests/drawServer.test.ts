@@ -6,6 +6,8 @@ import type { DrawState } from '../src/shared/draw'
 
 const HTML = '<!doctype html><html><head><style>body{margin:0}</style></head><body><script>console.log(1)</script></body></html>'
 
+type Outgoing = { type: string; [k: string]: unknown }
+
 const servers: DrawServer[] = []
 afterEach(async () => {
   await Promise.all(servers.splice(0).map((s) => s.close('test-end')))
@@ -37,8 +39,8 @@ function client(s: DrawServer, key = fromB64u(new URL(s.url).hash.slice(1))) {
   return {
     sessionId,
     post,
-    envelope: (msg: Omit<Message, 'seq'>, n = ++seq): Envelope => seal(key, sessionId, 'c2s', { ...msg, seq: n }),
-    async send(msg: Omit<Message, 'seq'>): Promise<Message> {
+    envelope: (msg: Outgoing, n = ++seq): Envelope => seal(key, sessionId, 'c2s', { ...msg, seq: n }),
+    async send(msg: Outgoing): Promise<Message> {
       const n = ++seq
       const res = await post(seal(key, sessionId, 'c2s', { ...msg, seq: n }))
       if (res.status !== 200) throw new Error(`HTTP ${res.status}`)

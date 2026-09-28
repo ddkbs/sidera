@@ -344,6 +344,14 @@ async function bootstrap(): Promise<void> {
     return listOpenAiModels(keys().resolve(provider), resolveBaseUrl(provider, baseUrl))
   })
 
+  // Sidera Draw (iPad companion). Only the main window may open a LAN session.
+  const fromMain = (e: Electron.IpcMainInvokeEvent): boolean => !!win && !win.isDestroyed() && e.sender === win.webContents
+  ipcMain.handle('draw:start', (e, whiteboardId: unknown, address?: unknown) => {
+    if (!fromMain(e) || typeof whiteboardId !== 'string' || whiteboardId.length > 64) throw new Error('Invalid request')
+    return requireSession().draw.start(whiteboardId, typeof address === 'string' ? address : undefined)
+  })
+  ipcMain.handle('draw:cancel', (e) => (fromMain(e) ? session?.draw.close('cancelled') : undefined))
+
   // Signed out there is no capture target: open the main window (sign-in screen) instead.
   ipcMain.handle('app:openCapture', () => (session ? showCaptureWindow() : showMain()))
   ipcMain.handle('app:hideCapture', () => hideCaptureWindow())
