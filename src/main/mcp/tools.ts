@@ -4,6 +4,7 @@ import { docToMarkdown, linkWikiRefs, markdownToDoc } from '@shared/doc'
 import { withSourceHeader } from '@shared/html'
 import { CHART_DEFS, defaultChart, SHAPE_COLUMNS, vennRows, type ChartData, type ChartOptions, type ChartType } from '@shared/charts'
 import { TASK_PRIORITIES, TASK_STATUSES, type Task } from '@shared/types'
+import { rowsFromMatrix, tableFromMatrix, tableToMatrix, TABLE_LIMITS, type TableData } from '@shared/tables'
 import { APP_NAME } from '@shared/brand'
 import type { Services } from '../services'
 import { fetchPageForClip } from '../web'
@@ -52,11 +53,18 @@ export function createMcpServer(api: Services, version: string, onCall?: ToolCal
   server.registerTool(
     'search_cards',
     {
-      description: 'Full-text search over cards (title + content) and whiteboard names. Empty query returns recent cards.',
-      inputSchema: { query: z.string(), limit: z.number().int().min(1).max(100).optional() },
+      description:
+        'Full-text search over cards (title + content), text blocks written on whiteboards, and whiteboard names. ' +
+        'Hits carry card_kind "card" or "block". `kind` narrows card hits. Empty query returns recent cards.',
+      inputSchema: {
+        query: z.string(),
+        limit: z.number().int().min(1).max(100).optional(),
+        kind: z.enum(['card', 'block', 'all']).optional()
+      },
       annotations: { readOnlyHint: true }
     },
-    async ({ query, limit }) => ok(api.search(query, limit ?? 20))
+    async ({ query, limit, kind }) =>
+      ok(api.search(query, limit ?? 20, kind ? { kind } : undefined).map(({ cardKind, ...h }) => (cardKind ? { ...h, card_kind: cardKind } : h)))
   )
 
   server.registerTool(
@@ -154,18 +162,25 @@ export function createMcpServer(api: Services, version: string, onCall?: ToolCal
   server.registerTool(
     'list_cards',
     {
-      description: 'List cards, optionally only those with a tag. With a tag, property values are included by property name.',
-      inputSchema: { tag: z.string().optional(), limit: z.number().int().min(1).max(500).default(100) },
+      description:
+        'List cards, optionally only those with a tag. With a tag, property values are included by property name. ' +
+        'Text blocks (notes written directly on whiteboards) are left out unless kind is "block" or "all" (with a tag, all kinds are listed).',
+      inputSchema: {
+        tag: z.string().optional(),
+        limit: z.number().int().min(1).max(500).default(100),
+        kind: z.enum(['card', 'block', 'all']).optional()
+      },
       annotations: { readOnlyHint: true }
     },
-    async ({ tag, limit }) => {
+    async ({ tag, limit, kind }) => {
       const t = tag ? findTag(tag) : undefined
       if (tag && !t) return { ...ok(`Tag ${tag} not found`), isError: true }
       const props = t ? api.listProperties(t.id) : []
       return ok(
-        api.listCards({ tagId: t?.id, limit }).map((c) => ({
+        api.listCards({ tagId: t?.id, limit, kind }).map((c) => ({
           id: c.id,
           title: c.title,
+          ...(c.kind === 'block' ? { kind: 'block' } : {}),
           tags: c.tags.map((x) => x.name),
           ...(t && {
             properties: Object.fromEntries(
@@ -280,7 +295,9 @@ export function createMcpServer(api: Services, version: string, onCall?: ToolCal
           ...o,
           // sketches hold Excalidraw scenes, SVG previews and embedded photos (megabytes of base64): summarise them
           ...(o.kind === 'sketch' ? { data: sketchSummary(o.data) } : {}),
-          title: o.kind === 'card' && o.refId ? wb.cards[o.refId]?.title : undefined
+          ...(o.kind === 'table' ? { data: { ...tableToMatrix(o.data as unknown as TableData), title: o.data.title } } : {}),
+          title: o.kind === 'card' && o.refId ? wb.cards[o.refId]?.title : undefined,
+          card_kind: o.kind === 'card' && o.refId ? wb.cards[o.refId]?.kind : undefined
         })),
         cards: undefined
       })
@@ -318,6 +335,31 @@ export function createMcpServer(api: Services, version: string, onCall?: ToolCal
       const pos = x !== undefined && y !== undefined ? { x, y } : freeSpot(api, whiteboard_id)
       const obj = api.addObject({ whiteboardId: whiteboard_id, kind: 'card', refId: card_id, ...pos })
       return ok({ object_id: obj.id })
+    }
+  )
+
+  server.registerTool(
+    'add_text_block',
+    {
+      description:
+        'Write a text block directly on a whiteboard — the everyday way to take notes on a board (history, key facts, lists, ideas). ' +
+        'Markdown supports headings, lists, task lists, bold/italic, tables and [[Card title]] links. ' +
+        'A text block is a lightweight card (searchable, linkable) that stays out of the card library. ' +
+        'style "plain" = text directly on the board, "framed" = subtle bordered box. Without x/y it is placed right of existing content.',
+      inputSchema: {
+        whiteboard_id: z.string(),
+        markdown: z.string(),
+        style: z.enum(['plain', 'framed']).default('plain'),
+        x: z.number().optional(),
+        y: z.number().optional(),
+        width: z.number().min(120).max(1600).optional()
+      }
+    },
+    async ({ whiteboard_id, markdown, style, x, y, width }) => {
+      if (!api.getWhiteboard(whiteboard_id)) return { ...ok(`Whiteboard ${whiteboard_id} not found`), isError: true }
+      const pos = x !== undefined && y !== undefined ? { x, y } : freeSpot(api, whiteboard_id)
+      const { card, object } = api.addTextBlock({ whiteboardId: whiteboard_id, content: toDoc(markdown), style, width, ...pos })
+      return ok({ object_id: object.id, card_id: card.id, title: card.title })
     }
   )
 
@@ -421,6 +463,73 @@ export function createMcpServer(api: Services, version: string, onCall?: ToolCal
     })
     .partial()
 
+  // ---------- tables ----------
+  const tableColumns = z
+    .array(z.union([z.string(), z.object({ name: z.string(), type: z.enum(['text', 'number']).optional() })]))
+    .max(TABLE_LIMITS.columns)
+  const tableRows = z.array(z.array(z.union([z.string(), z.number(), z.null()]))).max(TABLE_LIMITS.rows)
+  const describeTable = (id: string, t: TableData) => ({ object_id: id, columns: t.columns.map((c) => c.name), rows: t.rows.length })
+
+  server.registerTool(
+    'add_table',
+    {
+      description:
+        'Add a table to a whiteboard (e.g. yearly revenue, key figures). `columns` are header names (or {name, type: "text"|"number"}), ' +
+        '`rows` are arrays of cells in column order. Number columns are right-aligned and formatted; a chart can follow the table (add_chart with table_id).',
+      inputSchema: {
+        whiteboard_id: z.string(),
+        columns: tableColumns,
+        rows: tableRows.default([]),
+        title: z.string().optional(),
+        x: z.number().optional(),
+        y: z.number().optional(),
+        width: z.number().optional()
+      }
+    },
+    async ({ whiteboard_id, columns, rows, title, x, y, width }) => {
+      if (!api.getWhiteboard(whiteboard_id)) return { ...ok(`Whiteboard ${whiteboard_id} not found`), isError: true }
+      const pos = x !== undefined && y !== undefined ? { x, y } : freeSpot(api, whiteboard_id)
+      const table = tableFromMatrix(columns, rows, title)
+      const obj = api.addObject({
+        whiteboardId: whiteboard_id,
+        kind: 'table',
+        ...pos,
+        width: width ?? Math.min(160 * Math.max(columns.length, 2), 900),
+        height: 44 + 36 * (rows.length + 1),
+        data: table as unknown as Record<string, unknown>
+      })
+      return ok(describeTable(obj.id, obj.data as unknown as TableData))
+    }
+  )
+
+  server.registerTool(
+    'update_table',
+    {
+      description:
+        'Change a table (object id from get_whiteboard / add_table). `columns` + `rows` replace the whole table; `rows` alone replaces the rows and keeps the columns; ' +
+        '`append_rows` adds rows at the end. Charts linked to the table update automatically.',
+      inputSchema: {
+        object_id: z.string(),
+        title: z.string().optional(),
+        columns: tableColumns.optional(),
+        rows: tableRows.optional(),
+        append_rows: tableRows.optional()
+      }
+    },
+    async ({ object_id, title, columns, rows, append_rows }) => {
+      const obj = api.getObject(object_id)
+      if (!obj || obj.kind !== 'table') return { ...ok(`Table ${object_id} not found`), isError: true }
+      const current = obj.data as unknown as TableData
+      let next: TableData = { ...current }
+      if (columns) next = { ...tableFromMatrix(columns, rows ?? tableToMatrix(current).rows), header: current.header }
+      else if (rows) next = { ...current, rows: rowsFromMatrix(current.columns, rows) }
+      if (append_rows) next = { ...next, rows: [...next.rows, ...rowsFromMatrix(next.columns, append_rows)] }
+      if (title !== undefined) next.title = title
+      const updated = api.updateTable(object_id, next)
+      return ok(describeTable(object_id, updated.data as unknown as TableData))
+    }
+  )
+
   /** Build a valid chart table from agent input (fixed shapes keep their columns; cells become strings). */
   const buildChart = (base: ChartData, input: { chart_type?: ChartType; title?: string; columns?: string[]; rows?: (string | number | null)[][]; options?: ChartOptions }): ChartData => {
     const type = input.chart_type ?? base.chartType
@@ -431,7 +540,7 @@ export function createMcpServer(api: Services, version: string, onCall?: ToolCal
     let rows = input.rows ? input.rows.map((r) => columns.map((_, i) => (r[i] == null ? '' : String(r[i])))) : start.rows.map((r) => columns.map((_, i) => r[i] ?? ''))
     const options = { ...start.options, ...(input.options ?? {}) }
     if (type === 'venn') rows = vennRows(options.sets ?? 3, rows)
-    return { chartType: type, title: input.title ?? start.title, columns, rows, options }
+    return { chartType: type, title: input.title ?? start.title, columns, rows, options, ...(base.source ? { source: base.source } : {}) }
   }
 
   server.registerTool(
@@ -441,10 +550,12 @@ export function createMcpServer(api: Services, version: string, onCall?: ToolCal
         'Add a chart or structured diagram to a whiteboard. Every chart is a small table: `columns` (header) + `rows` (cells). ' +
         'Omit columns/rows to start from an example. Numbers may be given as numbers or strings. Table shapes per type:\n' +
         shapeDocs +
-        '\nNotes: timeline dates use YYYY-MM-DD; matrix X/Y are 0–100; venn regions are A, B, C, A∩B, A∩C, B∩C, A∩B∩C (A/B/C rows hold the set names); sankey rows are flows From → To with a value.',
+        '\nNotes: timeline dates use YYYY-MM-DD; matrix X/Y are 0–100; venn regions are A, B, C, A∩B, A∩C, B∩C, A∩B∩C (A/B/C rows hold the set names); sankey rows are flows From → To with a value.' +
+        '\nWith table_id (a table object on the board) the chart is linked to that table: first text column = categories, number columns = series, and it updates whenever the table changes (column, bar, line, area, combo, radar, heatmap, pie, donut).',
       inputSchema: {
         whiteboard_id: z.string(),
         chart_type: z.enum(chartTypes),
+        table_id: z.string().optional(),
         title: z.string().optional(),
         columns: z.array(z.string()).optional().describe('only for series charts (column, bar, line, area, combo, radar, heatmap)'),
         rows: z.array(z.array(cell)).optional(),
@@ -455,8 +566,23 @@ export function createMcpServer(api: Services, version: string, onCall?: ToolCal
         height: z.number().optional()
       }
     },
-    async ({ whiteboard_id, chart_type, title, columns, rows, options, x, y, width, height }) => {
+    async ({ whiteboard_id, chart_type, table_id, title, columns, rows, options, x, y, width, height }) => {
       if (!api.getWhiteboard(whiteboard_id)) return { ...ok(`Whiteboard ${whiteboard_id} not found`), isError: true }
+      if (table_id) {
+        const table = api.getObject(table_id)
+        if (!table || table.kind !== 'table' || table.whiteboardId !== whiteboard_id) return { ...ok(`Table ${table_id} not found on this whiteboard`), isError: true }
+        let obj = api.chartFromTable({ tableId: table_id, chartType: chart_type })
+        const patch: Record<string, unknown> = {}
+        if (title !== undefined) patch.title = title
+        if (options) patch.options = { ...(obj.data.options as object), ...options }
+        const rect = { ...(x !== undefined && y !== undefined ? { x, y } : {}), ...(width ? { width } : {}), ...(height ? { height } : {}) }
+        if (Object.keys(patch).length || Object.keys(rect).length) {
+          api.updateObjects([{ id: obj.id, ...rect, ...(Object.keys(patch).length ? { data: { ...obj.data, ...patch } } : {}) }])
+          obj = api.getObject(obj.id)!
+        }
+        const chart = obj.data as unknown as ChartData
+        return ok({ object_id: obj.id, chart_type: chart.chartType, columns: chart.columns, rows: chart.rows.length, linked_table_id: table_id })
+      }
       const chart = buildChart(defaultChart(chart_type), { chart_type, title, columns, rows, options })
       const pos = x !== undefined && y !== undefined ? { x, y } : freeSpot(api, whiteboard_id)
       const obj = api.addObject({ whiteboardId: whiteboard_id, kind: 'chart', ...pos, width, height, data: chart as unknown as Record<string, unknown> })
@@ -469,21 +595,24 @@ export function createMcpServer(api: Services, version: string, onCall?: ToolCal
     {
       description:
         'Change an existing chart (object id from get_whiteboard / add_chart): title, chart_type, columns, rows (replaces the whole table) and/or options (merged). ' +
-        'Switching between types with the same table shape keeps the data (e.g. column ↔ line ↔ area ↔ combo ↔ radar ↔ heatmap, pie ↔ donut, scatter ↔ bubble).',
+        'Switching between types with the same table shape keeps the data (e.g. column ↔ line ↔ area ↔ combo ↔ radar ↔ heatmap, pie ↔ donut, scatter ↔ bubble). ' +
+        'A chart linked to a table keeps following it; passing columns/rows or unlink=true detaches it.',
       inputSchema: {
         object_id: z.string(),
         chart_type: z.enum(chartTypes).optional(),
         title: z.string().optional(),
         columns: z.array(z.string()).optional(),
         rows: z.array(z.array(cell)).optional(),
-        options: optionsSchema.optional()
+        options: optionsSchema.optional(),
+        unlink: z.boolean().optional()
       }
     },
-    async ({ object_id, chart_type, title, columns, rows, options }) => {
+    async ({ object_id, chart_type, title, columns, rows, options, unlink }) => {
       const obj = api.getObject(object_id)
       if (!obj || obj.kind !== 'chart') return { ...ok(`Chart ${object_id} not found`), isError: true }
       const current = obj.data as unknown as ChartData
       const base: ChartData = current.columns && current.rows ? { ...current, options: current.options ?? {} } : defaultChart(current.chartType ?? 'column')
+      if (unlink || columns || rows) delete base.source
       const chart = buildChart(base, { chart_type, title, columns, rows, options })
       api.updateObjects([{ id: object_id, data: chart as unknown as Record<string, unknown> }])
       api.notify('whiteboards')

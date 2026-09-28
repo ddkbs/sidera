@@ -32,6 +32,8 @@ export interface ChartData {
   columns: string[]
   rows: string[][]
   options: ChartOptions
+  /** set when the chart follows a table object on the same board (rows/columns are derived from it) */
+  source?: { tableId: string }
 }
 
 export interface ChartDef {
@@ -187,5 +189,7 @@ export function parseClipboardTable(text: string): string[][] {
 export function normalizeChart(raw: Partial<ChartData> | undefined, fallback: ChartType = 'column'): ChartData {
   const type = raw?.chartType && raw.chartType in CHART_DEFS ? raw.chartType : fallback
   if (!raw?.rows || !raw.columns) return defaultChart(type)
-  return { chartType: type, title: raw.title ?? '', columns: raw.columns, rows: raw.rows, options: raw.options ?? {} }
+  const chart: ChartData = { chartType: type, title: raw.title ?? '', columns: raw.columns, rows: raw.rows, options: raw.options ?? {} }
+  if (raw.source && typeof raw.source.tableId === 'string') chart.source = { tableId: raw.source.tableId }
+  return chart
 }
