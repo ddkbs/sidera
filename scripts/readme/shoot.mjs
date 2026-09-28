@@ -1,8 +1,9 @@
 #!/usr/bin/env node
 /**
  * Renders the README screenshots into docs/screenshots/ using the devShot hook (see CLAUDE.md).
- * Reuses the onboarding demo seed (scripts/onboarding/seed.js) plus a small amount of README-only
- * content (a sample PDF with highlights, a mindmap) added in its own step.
+ * Reuses the onboarding demo seed (scripts/onboarding/seed.js — a mixed "Tech Startups — Nimbus Aerospace"
+ * board with text blocks, a timeline, a revenue table + linked chart, pen ink and a sketch) plus a sample PDF
+ * with highlights added in its own step.
  *
  *   node scripts/readme/shoot.mjs
  *
@@ -15,6 +16,7 @@ import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { buildSamplePdf, SAMPLE_HIGHLIGHTS } from './sample-pdf.mjs'
+import { chatExchange, openBoard } from '../onboarding/shoot.mjs'
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '../..')
 const outDir = join(root, 'docs/screenshots')
@@ -34,17 +36,11 @@ const ui = (view, extra = '') => `(async () => {
 })()`
 const zoomStep = `document.documentElement.style.zoom = '${ZOOM}'; window.dispatchEvent(new Event('resize')); 1`
 const park = '@click 700 860'
-const board = `(await window.api.listWhiteboards()).find((b) => b.name.startsWith('Atlas'))`
 const tag = (name) => `(await window.api.listTags()).find((t) => t.name === ${JSON.stringify(name)})`
 
-/** README-only extra content: a mindmap on the launch board, plus a sample PDF with two highlights. */
+/** README-only extra content: a sample PDF with two highlights. */
 const extraSeedStep = `(async () => {
   const api = window.api
-  const b = ${board}
-  await api.addObject({
-    whiteboardId: b.id, kind: 'mindmap', x: 0, y: 570, width: 660, height: 280,
-    data: { source: 'Positioning\\n  - Local-first\\n    - No account required\\n    - Data stays on device\\n  - MCP-first\\n    - Claude Desktop\\n    - Claude Code\\n  - Fast to start\\n    - Guided tour' }
-  })
   const rec = await api.importFileData({ name: 'Local-first knowledge tools.pdf', mime: 'application/pdf', dataBase64: '${pdfBase64}' })
   localStorage.setItem('sidera.readme.pdfFileId', rec.id)
   ${SAMPLE_HIGHLIGHTS.map(
@@ -57,32 +53,20 @@ const extraSeedStep = `(async () => {
 const settings = (extra = {}) =>
   `(async () => { await window.app.setSettings({ theme: 'light', canvas: { showMinimap: false }, onboarding: { welcomeSeen: true }, ...${JSON.stringify(extra)} }); return 1 })()`
 
-const chatStep =
-  zoomStep +
-  `; setTimeout(() => window.__devChatMessage?.('Link my research to the launch goals and add a card with open questions', {
-      tools: ['search_cards', 'connect_objects', 'create_card', 'add_card_to_whiteboard'],
-      text: "Done — I connected **Interview synthesis** and **Pricing survey** to *Launch goals* and added an **Open questions** card next to them:\\n\\n- Which tier do teams expect for 5+ seats?\\n- Should the beta include offline sync?\\n- Who owns the partner case studies?\\n\\nWant me to turn these into tasks for this week?"
-    }), 200); 1`
-
 /** Each shot: steps that lead to it (the last step's PNG is the one kept) + output width. */
 const shots = [
+  { name: 'hero', width: HERO_WIDTH, steps: [openBoard({ x: 96, y: 124, zoom: 0.5 }), zoomStep, '@click 864 720'] },
+  { name: 'home', steps: [ui({ expr: `{ type: 'home' }` }), zoomStep, '@click 1300 820'], noPark: true },
   {
-    name: 'hero',
-    width: HERO_WIDTH,
-    steps: [
-      ui(
-        { expr: `{ type: 'whiteboard', id: b.id }` },
-        `const b = ${board}; await window.api.updateWhiteboard({ id: b.id, viewport: { x: 55, y: 140, zoom: 0.42 } })`
-      ),
-      zoomStep
-    ]
+    name: 'pen-mode',
+    noPark: true,
+    steps: [openBoard({ x: -470, y: -100, zoom: 0.85 }), zoomStep, '@click 1080 792', '@click [aria-label="Pen"]', 'new Promise((r) => setTimeout(() => r(1), 400))']
   },
   {
     name: 'library-search',
     noPark: true,
-    steps: [ui({ expr: `{ type: 'library', tagId: t.id, mode: 'table' }` }, `const t = ${tag('Atlas v2')}`), zoomStep, '@key meta+k', '@type pricing']
+    steps: [ui({ expr: `{ type: 'library', tagId: t.id, mode: 'table' }` }, `const t = ${tag('Q4 launch')}`), zoomStep, '@key meta+k', '@type pricing']
   },
-  { name: 'kanban', steps: [ui({ expr: `{ type: 'library', tagId: t.id, mode: 'kanban' }` }, `const t = ${tag('Atlas v2')}`), zoomStep] },
   { name: 'tasks', steps: [ui({ expr: `{ type: 'tasks' }` }), zoomStep] },
   {
     name: 'pdf-reader',
@@ -91,16 +75,7 @@ const shots = [
       zoomStep
     ]
   },
-  {
-    name: 'ai-chat',
-    steps: [
-      ui(
-        { expr: `{ type: 'whiteboard', id: b.id }`, chat: true },
-        `const b = ${board}; await window.api.updateWhiteboard({ id: b.id, viewport: { x: 100, y: 150, zoom: 0.5 } })`
-      ),
-      chatStep
-    ]
-  },
+  { name: 'ai-chat', noPark: true, steps: [openBoard({ x: 90, y: 96, zoom: 0.36 }, true), zoomStep, '@click 600 760', `${chatExchange}; new Promise((r) => setTimeout(() => r(1), 600))`] },
   {
     // The scratch shoot runs on SIDERA_MCP_PORT=3860 to avoid colliding with a real running app;
     // cosmetically swap it back to the documented default (3845) so the screenshot matches the docs.
@@ -217,7 +192,7 @@ function runWelcome() {
 }
 
 run('light', shots)
-run('dark', [shots[0]])
+run('dark', shots.filter((s) => s.name === 'hero'))
 runSignIn()
 runWelcome()
 console.log('done')

@@ -55,6 +55,7 @@ export function CanvasToolbar({ tool, onTool, onAction }: Props) {
               <ToggleGroupItem
                 value={t.id}
                 aria-label={t.label}
+                data-tour={`tool-${t.id}`}
                 className="size-9 rounded-xl! border-0 text-muted-foreground aria-checked:bg-primary aria-checked:text-primary-foreground aria-checked:hover:bg-primary aria-checked:hover:text-primary-foreground [&_svg]:size-[18px]"
               >
                 {t.icon}
@@ -71,6 +72,7 @@ export function CanvasToolbar({ tool, onTool, onAction }: Props) {
         <Tooltip>
           <TooltipTrigger asChild>
             <DropdownMenuTrigger
+              data-tour="canvas-insert"
               aria-label="Insert & more"
               className="grid size-9 place-items-center rounded-xl text-muted-foreground transition hover:bg-accent hover:text-foreground data-[state=open]:bg-accent data-[state=open]:text-foreground"
             >

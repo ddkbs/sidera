@@ -23,74 +23,72 @@ export interface TourStep {
 
 export const TOUR_STEPS: TourStep[] = [
   {
+    id: 'home',
+    title: 'Home: your boards',
+    body: 'Recent boards with a live preview. Start a New board, or jot down a Quick note — every board also lives in the sidebar.',
+    target: 'nav-home',
+    needs: 'sidebar',
+    padding: 4
+  },
+  {
+    id: 'write',
+    title: 'Write anywhere',
+    body: 'Double-click empty space on a board and just type — a text block appears right there. Or pick the text block tool.',
+    fallbackBody: 'Create a board from Home or with ⌘K, then double-click anywhere on it and just type — a text block appears right there.',
+    target: 'tool-block',
+    placement: 'right',
+    needs: 'whiteboard',
+    shortcuts: ['tool.block', 'canvas.newTextBlock']
+  },
+  {
+    id: 'pen',
+    title: 'Draw on the board',
+    body: 'Switch to the pen and underline, circle or sketch straight onto the board. Esc puts the pen away.',
+    fallbackBody: 'On a board, press P to draw straight onto it — underline, circle or sketch. Esc puts the pen away.',
+    target: 'tool-pen',
+    placement: 'right',
+    needs: 'whiteboard',
+    shortcuts: ['tool.pen']
+  },
+  {
+    id: 'insert',
+    title: 'Tables, charts & more',
+    body: 'Insert tables, charts, timelines, mindmaps and files from here. Select a table → Create chart, and the chart follows its numbers.',
+    target: 'canvas-insert',
+    placement: 'right',
+    needs: 'whiteboard'
+  },
+  {
+    id: 'ipad',
+    title: 'Draw on your iPad',
+    body: `“Draw on iPad…” in the same menu shows a QR code: scan it and sketch with Apple Pencil in ${APP_NAME} Draw. End-to-end encrypted, over your own Wi-Fi.`,
+    target: 'canvas-insert',
+    placement: 'right',
+    needs: 'whiteboard',
+    shortcuts: ['canvas.drawOnIpad']
+  },
+  {
     id: 'search',
     title: 'Find anything in a second',
-    body: 'Search every card and whiteboard, or run a command — new card, new whiteboard, settings. It’s the fastest way around.',
+    body: 'Search every board and note, or run a command — new board, settings, draw on iPad. It’s the fastest way around.',
     target: 'sidebar-search',
     needs: 'sidebar',
     shortcuts: ['palette.open']
   },
   {
-    id: 'hub',
-    title: 'Your Hub',
-    body: 'Whiteboards and folders live here. Use + to create a whiteboard or folder, drag items to reorganize, and right-click for more.',
-    target: 'hub',
-    needs: 'sidebar',
-    padding: 4
-  },
-  {
-    id: 'canvas',
-    title: 'Think on the canvas',
-    body: 'Add cards, text, sections and connectors from this toolbar. Double-click empty space for a quick card, then drag from a card’s edge to connect it to another.',
-    fallbackBody:
-      'Create a whiteboard from the Hub or with ⌘K. Its toolbar adds cards, text, sections and connectors — double-click empty space for a quick card, then drag from a card’s edge to connect it.',
-    target: 'canvas-toolbar',
-    placement: 'right',
-    needs: 'whiteboard',
-    keys: [
-      { label: 'Card', keys: 'C' },
-      { label: 'Connector', keys: 'A' }
-    ]
-  },
-  {
-    id: 'library',
-    title: 'Every card, one library',
-    body: 'Cards live on as many whiteboards as you like. Tag them to get a table with properties or a kanban board — perfect for projects and reading lists.',
-    target: 'nav-library',
-    needs: 'sidebar'
-  },
-  {
-    id: 'tasks',
-    title: 'Tasks from all your cards',
-    body: 'To-dos written in any card show up here, with status, priority, assignee and due date.',
-    target: 'nav-tasks',
-    needs: 'sidebar',
-    shortcuts: ['nav.tasks']
-  },
-  {
-    id: 'tabs',
-    title: 'Tabs, undo and history',
-    body: '⌘-click anything to open it in a new tab. Every change can be undone, and you can step back and forward like in a browser.',
-    target: 'tab-bar',
-    placement: 'bottom',
-    padding: 2,
-    shortcuts: ['edit.undo', 'nav.back']
-  },
-  {
     id: 'ai',
-    title: 'Ask AI',
-    body: 'Chat with an assistant that can search, write and rearrange your cards and whiteboards. Bring your own API key in Settings.',
+    title: 'Ask AI — or bring Claude',
+    body: `Chat with an assistant that can read and build your boards (bring your own API key). ${APP_NAME} also runs a local MCP server for Claude Desktop and Claude Code — connect under Settings → MCP & Claude.`,
     target: 'ask-ai',
     needs: 'sidebar',
-    shortcuts: ['chat.toggle']
+    shortcuts: ['chat.toggle', 'settings.open']
   },
   {
-    id: 'mcp',
-    title: 'Connect Claude via MCP',
-    body: `${APP_NAME} runs a local MCP server, so Claude Desktop, Claude Code and other agents can work with your knowledge base. Connect them in one click under Settings → MCP & Claude.`,
-    target: 'account',
-    needs: 'sidebar',
-    shortcuts: ['settings.open']
+    id: 'more',
+    title: 'More: cards & tasks',
+    body: 'Prefer structured notes? The Card Library (tags, backlinks, kanban) and Tasks live under More.',
+    target: 'nav-library',
+    needs: 'sidebar'
   },
   {
     id: 'done',

@@ -42,6 +42,8 @@ const AUTH_ROOT = !app.isPackaged && !DEV_DATA_DIR ? process.env.SIDERA_AUTH_ROO
 // Automated UI checks get their own browser profile so they never collide with a running app (localStorage lock, cache).
 if (process.env.SIDERA_SHOT && DEV_DATA_DIR) app.setPath('userData', join(DEV_DATA_DIR, 'userdata'))
 if (AUTH_ROOT) app.setPath('userData', join(AUTH_ROOT, 'userdata'))
+// Screenshots (onboarding slides, README) should read the same on every machine: English dates and numbers.
+if (!app.isPackaged && process.env.SIDERA_SHOT) app.commandLine.appendSwitch('lang', process.env.SIDERA_SHOT_LANG ?? 'en-US')
 const registry = new AccountRegistry(AUTH_ROOT ?? app.getPath('userData'))
 
 let win: BrowserWindow | null = null

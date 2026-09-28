@@ -23,10 +23,8 @@ you.
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/hero-dark.webp">
-  <img src="docs/screenshots/hero.webp" alt="A Sidera whiteboard with research and launch cards grouped in sections, connected by arrows, with a chart and a mindmap">
+  <img src="docs/screenshots/hero.webp" alt="A Sidera board about a fictional startup: key data and ideas as text blocks, a company-history timeline, a revenue table with a linked column chart, pen annotations and a sketched rocket booster">
 </picture>
-
-<!-- TODO: replace/add a hero screenshot of a mixed board — text blocks, a table, a chart and a pen sketch together (e.g. a "Tech Startups" board with a timeline, revenue chart and sketched architecture) -->
 
 ## Features
 
@@ -60,6 +58,20 @@ lists, and a Tasks area with list/board views, priority, assignee, due dates and
 <tr>
 <td width="50%">
 
+**Home — boards first, with live previews**
+<img src="docs/screenshots/home.webp" alt="Home with recent board tiles, each showing a mini preview of its text blocks, tables, charts and ink">
+
+</td>
+<td width="50%">
+
+**Pen mode — draw right on the board**
+<img src="docs/screenshots/pen-mode.webp" alt="Pen mode with its colour palette, a circled chart bar and a sketched rocket booster">
+
+</td>
+</tr>
+<tr>
+<td width="50%">
+
 **Card library & ⌘K search**
 <img src="docs/screenshots/library-search.webp" alt="Instant search results in the command palette, over a table of tagged cards">
 
@@ -81,7 +93,7 @@ lists, and a Tasks area with list/board views, priority, assignee, due dates and
 <td width="50%">
 
 **AI chat, same tools as MCP**
-<img src="docs/screenshots/ai-chat.webp" alt="The in-app Claude chat connecting cards and adding a card of open questions to a whiteboard">
+<img src="docs/screenshots/ai-chat.webp" alt="The in-app Claude chat summarizing the board next to it">
 
 </td>
 </tr>

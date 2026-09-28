@@ -3,9 +3,10 @@ import { LayoutDashboard, Text } from '@/components/icons'
 import { motion } from 'motion/react'
 import { Button } from '@/components/ui/button'
 import { useAppDispatch, useAppSelector } from '@/store'
-import { useCreateCardMutation, useCreateWhiteboardMutation, useListWhiteboardsWithStatsQuery } from '@/store/api'
+import { useCreateCardMutation, useCreateWhiteboardMutation, useGetBoardPreviewsQuery, useListWhiteboardsWithStatsQuery } from '@/store/api'
 import { navigate, openCard, setChatOpen } from '@/store/ui'
-import type { WhiteboardSummary } from '@shared/types'
+import type { BoardPreview as Preview, WhiteboardSummary } from '@shared/types'
+import { BoardPreview } from './BoardPreview'
 
 export function HomeView() {
   const dispatch = useAppDispatch()
@@ -13,6 +14,9 @@ export function HomeView() {
   const { data: boards = [] } = useListWhiteboardsWithStatsQuery()
   const [createWhiteboard] = useCreateWhiteboardMutation()
   const [createCard] = useCreateCardMutation()
+  const recent = boards.slice(0, 9)
+  const { data: previews = [] } = useGetBoardPreviewsQuery(recent.map((b) => b.id), { skip: !recent.length })
+  const previewById = new Map(previews.map((p) => [p.id, p]))
 
   const newBoard = async () => {
     const r = await createWhiteboard({ name: 'Untitled whiteboard' })
@@ -74,8 +78,8 @@ export function HomeView() {
             </button>
           ) : (
             <div className="grid grid-cols-3 gap-4">
-              {boards.slice(0, 9).map((b) => (
-                <BoardTile key={b.id} board={b} onOpen={() => dispatch(navigate({ type: 'whiteboard', id: b.id }))} />
+              {recent.map((b) => (
+                <BoardTile key={b.id} board={b} preview={previewById.get(b.id)} dark={theme === 'dark'} onOpen={() => dispatch(navigate({ type: 'whiteboard', id: b.id }))} />
               ))}
             </div>
           )}
@@ -85,18 +89,23 @@ export function HomeView() {
   )
 }
 
-function BoardTile({ board, onOpen }: { board: WhiteboardSummary; onOpen: () => void }) {
+function BoardTile({ board, preview, dark, onOpen }: { board: WhiteboardSummary; preview: Preview | undefined; dark: boolean; onOpen: () => void }) {
   return (
     <button
       onClick={onOpen}
-      className="group relative flex h-40 flex-col justify-end overflow-hidden rounded-xl border bg-card p-4 text-left transition hover:-translate-y-0.5 hover:shadow-md"
+      className="group relative flex h-52 flex-col justify-end overflow-hidden rounded-xl border bg-card text-left transition hover:-translate-y-0.5 hover:shadow-md"
     >
-      <div
-        className="absolute inset-0 opacity-50 transition group-hover:opacity-70"
-        style={{ backgroundImage: 'radial-gradient(var(--canvas-dot) 1px, transparent 1px)', backgroundSize: '14px 14px' }}
-      />
-      <div className="relative flex flex-col gap-0.5">
-        <div className="truncate font-medium">{board.name}</div>
+      <div className="absolute inset-x-0 top-0 bottom-[3.75rem] overflow-hidden border-b bg-muted/40">
+        <div
+          className="absolute inset-0 opacity-60"
+          style={{ backgroundImage: 'radial-gradient(var(--canvas-dot) 1px, transparent 1px)', backgroundSize: '12px 12px' }}
+        />
+        <div className="absolute inset-2 transition duration-300 group-hover:scale-[1.03]">
+          <BoardPreview preview={preview} dark={dark} />
+        </div>
+      </div>
+      <div className="relative flex h-[3.75rem] flex-col justify-center gap-0.5 px-4">
+        <div className="truncate text-sm font-medium">{board.name}</div>
         <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
           <span>{board.objectCount} {board.objectCount === 1 ? 'object' : 'objects'}</span>
           <span aria-hidden>·</span>

@@ -97,6 +97,10 @@ export const api = createApi({
       queryFn: () => call('listWhiteboardsWithStats'),
       providesTags: [{ type: 'Whiteboard', id: 'LIST' }]
     }),
+    getBoardPreviews: b.query<Res<'getBoardPreviews'>, string[]>({
+      queryFn: (ids) => call('getBoardPreviews', ids),
+      providesTags: (_r, _e, ids) => [{ type: 'Whiteboard', id: 'LIST' }, 'Whiteboard', ...ids.map((id) => ({ type: 'Whiteboard' as const, id }))]
+    }),
     getWhiteboard: b.query<Res<'getWhiteboard'>, string>({
       queryFn: (id) => call('getWhiteboard', id),
       providesTags: (_r, _e, id) => [{ type: 'Whiteboard', id }, 'Whiteboard']
@@ -336,6 +340,7 @@ export const {
   useMoveKanbanItemMutation,
   useListWhiteboardsQuery,
   useListWhiteboardsWithStatsQuery,
+  useGetBoardPreviewsQuery,
   useGetWhiteboardQuery,
   useCreateWhiteboardMutation,
   useUpdateWhiteboardMutation,

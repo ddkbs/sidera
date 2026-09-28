@@ -91,6 +91,35 @@ export interface WhiteboardSummary extends Whiteboard {
   objectCount: number
 }
 
+/** What a Home tile draws for an object (text blocks and frameless ink get their own look). */
+export type BoardPreviewKind = 'card' | 'block' | 'text' | 'section' | 'table' | 'chart' | 'sketch' | 'ink' | 'other'
+
+/** One object in a board preview: geometry + kind, a short label at most — never the content. */
+export interface BoardPreviewItem {
+  kind: BoardPreviewKind
+  x: number
+  y: number
+  w: number
+  h: number
+  /** palette colour name (sections, tinted cards) or null */
+  color: string | null
+  label?: string
+  /** text blocks: drawn with a frame */
+  framed?: boolean
+  /** tables: number of rows (capped) */
+  rows?: number
+  chartType?: string
+  /** frameless ink: simplified polylines in board coordinates */
+  strokes?: { color: string; opacity?: number; points: [number, number][] }[]
+}
+
+export interface BoardPreview {
+  id: ID
+  /** union of the items' boxes; null for an empty board */
+  bounds: { x: number; y: number; width: number; height: number } | null
+  items: BoardPreviewItem[]
+}
+
 /** Sidebar folder for organizing whiteboards. Folders can nest inside other folders. */
 export interface Folder {
   id: ID

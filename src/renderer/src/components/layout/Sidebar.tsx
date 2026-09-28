@@ -229,7 +229,7 @@ export function Sidebar() {
       </div>
       <ScrollArea className="min-h-0 flex-1">
         <nav data-tour="sidebar-nav" className="flex flex-col gap-0.5 px-2 text-sm">
-          <NavItem icon={<Home className="size-4" />} active={view.type === 'home'} onClick={(e) => go({ type: 'home' }, e)}>
+          <NavItem tour="nav-home" icon={<Home className="size-4" />} active={view.type === 'home'} onClick={(e) => go({ type: 'home' }, e)}>
             Home
           </NavItem>
 
