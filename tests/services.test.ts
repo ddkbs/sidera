@@ -172,6 +172,56 @@ describe('whiteboards', () => {
     expect(stats.find((b) => b.id === busy.id)).toMatchObject({ objectCount: 2 })
   })
 
+  it('builds small Home-tile previews from object geometry (no content)', () => {
+    const board = api.createWhiteboard({ name: 'Preview' })
+    const empty = api.createWhiteboard({ name: 'Empty' })
+    const w = board.id
+    api.addObject({ whiteboardId: w, kind: 'section', x: -20, y: -20, width: 800, height: 500, color: 'blue', data: { title: 'Research' } })
+    api.addObject({ whiteboardId: w, kind: 'text', x: 0, y: 0, width: 300, height: 50, data: { text: 'Heading\nsecond line' } })
+    const { card: blockCard } = api.addTextBlock({ whiteboardId: w, x: 0, y: 80, markdown: 'A secret note body', style: 'framed' })
+    const card = api.createCard({ title: 'Launch goals', markdown: 'long private body' })
+    api.addObject({ whiteboardId: w, kind: 'card', refId: card.id, x: 400, y: 0 })
+    const gone = api.createCard({ title: 'Deleted' })
+    api.addObject({ whiteboardId: w, kind: 'card', refId: gone.id, x: 900, y: 0 })
+    api.deleteCard(gone.id)
+    api.addObject({ whiteboardId: w, kind: 'chart', x: 0, y: 300, data: { chartType: 'timeline', title: 'History', columns: [], rows: [], options: {} } })
+    api.addObject({
+      whiteboardId: w,
+      kind: 'sketch',
+      x: 100,
+      y: 100,
+      width: 50,
+      height: 10,
+      data: { frameless: true, files: {}, elements: [{ type: 'freedraw', x: 0, y: 0, points: Array.from({ length: 100 }, (_, i) => [i, i % 2]), strokeColor: '#e03131' }] }
+    })
+
+    const [p, e] = api.getBoardPreviews([w, empty.id])
+    expect(e).toEqual({ id: empty.id, bounds: null, items: [] })
+    expect(p.id).toBe(w)
+    expect(p.items[0]).toMatchObject({ kind: 'section', label: 'Research', color: 'blue' })
+    expect(p.items.map((i) => i.kind).sort()).toEqual(['block', 'card', 'chart', 'ink', 'section', 'text'])
+    expect(p.items.find((i) => i.kind === 'text')!.label).toBe('Heading')
+    expect(p.items.find((i) => i.kind === 'block')).toMatchObject({ framed: true })
+    expect(p.items.find((i) => i.kind === 'card')!.label).toBe('Launch goals')
+    expect(p.items.find((i) => i.kind === 'chart')!.chartType).toBe('timeline')
+    const ink = p.items.find((i) => i.kind === 'ink')!
+    expect(ink.strokes![0].color).toBe('#e03131')
+    expect(ink.strokes![0].points.length).toBeLessThanOrEqual(24)
+    // ink fitted into the object's box
+    for (const [x, y] of ink.strokes![0].points) {
+      expect(x).toBeGreaterThanOrEqual(100)
+      expect(x).toBeLessThanOrEqual(150)
+      expect(y).toBeGreaterThanOrEqual(100)
+      expect(y).toBeLessThanOrEqual(110)
+    }
+    expect(p.bounds).toMatchObject({ x: -20, y: -20 })
+    // never ships content
+    const json = JSON.stringify(p)
+    expect(json).not.toContain('secret')
+    expect(json).not.toContain('private')
+    expect(blockCard.kind).toBe('block')
+  })
+
   it('stores free-form key/value properties on a whiteboard', () => {
     const board = api.createWhiteboard({ name: 'Notes' })
     expect(board.properties).toEqual([])

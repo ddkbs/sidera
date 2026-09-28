@@ -38,6 +38,7 @@ import type { CardKind, TextBlockStyle } from '@shared/types'
 import { normalizeChart, type ChartData } from '@shared/charts'
 import { normalizeTable, tableToChart, type TableData } from '@shared/tables'
 import { between, now, TAG_COLORS } from '@shared/util'
+import { buildBoardPreview, type PreviewSource } from '@shared/boardPreview'
 import type { DB } from '../db/client'
 import * as s from '../db/schema'
 import { layoutGroups } from './organize'
@@ -797,6 +798,24 @@ export function createServices(
         .all() as { id: string; n: number }[]
       const byId = new Map(counts.map((c) => [c.id, c.n]))
       return boards.map((b) => ({ ...b, objectCount: byId.get(b.id) ?? 0 }))
+    },
+
+    getBoardPreviews(ids) {
+      const unique = [...new Set(ids)].slice(0, 50)
+      if (!unique.length) return []
+      const rows = sql
+        .prepare(
+          `SELECT o.whiteboard_id AS boardId, o.kind, o.x, o.y, o.width, o.height, o.z, o.color, o.data,
+                  c.kind AS cardKind, c.title AS cardTitle, c.color AS cardColor
+             FROM whiteboard_objects o
+             LEFT JOIN cards c ON o.kind = 'card' AND c.id = o.ref_id
+            WHERE o.whiteboard_id IN (${unique.map(() => '?').join(',')})
+              AND (o.kind != 'card' OR (c.id IS NOT NULL AND c.deleted_at IS NULL))`
+        )
+        .all(...unique) as (Omit<PreviewSource, 'data'> & { boardId: string; data: string })[]
+      const byBoard = new Map<string, PreviewSource[]>(unique.map((id) => [id, []]))
+      for (const r of rows) byBoard.get(r.boardId)?.push({ ...r, data: json(r.data, {}) })
+      return unique.map((id) => buildBoardPreview(id, byBoard.get(id)!))
     },
 
     getWhiteboard(id) {
