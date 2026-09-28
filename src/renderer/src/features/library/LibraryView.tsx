@@ -1,7 +1,7 @@
 import { useVirtualizer } from '@tanstack/react-virtual'
 import { CardIcon } from '@/components/CardIcon'
 import { color as paletteColor } from '@/lib/colors'
-import { ChevronDown, Columns3, Hash, List, Plus, Table2 } from '@/components/icons'
+import { Check, ChevronDown, Columns3, Hash, List, Plus, Table2, TextBlock } from '@/components/icons'
 import { useRef, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
@@ -25,6 +25,7 @@ export function LibraryView() {
   const { data: tags = [] } = useListTagsQuery()
   const [createCard] = useCreateCardMutation()
   const [filter, setFilter] = useState('')
+  const [includeBlocks, setIncludeBlocks] = useState(false)
   if (view.type !== 'library') return null
   const tag = tags.find((t) => t.id === view.tagId)
   const mode = view.mode === 'kanban' && !view.tagId ? 'table' : view.mode
@@ -42,6 +43,19 @@ export function LibraryView() {
           <p className="text-sm text-muted-foreground">{tag ? 'Tagged cards — switch to Kanban to organize by status' : 'Every card across your whiteboards'}</p>
         </div>
         <div className="flex-1" />
+        {mode !== 'kanban' && !view.tagId && (
+          <button
+            onClick={() => setIncludeBlocks((v) => !v)}
+            aria-pressed={includeBlocks}
+            title="Text blocks are notes written directly on whiteboards"
+            className={cn(
+              'flex h-8 items-center gap-1.5 rounded-full border px-3 text-xs font-medium transition',
+              includeBlocks ? 'border-primary/40 bg-primary/10 text-foreground' : 'text-muted-foreground hover:bg-accent hover:text-foreground'
+            )}
+          >
+            {includeBlocks ? <Check className="size-3.5" /> : <TextBlock className="size-3.5" />} Include text blocks
+          </button>
+        )}
         <TagFilterMenu tags={tags} activeTagId={view.tagId} mode={view.mode} />
         <input
           value={filter}
@@ -74,7 +88,7 @@ export function LibraryView() {
         </Button>
       </div>
       <div className="min-h-0 flex-1">
-        {mode === 'kanban' && view.tagId ? <KanbanBoard tagId={view.tagId} filter={filter} /> : mode === 'table' && view.tagId ? <TagTable tagId={view.tagId} filter={filter} /> : <CardCollection tagId={view.tagId} mode={mode === 'list' ? 'list' : 'table'} filter={filter} />}
+        {mode === 'kanban' && view.tagId ? <KanbanBoard tagId={view.tagId} filter={filter} /> : mode === 'table' && view.tagId ? <TagTable tagId={view.tagId} filter={filter} /> : <CardCollection tagId={view.tagId} mode={mode === 'list' ? 'list' : 'table'} filter={filter} includeBlocks={includeBlocks} />}
       </div>
     </div>
   )
@@ -114,9 +128,9 @@ function TagFilterMenu({ tags, activeTagId, mode }: { tags: Tag[]; activeTagId: 
   )
 }
 
-function CardCollection({ tagId, mode, filter }: { tagId: string | null; mode: 'table' | 'list'; filter: string }) {
+function CardCollection({ tagId, mode, filter, includeBlocks }: { tagId: string | null; mode: 'table' | 'list'; filter: string; includeBlocks: boolean }) {
   const dispatch = useAppDispatch()
-  const { data = [], isLoading } = useListCardsQuery({ tagId: tagId ?? undefined, limit: 5000 })
+  const { data = [], isLoading } = useListCardsQuery({ tagId: tagId ?? undefined, limit: 5000, ...(includeBlocks ? { kind: 'all' as const } : {}) })
   const q = filter.trim().toLowerCase()
   const rows = q ? data.filter((c) => c.title.toLowerCase().includes(q) || c.excerpt.toLowerCase().includes(q)) : data
   const parent = useRef<HTMLDivElement>(null)
@@ -158,6 +172,7 @@ function TableRow({ card, onOpen }: { card: CardSummary; onOpen: () => void }) {
         {card.color && <span className="size-2 shrink-0 rounded-full" style={{ background: paletteColor(card.color).border }} />}
         <CardIcon icon={card.icon} className="size-4 text-[14px]" />
         <span className="truncate">{card.title || <span className="text-muted-foreground">Untitled</span>}</span>
+        {card.kind === 'block' && <BlockBadge />}
       </span>
       <span className="flex gap-1 overflow-hidden">{card.tags.map((t) => <TagBadge key={t.id} tag={t} />)}</span>
       <span className="text-right text-xs text-muted-foreground">{new Date(card.updatedAt).toLocaleDateString()}</span>
@@ -172,9 +187,18 @@ function ListRow({ card, onOpen }: { card: CardSummary; onOpen: () => void }) {
         {card.color && <span className="size-2 shrink-0 rounded-full" style={{ background: paletteColor(card.color).border }} />}
         <CardIcon icon={card.icon} className="size-4 text-[14px]" />
         <span className="truncate text-sm font-medium">{card.title || 'Untitled'}</span>
+        {card.kind === 'block' && <BlockBadge />}
         {card.tags.map((t) => <TagBadge key={t.id} tag={t} />)}
       </span>
       <span className="line-clamp-1 text-sm text-muted-foreground">{card.excerpt || 'Empty card'}</span>
     </button>
+  )
+}
+
+function BlockBadge() {
+  return (
+    <span className="flex shrink-0 items-center gap-1 rounded-full bg-muted px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">
+      <TextBlock className="size-3" /> Text block
+    </span>
   )
 }

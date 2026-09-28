@@ -24,7 +24,7 @@ export const PDF_MIN_WIDTH = 360
 export const PDF_MAX_WIDTH = 1100
 export const PDF_DEFAULT_WIDTH = 560
 
-export type CanvasTool = 'select' | 'card' | 'import' | 'connector' | 'text' | 'section' | 'search'
+export type CanvasTool = 'select' | 'block' | 'card' | 'import' | 'connector' | 'text' | 'section' | 'search'
 
 export interface Tab {
   id: string

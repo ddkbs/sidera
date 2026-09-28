@@ -1,16 +1,17 @@
 import { useReactFlow } from '@xyflow/react'
-import { BoxSelect, FileText, Globe, LayoutDashboard, Network, PenTool, BarChart, Type, Workflow, File } from '@/components/icons'
+import { BoxSelect, FileText, Globe, LayoutDashboard, Network, PenTool, BarChart, Table2, TextBlock, Type, Workflow, File } from '@/components/icons'
 import { useState } from 'react'
 import { useCommands } from '@/lib/shortcuts'
 import { CommandDialog, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command'
 import type { ObjectNode } from './types'
 
-const ICONS = { card: FileText, text: Type, section: BoxSelect, whiteboard: LayoutDashboard, file: File, mindmap: Network, mermaid: Workflow, sketch: PenTool, chart: BarChart, link: Globe }
+const ICONS = { card: FileText, text: Type, section: BoxSelect, whiteboard: LayoutDashboard, file: File, mindmap: Network, mermaid: Workflow, sketch: PenTool, chart: BarChart, link: Globe, table: Table2 }
 
 const label = (n: ObjectNode): string => {
   const o = n.data.object
   switch (o.kind) {
     case 'card':
+      if (n.data.card?.kind === 'block') return n.data.card.excerpt.replace(/\s+/g, ' ') || 'Empty text block'
       return [n.data.card?.title, n.data.card?.excerpt].filter(Boolean).join(' — ') || 'Untitled card'
     case 'text':
       return String(o.data.text ?? '')
@@ -20,6 +21,8 @@ const label = (n: ObjectNode): string => {
       return n.data.childName ?? 'Whiteboard'
     case 'chart':
       return String(o.data.title ?? 'Chart')
+    case 'table':
+      return String(o.data.title || 'Table')
     case 'file':
       return String(o.data.name ?? 'File')
     case 'link':
@@ -43,7 +46,7 @@ export function FindOnBoard() {
         <CommandEmpty>Nothing found</CommandEmpty>
         <CommandGroup heading="On this whiteboard">
           {nodes.map((n) => {
-            const Icon = ICONS[n.data.object.kind]
+            const Icon = n.data.card?.kind === 'block' ? TextBlock : ICONS[n.data.object.kind]
             const text = label(n)
             return (
               <CommandItem

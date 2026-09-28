@@ -13,6 +13,14 @@
 
 .canvas-root.tool-card .react-flow__pane,
 .canvas-root.tool-text .react-flow__pane,
+.canvas-root.tool-block .react-flow__pane,
+.canvas-root.tool-table .react-flow__pane,
 .canvas-root.tool-section .react-flow__pane { cursor: crosshair; }
 .canvas-root.tool-connector .react-flow__node { cursor: cell; }
 .canvas-root .react-flow__attribution { background: transparent; font-size: 9px; opacity: 0.5; left: 64px; }
+
+/* Text blocks: notes written directly on the board */
+.text-block .prose-canvas { font-size: 14.5px; line-height: 1.6; }
+.text-block .prose-canvas > :first-child { margin-top: 0; }
+.text-block .prose-canvas h1 { font-size: 1.55em; line-height: 1.25; }
+.text-block .prose-canvas h2 { font-size: 1.25em; line-height: 1.3; }

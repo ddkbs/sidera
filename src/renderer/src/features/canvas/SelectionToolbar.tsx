@@ -10,13 +10,16 @@ import {
   Copy,
   DistributeH,
   DistributeV,
+  BarChart,
   Expand,
   ExternalLink,
+  Frame,
   GridLayout,
   Layers,
   LayoutDashboard,
   TidyUp,
   Trash2,
+  Unlink,
   type AppIcon
 } from '@/components/icons'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
@@ -26,6 +29,7 @@ import { PALETTE } from '@/lib/colors'
 import { cn } from '@/lib/utils'
 import { bounds, type ArrangeMode } from './arrange'
 import type { ObjectNode } from './types'
+import type { TextBlockStyle } from '@shared/types'
 
 export interface SelectionActions {
   color: (c: string | null) => void
@@ -36,6 +40,9 @@ export interface SelectionActions {
   remove: () => void
   open: (node: ObjectNode) => void
   openInNewTab: (node: ObjectNode) => void
+  blockStyle: (node: ObjectNode, style: TextBlockStyle) => void
+  chartFromTable: (node: ObjectNode) => void
+  unlinkChart: (node: ObjectNode) => void
 }
 
 const TIDY: { mode: ArrangeMode; label: string; icon: AppIcon }[] = [
@@ -65,6 +72,9 @@ export function SelectionToolbar({ selected, actions }: { selected: ObjectNode[]
   const top = box.y * zoom + vy - 12
   const single = selected.length === 1 ? selected[0] : null
   const many = selected.length > 1
+  const block = single?.type === 'card' && single.data.card?.kind === 'block' ? single : null
+  const framed = block?.data.object.data.style === 'framed'
+  const linkedChart = single?.type === 'chart' && (single.data.object.data.source as { tableId?: string } | undefined)?.tableId ? single : null
 
   return (
     <div
@@ -118,7 +128,17 @@ export function SelectionToolbar({ selected, actions }: { selected: ObjectNode[]
           </DropdownMenu>
         )}
         {many && <Action icon={BoxSelect} label="Create section" kbd="Mod+G" onClick={actions.group} />}
-        {single?.type === 'card' && <Action icon={Expand} label="Open card" onClick={() => actions.open(single)} />}
+        {block && (
+          <Action
+            icon={Frame}
+            label={framed ? 'Plain text (no frame)' : 'Framed box'}
+            active={framed}
+            onClick={() => actions.blockStyle(block, framed ? 'plain' : 'framed')}
+          />
+        )}
+        {single?.type === 'card' && <Action icon={Expand} label={block ? 'Open as card' : 'Open card'} onClick={() => actions.open(single)} />}
+        {single?.type === 'table' && <Action icon={BarChart} label="Create chart from table" onClick={() => actions.chartFromTable(single)} />}
+        {linkedChart && <Action icon={Unlink} label="Unlink from table" onClick={() => actions.unlinkChart(linkedChart)} />}
         {single?.type === 'whiteboard' && <Action icon={LayoutDashboard} label="Open whiteboard" onClick={() => actions.open(single)} />}
         {single?.type === 'whiteboard' && <Action icon={ExternalLink} label="Open in new tab" onClick={() => actions.openInNewTab(single)} />}
         <Divider />
@@ -137,13 +157,15 @@ function Action({
   label,
   kbd,
   onClick,
-  destructive
+  destructive,
+  active
 }: {
   icon: AppIcon
   label: string
   kbd?: string
   onClick: () => void
   destructive?: boolean
+  active?: boolean
 }) {
   return (
     <Tooltip>
@@ -153,7 +175,8 @@ function Action({
           onClick={onClick}
           className={cn(
             'grid size-7 place-items-center rounded-lg text-muted-foreground transition hover:bg-accent hover:text-foreground',
-            destructive && 'hover:bg-destructive/10 hover:text-destructive'
+            destructive && 'hover:bg-destructive/10 hover:text-destructive',
+            active && 'bg-accent text-foreground'
           )}
         >
           <Icon size={16} />

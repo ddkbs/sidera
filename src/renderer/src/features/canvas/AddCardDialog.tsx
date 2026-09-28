@@ -14,7 +14,7 @@ interface Props {
 export function AddCardDialog({ open, onOpenChange, onPick, onCreate, excludeIds }: Props) {
   const [q, setQ] = useState('')
   const { data = [] } = useSearchQuery(q, { skip: !open })
-  const cards = data.filter((h) => h.kind === 'card')
+  const cards = data.filter((h) => h.kind === 'card' && h.cardKind !== 'block')
   return (
     <CommandDialog open={open} onOpenChange={onOpenChange} title="Add card to whiteboard" shouldFilter={false}>
       <CommandInput placeholder="Search cards to add…" value={q} onValueChange={setQ} />

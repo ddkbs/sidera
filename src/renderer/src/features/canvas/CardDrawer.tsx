@@ -12,7 +12,7 @@ export function CardDrawer({ onBoard }: { onBoard: Set<string> }) {
   const [open, setOpen] = useState(false)
   const [q, setQ] = useState('')
   const { data = [] } = useSearchQuery(q, { skip: !open })
-  const cards = data.filter((h) => h.kind === 'card')
+  const cards = data.filter((h) => h.kind === 'card' && h.cardKind !== 'block')
 
   return (
     <>

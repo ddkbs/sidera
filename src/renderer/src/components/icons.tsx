@@ -144,7 +144,10 @@ import {
   IconUnderline,
   IconStrikethrough,
   IconFatMarker,
-  IconEraser
+  IconEraser,
+  IconNote,
+  IconFrame,
+  IconUnlink
 } from 'obra-icons-react'
 
 export type AppIcon = ComponentType<SVGProps<SVGSVGElement> & { size?: number }>
@@ -243,6 +246,11 @@ export const Square = IconStop
 export const SquarePlus = IconAddRoundrect
 export const Sun = IconSun
 export const Table2 = IconTable
+/** A text block on a whiteboard (card-backed note). */
+export const TextBlock = IconNote
+/** "Framed" text block style. */
+export const Frame = IconFrame
+export const Unlink = IconUnlink
 export const Text = IconAlignTextLeft
 export const Trash2 = IconDelete
 export const TriangleAlert = IconWarningTriangle

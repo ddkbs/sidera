@@ -1,4 +1,4 @@
-import { ArrowUpRight, BoxSelect, Ellipsis, MousePointer2, Search, SquarePlus, Type, Upload } from '@/components/icons'
+import { ArrowUpRight, BoxSelect, Ellipsis, MousePointer2, Search, SquarePlus, TextBlock, Type, Upload } from '@/components/icons'
 import { motion } from 'motion/react'
 import type { ReactNode } from 'react'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
@@ -13,9 +13,10 @@ import { CanvasMenuItems } from './CanvasContextMenu'
 /** Every tool that has a keyboard shortcut; `primary` ones get a button on the toolbar. */
 export const TOOLS: { id: CanvasTool; label: string; icon: ReactNode; primary?: boolean }[] = [
   { id: 'select', label: 'Select', icon: <MousePointer2 />, primary: true },
+  { id: 'block', label: 'Text block', icon: <TextBlock />, primary: true },
   { id: 'card', label: 'Card', icon: <SquarePlus />, primary: true },
   { id: 'connector', label: 'Connector', icon: <ArrowUpRight />, primary: true },
-  { id: 'text', label: 'Text', icon: <Type />, primary: true },
+  { id: 'text', label: 'Heading', icon: <Type />, primary: true },
   { id: 'section', label: 'Section', icon: <BoxSelect />, primary: true },
   { id: 'import', label: 'Import file', icon: <Upload /> },
   { id: 'search', label: 'Add existing card', icon: <Search /> }
@@ -28,7 +29,7 @@ interface Props {
 }
 
 /**
- * Floating vertical toolbar — only the five most-used tools; everything else lives in the
+ * Floating vertical toolbar — only the most-used tools; everything else lives in the
  * overflow menu, which shows exactly what the canvas right-click menu offers.
  */
 export function CanvasToolbar({ tool, onTool, onAction }: Props) {

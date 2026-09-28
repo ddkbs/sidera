@@ -18,7 +18,8 @@ import {
 import dagre from 'dagre'
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { toast } from 'sonner'
-import type { Connection, ObjectKind, ObjectPatch, WhiteboardDetail } from '@shared/types'
+import type { Connection, ObjectKind, ObjectPatch, TextBlockStyle, WhiteboardDetail } from '@shared/types'
+import { emptyTable } from '@shared/tables'
 import { PALETTE } from '@/lib/colors'
 import { firstUrl } from '@shared/util'
 import { Button } from '@/components/ui/button'
@@ -31,6 +32,8 @@ import {
   api,
   useAddConnectionMutation,
   useAddObjectMutation,
+  useAddTextBlockMutation,
+  useChartFromTableMutation,
   useClipUrlMutation,
   useCreateCardMutation,
   useCreateWhiteboardMutation,
@@ -55,7 +58,7 @@ import { WhiteboardPropertiesDialog } from './WhiteboardPropertiesDialog'
 import { EdgeMenu, type ConnectionPatch } from './EdgeMenu'
 import { SelectionToolbar } from './SelectionToolbar'
 import { arrange, bounds, type ArrangeMode } from './arrange'
-import type { CanvasAction } from './actions'
+import { CANVAS_ACTION_EVENT, type CanvasAction } from './actions'
 import { edgeTypes } from './FloatingEdge'
 import { NodeMenu, type NodeMenuAction } from './NodeMenu'
 import { nodeTypes } from './nodes'
@@ -160,9 +163,33 @@ function Canvas({ detail }: { detail: WhiteboardDetail }) {
     record({ label: opLabel(op), undo: () => applyOp(invert(op)), redo: () => applyOp(op) })
   }
   const track = (op: HistoryOp): void => trackRef.current(op)
+  const detailRef = useRef(detail)
+  detailRef.current = detail
+  const isBlock = (cardId: string | null | undefined): boolean => !!cardId && detailRef.current.cards[cardId]?.kind === 'block'
+  /** Like `track`, but text block cards live and die with their placement (soft delete / restore). */
+  const trackBlocks = (op: Extract<HistoryOp, { type: 'add' | 'remove' }>, cardIds: string[]): void => {
+    if (!cardIds.length) return track(op)
+    const hide = async () => {
+      for (const c of cardIds) await window.api.deleteCard(c)
+    }
+    const show = async () => {
+      for (const c of cardIds) await window.api.restoreCard(c)
+    }
+    const add = async (o: HistoryOp) => (await show(), await applyOp(o))
+    const remove = async (o: HistoryOp) => (await applyOp(o), await hide())
+    record({
+      label: op.type === 'add' ? (op.objects.length === 1 ? 'Add text block' : opLabel(op)) : opLabel(op),
+      undo: () => (op.type === 'add' ? remove(invert(op)) : add(invert(op))),
+      redo: () => (op.type === 'add' ? add(op) : remove(op))
+    })
+  }
+  /** Last pointer position over the board (screen px), for ⌘N. */
+  const pointer = useRef<{ x: number; y: number } | null>(null)
 
 
   const [addObject] = useAddObjectMutation()
+  const [addTextBlock] = useAddTextBlockMutation()
+  const [chartFromTable] = useChartFromTableMutation()
   const [removeObjects] = useRemoveObjectsMutation()
   const [addConnection] = useAddConnectionMutation()
   const [removeConnections] = useRemoveConnectionsMutation()
@@ -203,6 +230,13 @@ function Canvas({ detail }: { detail: WhiteboardDetail }) {
   )
 
   const [menu, setMenu] = useState<{ node: ObjectNode; x: number; y: number } | null>(null)
+  /** Handlers defined further down, reachable from the node menu callback. */
+  const late = useRef<{
+    convertToCard: (cardId: string) => Promise<void>
+    setBlockStyle: (nodeId: string, style: TextBlockStyle) => Promise<void>
+    insertChartFromTable: (tableId: string) => Promise<void>
+    unlinkChart: (nodeId: string) => Promise<void>
+  }>(null!)
 
   const onMenuAction = useCallback(
     async (a: NodeMenuAction, node: ObjectNode) => {
@@ -214,7 +248,11 @@ function Canvas({ detail }: { detail: WhiteboardDetail }) {
       else if (a === 'delete-card' && o.refId) {
         await deleteCard(o.refId)
         recordDelete('card', o.refId)
-      } else if (a === 'front' || a === 'back') {
+      } else if (a === 'convert-card' && o.refId) void late.current.convertToCard(o.refId)
+      else if (a === 'style-plain' || a === 'style-framed') void late.current.setBlockStyle(node.id, a === 'style-framed' ? 'framed' : 'plain')
+      else if (a === 'chart-from-table') void late.current.insertChartFromTable(node.id)
+      else if (a === 'unlink-chart') void late.current.unlinkChart(node.id)
+      else if (a === 'front' || a === 'back') {
         const zs = rf.getNodes().map((n) => n.data.object.z)
         const z = a === 'front' ? Math.max(...zs) + 1 : Math.min(...zs) - 1
         persist([{ id: node.id, z }])
@@ -371,6 +409,80 @@ function Canvas({ detail }: { detail: WhiteboardDetail }) {
     [createCard, place, dispatch]
   )
 
+  /** A text block at `pos` (flow coords), straight into typing. */
+  const newTextBlockAt = useCallback(
+    async (pos: { x: number; y: number }) => {
+      const res = await addTextBlock({ whiteboardId: boardId, x: pos.x - 10, y: pos.y - 18 })
+      if (!('data' in res) || !res.data) return void toast.error('Could not add a text block')
+      const { card, object } = res.data
+      autoEdit.current = object.id
+      setNodes((ns) => ns.map((n) => (n.id === object.id ? { ...n, data: { ...n.data, autoEdit: true } } : n)))
+      trackBlocks({ type: 'add', objects: [object], connections: [] }, [card.id])
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [addTextBlock, boardId]
+  )
+
+  /** Apply an object data change with undo (text block style, chart unlink, …). */
+  const patchData = useCallback(
+    async (nodeId: string, next: Record<string, unknown>, label: string) => {
+      const before = rf.getNode(nodeId)?.data.object.data
+      if (!before) return
+      const apply = async (d: Record<string, unknown>) => {
+        setNodes((ns) => ns.map((n) => (n.id === nodeId ? { ...n, data: { ...n.data, object: { ...n.data.object, data: d } } } : n)))
+        await window.api.updateObjects([{ id: nodeId, data: d }])
+        dispatch(api.util.invalidateTags([{ type: 'Whiteboard', id: boardId }]))
+      }
+      await apply(next)
+      record({ label, undo: () => apply(before), redo: () => apply(next) })
+    },
+    [rf, dispatch, boardId]
+  )
+
+  const setBlockStyle = useCallback(
+    async (nodeId: string, style: TextBlockStyle) => {
+      const data = rf.getNode(nodeId)?.data.object.data ?? {}
+      if ((data.style === 'framed' ? 'framed' : 'plain') === style) return
+      await patchData(nodeId, { ...data, style }, 'Change text block style')
+    },
+    [rf, patchData]
+  )
+
+  const unlinkChart = useCallback(
+    async (nodeId: string) => {
+      const { source: _source, ...rest } = rf.getNode(nodeId)?.data.object.data ?? {}
+      await patchData(nodeId, rest, 'Unlink chart')
+    },
+    [rf, patchData]
+  )
+
+  /** A text block becomes a regular card (shows up in the library, full card look). */
+  const convertToCard = useCallback(
+    async (cardId: string) => {
+      const set = async (kind: 'card' | 'block') => {
+        await window.api.updateCard({ id: cardId, kind })
+        dispatch(api.util.invalidateTags([{ type: 'Whiteboard', id: boardId }, 'CardList', { type: 'Card', id: cardId }]))
+      }
+      await set('card')
+      record({ label: 'Convert to card', undo: () => set('block'), redo: () => set('card') })
+      toast.success('Converted to a card', { action: { label: 'Open', onClick: () => dispatch(openCard(cardId)) } })
+    },
+    [dispatch, boardId]
+  )
+
+  const insertChartFromTable = useCallback(
+    async (tableId: string) => {
+      const res = await chartFromTable({ whiteboardId: boardId, tableId })
+      if (!('data' in res) || !res.data) return void toast.error('Could not create a chart from this table')
+      autoSelect.current = res.data.id
+      track({ type: 'add', objects: [res.data], connections: [] })
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [chartFromTable, boardId]
+  )
+
+  late.current = { convertToCard, setBlockStyle, insertChartFromTable, unlinkChart }
+
   const importAt = useCallback(
     async (pos: { x: number; y: number }) => {
       const files = await window.api.importFiles()
@@ -433,11 +545,21 @@ function Canvas({ detail }: { detail: WhiteboardDetail }) {
   const pasteObjects = useCallback(
     async (objects: ObjectNode['data']['object'][], offset: { x: number; y: number }) => {
       const created = []
+      const blocks: string[] = []
       for (const o of objects) {
+        // text blocks belong to one spot: a copy gets its own block card
+        let refId = o.refId
+        if (o.kind === 'card' && isBlock(o.refId)) {
+          const src = await window.api.getCard(o.refId!)
+          if (src) {
+            refId = (await window.api.createCard({ kind: 'block', content: src.content })).id
+            blocks.push(refId)
+          }
+        }
         const res = await addObject({
           whiteboardId: boardId,
           kind: o.kind,
-          refId: o.refId,
+          refId,
           x: o.x + offset.x,
           y: o.y + offset.y,
           width: o.width,
@@ -447,8 +569,9 @@ function Canvas({ detail }: { detail: WhiteboardDetail }) {
         })
         if ('data' in res && res.data) created.push(res.data)
       }
-      if (created.length) track({ type: 'add', objects: created, connections: [] })
+      if (created.length) trackBlocks({ type: 'add', objects: created, connections: [] }, blocks)
     },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     [addObject, boardId]
   )
 
@@ -518,6 +641,7 @@ function Canvas({ detail }: { detail: WhiteboardDetail }) {
     },
     'canvas.fit': () => void rf.fitView({ duration: 300, padding: 0.15 }),
     'canvas.drawOnIpad': () => setDrawOpen(true),
+    'canvas.newTextBlock': () => void newTextBlockAt(pointer.current ? rf.screenToFlowPosition(pointer.current) : center()),
     ...Object.fromEntries(TOOLS.map((tool) => [`tool.${tool.id}`, () => void changeTool(tool.id)]))
   })
 
@@ -540,7 +664,7 @@ function Canvas({ detail }: { detail: WhiteboardDetail }) {
         // a manual resize pins the height (cards grow with their content, image nodes hug their picture)
         const o = n?.data.object
         const pin =
-          o && (o.kind === 'card' || o.kind === 'file') && o.data?.autoSize !== false ? { data: { ...(o.data ?? {}), autoSize: false } } : {}
+          o && (o.kind === 'card' || o.kind === 'file') && !isBlock(o.refId) && o.data?.autoSize !== false ? { data: { ...(o.data ?? {}), autoSize: false } } : {}
         patches.push({ id: c.id, width: c.dimensions.width, height: c.dimensions.height, ...(n ? { x: n.position.x, y: n.position.y } : {}), ...pin })
       }
     }
@@ -550,6 +674,7 @@ function Canvas({ detail }: { detail: WhiteboardDetail }) {
       patches.forEach((p) => resizeBefore.current.delete(p.id))
     }
     persist(patches)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [rf])
 
   const onEdgesChange = useCallback((changes: EdgeChange<ConnectionEdge>[]) => setEdges((es) => applyEdgeChanges(changes, es)), [])
@@ -608,7 +733,10 @@ function Canvas({ detail }: { detail: WhiteboardDetail }) {
     async (e: React.MouseEvent) => {
       connectFrom.current = null
       const pos = rf.screenToFlowPosition({ x: e.clientX, y: e.clientY })
-      if (tool === 'card') {
+      if (tool === 'block') {
+        dispatch(setTool('select'))
+        await newTextBlockAt(pos)
+      } else if (tool === 'card') {
         dispatch(setTool('select'))
         await newCardAt(pos)
       } else if (tool === 'text') {
@@ -621,7 +749,7 @@ function Canvas({ detail }: { detail: WhiteboardDetail }) {
         await place('section', { x: pos.x, y: pos.y }, { color: 'blue', data: { title: 'Section' } })
       }
     },
-    [rf, tool, dispatch, newCardAt, place]
+    [rf, tool, dispatch, newCardAt, newTextBlockAt, place]
   )
 
   const onNodeClick = useCallback(
@@ -644,6 +772,12 @@ function Canvas({ detail }: { detail: WhiteboardDetail }) {
       if (a === 'fit') return void rf.fitView({ duration: 300, padding: 0.15 })
       if (a === 'paste') return void pasteAt(c)
       if (a === 'select-all') return selectAll()
+      if (a === 'text-block') return void newTextBlockAt(c)
+      if (a === 'table') {
+        const o = await place('table', { x: c.x - 210, y: c.y - 80 }, { data: emptyTable() as unknown as Record<string, unknown>, width: 420 })
+        if (o) autoSelect.current = o.id
+        return
+      }
       if (a === 'card') return void newCardAt(c)
       if (a === 'existing-card') {
         insertPos.current = c
@@ -730,8 +864,17 @@ function Canvas({ detail }: { detail: WhiteboardDetail }) {
         setTimeout(() => rf.fitView({ duration: 400, padding: 0.15 }), 50)
       }
     },
-    [center, rf, place, createWhiteboard, boardId, edges, nodes, dispatch, detail.whiteboard.name, pasteAt, selectAll, newCardAt, importAt]
+    [center, rf, place, createWhiteboard, boardId, edges, nodes, dispatch, detail.whiteboard.name, pasteAt, selectAll, newCardAt, newTextBlockAt, importAt]
   )
+
+  // "New text block" / "New table" from the command palette
+  const onActionRef = useRef(onAction)
+  onActionRef.current = onAction
+  useEffect(() => {
+    const onEvent = (e: Event) => void onActionRef.current((e as CustomEvent<CanvasAction>).detail)
+    window.addEventListener(CANVAS_ACTION_EVENT, onEvent)
+    return () => window.removeEventListener(CANVAS_ACTION_EVENT, onEvent)
+  }, [])
 
   // ---- selection toolbar -------------------------------------------------
   const selectedNodes = useMemo(() => nodes.filter((n) => n.selected), [nodes])
@@ -819,9 +962,12 @@ function Canvas({ detail }: { detail: WhiteboardDetail }) {
       openInNewTab: (node: ObjectNode) => {
         const o = node.data.object
         if (o.refId && node.type === 'whiteboard') dispatch(openTab({ type: 'whiteboard', id: o.refId }))
-      }
+      },
+      blockStyle: (node: ObjectNode, style: TextBlockStyle) => void setBlockStyle(node.id, style),
+      chartFromTable: (node: ObjectNode) => void insertChartFromTable(node.id),
+      unlinkChart: (node: ObjectNode) => void unlinkChart(node.id)
     }),
-    [colorSelection, arrangeSelection, groupSelection, pasteObjects, rf, dispatch]
+    [colorSelection, arrangeSelection, groupSelection, pasteObjects, rf, dispatch, setBlockStyle, insertChartFromTable, unlinkChart]
   )
 
   // ---- connection menu ---------------------------------------------------
@@ -860,6 +1006,8 @@ function Canvas({ detail }: { detail: WhiteboardDetail }) {
       ref={wrapper}
       className={cn('canvas-root relative h-full w-full bg-canvas', `tool-${tool}`)}
       onContextMenu={(e) => e.preventDefault()}
+      onPointerMove={(e) => (pointer.current = { x: e.clientX, y: e.clientY })}
+      onPointerLeave={() => (pointer.current = null)}
       onPointerDownCapture={(e) => {
         if (e.button !== 2) return
         rightDown.current = { x: e.clientX, y: e.clientY, pane: (e.target as HTMLElement).classList.contains('react-flow__pane') }
@@ -929,7 +1077,9 @@ function Canvas({ detail }: { detail: WhiteboardDetail }) {
         onDelete={({ nodes: ns, edges: es }) => {
           const objects = ns.map((n) => n.data.object)
           const connections = detail.connections.filter((c) => es.some((e) => e.id === c.id))
-          if (objects.length || connections.length) track({ type: 'remove', objects, connections })
+          const blocks = objects.filter((o) => o.kind === 'card' && isBlock(o.refId)).map((o) => o.refId!)
+          if (objects.length || connections.length) trackBlocks({ type: 'remove', objects, connections }, blocks)
+          for (const c of blocks) void window.api.deleteCard(c)
           if (objects.length) void removeObjects({ whiteboardId: boardId, ids: objects.map((o) => o.id) })
           const loose = connections.filter((c) => !objects.some((o) => o.id === c.sourceId || o.id === c.targetId))
           if (loose.length) void removeConnections({ whiteboardId: boardId, ids: loose.map((c) => c.id) })
@@ -950,7 +1100,7 @@ function Canvas({ detail }: { detail: WhiteboardDetail }) {
           setMenu({ node, x: e.clientX, y: e.clientY })
         }}
         onDoubleClick={(e) => {
-          if ((e.target as HTMLElement).classList.contains('react-flow__pane')) void newCardAt(rf.screenToFlowPosition({ x: e.clientX, y: e.clientY }))
+          if ((e.target as HTMLElement).classList.contains('react-flow__pane')) void newTextBlockAt(rf.screenToFlowPosition({ x: e.clientX, y: e.clientY }))
         }}
         onMoveEnd={onMoveEnd}
         defaultViewport={detail.whiteboard.viewport}
@@ -1044,7 +1194,7 @@ function Canvas({ detail }: { detail: WhiteboardDetail }) {
         <div className="pointer-events-none absolute inset-0 grid place-items-center">
           <div className="text-center text-sm text-muted-foreground">
             <p className="font-medium text-foreground">This whiteboard is empty</p>
-            <p className="mt-1">Double-click anywhere to create a card, or press <kbd className="rounded border px-1">F</kbd> to add an existing one.</p>
+            <p className="mt-1">Double-click anywhere to start writing, or press <kbd className="rounded border px-1">F</kbd> to add an existing card.</p>
           </div>
         </div>
       )}

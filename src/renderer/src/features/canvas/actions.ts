@@ -21,7 +21,9 @@ import {
   PenTool,
   Search,
   SquarePlus,
+  Table2,
   Tablet,
+  TextBlock,
   Type,
   Upload,
   Workflow,
@@ -31,6 +33,8 @@ import type { ChartType } from '@shared/charts'
 
 /** Everything the toolbar overflow and the canvas context menu can trigger. */
 export type CanvasAction =
+  | 'text-block'
+  | 'table'
   | 'card'
   | 'existing-card'
   | 'text'
@@ -53,9 +57,10 @@ export type CanvasAction =
 
 /** Insert entries shared by the toolbar overflow and the right-click menu, in menu order. */
 export const INSERT_ITEMS: { action: CanvasAction; label: string; icon: AppIcon }[] = [
+  { action: 'text-block', label: 'Text block', icon: TextBlock },
   { action: 'card', label: 'Card', icon: SquarePlus },
   { action: 'existing-card', label: 'Existing card…', icon: Search },
-  { action: 'text', label: 'Text', icon: Type },
+  { action: 'text', label: 'Heading', icon: Type },
   { action: 'section', label: 'Section', icon: BoxSelect },
   { action: 'connector', label: 'Connector', icon: ArrowUpRight },
   { action: 'sketch', label: 'Sketch', icon: PenTool },
@@ -64,8 +69,12 @@ export const INSERT_ITEMS: { action: CanvasAction; label: string; icon: AppIcon 
   { action: 'mermaid', label: 'Flowchart', icon: Workflow },
   { action: 'whiteboard', label: 'Nested whiteboard', icon: LayoutDashboard },
   { action: 'link', label: 'Link preview…', icon: Globe },
-  { action: 'import', label: 'Import file…', icon: Upload }
+  { action: 'import', label: 'Import file…', icon: Upload },
+  { action: 'table', label: 'Table', icon: Table2 }
 ]
+
+/** Window event to trigger a canvas action from outside the board (command palette); detail = CanvasAction. */
+export const CANVAS_ACTION_EVENT = 'sidera:canvas-action'
 
 export interface ChartItem {
   label: string

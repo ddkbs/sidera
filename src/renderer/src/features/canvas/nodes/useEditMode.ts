@@ -20,7 +20,7 @@ export function useEditMode(selected: boolean | undefined, onDone: () => void, i
     if (!editing) return
     const onDown = (e: MouseEvent) => {
       const t = e.target as HTMLElement
-      if (root.current?.contains(t) || t.closest('.mention-popup, [data-node-editor]')) return
+      if (root.current?.contains(t) || t.closest('.mention-popup, .card-bubble-menu, .card-table-toolbar, [data-node-editor]')) return
       setEditing(false)
     }
     const onKey = (e: KeyboardEvent) => {

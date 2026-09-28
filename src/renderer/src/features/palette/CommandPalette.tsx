@@ -11,7 +11,9 @@ import {
   PanelLeft,
   Plus,
   Sparkles,
+  Table2,
   Tablet,
+  TextBlock,
   Compass,
   Upload
 } from '@/components/icons'
@@ -28,6 +30,7 @@ import { useAppDispatch, useAppSelector } from '@/store'
 import { useClipUrlMutation, useCreateCardMutation, useCreateWhiteboardMutation, useGetWhiteboardQuery, useListTagsQuery, useSearchQuery } from '@/store/api'
 import { onboarding } from '@/features/onboarding/controller'
 import { SIDERA_DRAW_OPEN_EVENT } from '@/features/draw/DrawOnIpadDialog'
+import { CANVAS_ACTION_EVENT, type CanvasAction } from '@/features/canvas/actions'
 import { navigate, openCard, openSettings, queueChatMessage, setPaletteOpen, toggleSidebar } from '@/store/ui'
 
 export function CommandPalette() {
@@ -55,6 +58,7 @@ export function CommandPalette() {
   }, [open])
 
   const close = () => dispatch(setPaletteOpen(false))
+  const canvasAction = (a: CanvasAction) => window.dispatchEvent(new CustomEvent(CANVAS_ACTION_EVENT, { detail: a }))
   const run = (fn: () => unknown) => () => {
     close()
     void fn()
@@ -76,7 +80,13 @@ export function CommandPalette() {
                   value={h.kind + h.id}
                   onSelect={run(() => (h.kind === 'card' ? dispatch(openCard(h.id)) : dispatch(navigate({ type: 'whiteboard', id: h.id }))))}
                 >
-                  {h.kind === 'card' ? <FileText className="text-muted-foreground" /> : <LayoutDashboard className="text-muted-foreground" />}
+                  {h.kind === 'whiteboard' ? (
+                    <LayoutDashboard className="text-muted-foreground" />
+                  ) : h.cardKind === 'block' ? (
+                    <TextBlock className="text-muted-foreground" />
+                  ) : (
+                    <FileText className="text-muted-foreground" />
+                  )}
                   <div className="min-w-0">
                     <div className="truncate">{h.title || 'Untitled'}</div>
                     {h.kind === 'card' && h.snippet && <div className="truncate text-xs text-muted-foreground">{h.snippet}</div>}
@@ -100,6 +110,16 @@ export function CommandPalette() {
           )}
           <CommandSeparator />
           <CommandGroup heading="Actions">
+            {view.type === 'whiteboard' && (!text || /text|block|note|write/i.test(text)) && (
+              <CommandItem value="new-text-block" onSelect={run(() => canvasAction('text-block'))}>
+                <TextBlock /> New text block <CommandShortcut>⌘N</CommandShortcut>
+              </CommandItem>
+            )}
+            {view.type === 'whiteboard' && (!text || /table|grid|data/i.test(text)) && (
+              <CommandItem value="new-table" onSelect={run(() => canvasAction('table'))}>
+                <Table2 /> New table
+              </CommandItem>
+            )}
             <CommandItem
               value="new-card"
               onSelect={run(async () => {
