@@ -234,6 +234,7 @@ export function InkLayer({ host, boardId }: { host: RefObject<HTMLDivElement | n
   useEffect(
     () => () => {
       cancelAnimationFrame(frame.current)
+      frame.current = 0 // else a remount (StrictMode) thinks a frame is pending and never paints again
       void flush()
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
