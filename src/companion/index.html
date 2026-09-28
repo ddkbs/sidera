@@ -25,7 +25,8 @@
         <span class="dot"></span><span id="status-text">Connecting…</span>
       </button>
       <button id="send" class="primary" type="button" disabled>
-        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h13M13 6l6 6-6 6" /></svg>
+        <svg class="arrow" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h13M13 6l6 6-6 6" /></svg>
+        <svg class="spinner" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3a9 9 0 1 0 9 9" /></svg>
         <span id="send-text">Send to {{APP_NAME}}</span>
       </button>
     </header>
@@ -36,8 +37,19 @@
       <div id="hint" class="hint">Draw with Apple Pencil · hold at the end of a stroke to straighten it</div>
     </main>
 
+    <!-- outside #stage: its touch handlers would swallow the button's click -->
+    <div id="img-actions" class="img-actions" hidden>
+      <button id="img-delete" type="button" aria-label="Delete image">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16" /><path d="M10 11v6M14 11v6" /><path d="M6 7l1 12a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-12" /><path d="M9 7V4h6v3" /></svg>
+        <span>Delete</span>
+      </button>
+    </div>
+
     <nav id="toolbar" class="toolbar" aria-label="Drawing tools">
       <div class="group" role="radiogroup" aria-label="Tool">
+        <button class="tool" data-tool="select" type="button" aria-label="Select" title="Select, move and resize images">
+          <svg viewBox="0 0 24 24"><path d="M5 3.5l13 6.2-5.6 1.7L10 17 5 3.5z" /><path d="M12.6 11.6l5 5" /></svg>
+        </button>
         <button class="tool" data-tool="pen" type="button" aria-label="Pen" title="Pen">
           <svg viewBox="0 0 24 24"><path d="M4 20l1.2-4.4L15.6 5.2a2 2 0 0 1 2.8 0l.4.4a2 2 0 0 1 0 2.8L8.4 18.8 4 20z" /><path d="M13.8 7l3.2 3.2" /></svg>
         </button>
@@ -47,6 +59,12 @@
         <button class="tool" data-tool="eraser" type="button" aria-label="Eraser" title="Eraser (removes whole strokes)">
           <svg viewBox="0 0 24 24"><path d="M8.5 20H20" /><path d="M4.4 15.6l9.2-9.2a2 2 0 0 1 2.8 0l3.2 3.2a2 2 0 0 1 0 2.8L12 20H8.8l-4.4-4.4z" /><path d="M9 11l6 6" /></svg>
         </button>
+      </div>
+      <div class="group">
+        <button id="image" class="tool" type="button" aria-label="Insert image" title="Insert a photo, screenshot or file">
+          <svg viewBox="0 0 24 24"><rect x="3.5" y="4.5" width="17" height="15" rx="2.5" /><circle cx="9" cy="10" r="1.6" /><path d="M20.5 15.5l-4.8-4.8a1.5 1.5 0 0 0-2.1 0L5 19.3" /></svg>
+        </button>
+        <input id="file" type="file" accept="image/*" multiple hidden />
       </div>
       <div class="sep"></div>
       <div id="swatches" class="group" role="radiogroup" aria-label="Color"></div>

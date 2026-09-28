@@ -44,3 +44,60 @@ export function hitsStroke(points: Pt[], half: number, x: number, y: number, r: 
 export function average(values: number[]): number {
   return values.length ? values.reduce((a, b) => a + b, 0) / values.length : 0
 }
+
+// ─── images ─────────────────────────────────────────────────────────────────────────────────────────
+
+export interface Rect {
+  x: number
+  y: number
+  width: number
+  height: number
+}
+
+/** Scale (w, h) down (never up) so it fits into (maxW, maxH), keeping the aspect ratio. */
+export function fitSize(w: number, h: number, maxW: number, maxH: number): { width: number; height: number } {
+  const k = Math.min(1, maxW / w, maxH / h)
+  return { width: w * k, height: h * k }
+}
+
+/** Corners in the order top-left, top-right, bottom-right, bottom-left. */
+export const corners = (r: Rect): [number, number][] => [
+  [r.x, r.y],
+  [r.x + r.width, r.y],
+  [r.x + r.width, r.y + r.height],
+  [r.x, r.y + r.height]
+]
+
+export const contains = (r: Rect, x: number, y: number): boolean => x >= r.x && x <= r.x + r.width && y >= r.y && y <= r.y + r.height
+
+/**
+ * Resize by dragging `corner` (index into `corners`) to (x, y): the opposite corner stays put and the aspect ratio is
+ * kept (the larger of the two relative changes wins). Never smaller than `minSide` on the short side.
+ */
+export function resizeFromCorner(r: Rect, corner: number, x: number, y: number, minSide = 12): Rect {
+  const [ax, ay] = corners(r)[(corner + 2) % 4]
+  const k = Math.max(Math.abs(x - ax) / r.width, Math.abs(y - ay) / r.height, minSide / Math.min(r.width, r.height))
+  const width = r.width * k
+  const height = r.height * k
+  // which side of the anchor the dragged corner is on is fixed by the corner (no flipping through the anchor)
+  const left = corner === 0 || corner === 3
+  const top = corner === 0 || corner === 1
+  return { x: left ? ax - width : ax, y: top ? ay - height : ay, width, height }
+}
+
+/**
+ * The page's canvases used to be inverted with a CSS filter in dark mode (like the Mac's sketch preview). Photos must
+ * not be inverted, so ink colours are mapped in JS instead: this is `invert(1) hue-rotate(180deg)` applied to one sRGB
+ * colour, with the matrix from the Filter Effects spec.
+ */
+export function darkInk(hex: string): string {
+  const n = parseInt(hex.slice(1), 16)
+  const [r, g, b] = [(n >> 16) & 255, (n >> 8) & 255, n & 255].map((c) => 1 - c / 255)
+  const m = [
+    [-0.574, 1.43, 0.144],
+    [0.426, 0.43, 0.144],
+    [0.426, 1.43, -0.856]
+  ]
+  const out = m.map((row) => Math.round(Math.max(0, Math.min(1, row[0] * r + row[1] * g + row[2] * b)) * 255))
+  return `#${out.map((c) => c.toString(16).padStart(2, '0')).join('')}`
+}
