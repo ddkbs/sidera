@@ -2,10 +2,10 @@
 
 Free, open-source, MCP-first visual knowledge base: whiteboards, card library, kanban.
 macOS only, local-first. Keep answers & diffs small; don't re-explore what this file already says.
-Internal identifiers (npm package name, env vars, DB filename, localStorage keys, MCP tool names) intentionally stay `canvascl`/`CANVASCL_*` — only the user-facing product name changed to Sidera (see `src/shared/brand.ts`).
+Internal identifiers were renamed from `canvascl`/`CANVASCL_*` to `sidera`/`SIDERA_*` (npm package name, env vars, DB filename, localStorage keys, MCP tool names). Legacy `canvascl` names are migrated one-time and idempotently where they touch existing users' data: DB filename (`src/main/db/client.ts`), localStorage keys (`src/renderer/src/lib/storage.ts`), and the Claude Desktop/Code MCP config entry (`src/main/integrations.ts`). The `sidera-file://` protocol also keeps handling the legacy `canvascl-file://` scheme so old stored card/whiteboard content still resolves. The `~/Library/Application Support/CanvasCL/` userData folder itself is intentionally never renamed (see `src/main/index.ts`), so an update never moves anyone's data.
 
 ## Commands
-- `npm run dev` — electron-vite dev (HMR renderer); `predev` brands the local Electron.app as CanvasCL (name + build/icon.png, re-signed ad hoc) via `scripts/brand-electron.cjs`
+- `npm run dev` — electron-vite dev (HMR renderer); `predev` brands the local Electron.app as Sidera (name + build/icon.png, re-signed ad hoc) via `scripts/brand-electron.cjs`
 - `npm test` — vitest, runs **inside Electron's Node** (`ELECTRON_RUN_AS_NODE`) because better-sqlite3 is built for Electron ABI
 - `npm run typecheck` — tsc for node + web projects
 - Done-criteria for any goal: `npm test && npm run typecheck` both green
@@ -15,10 +15,10 @@ Internal identifiers (npm package name, env vars, DB filename, localStorage keys
 ## Visual verification (no manual clicking)
 Dev-only hook in `src/main/index.ts` (`devShot`). Steps separated by `\n---\n`; each step is renderer JS **or** `@click x y` / `@click <css>` / `@click text=Label`, `@dblclick …`, `@drag x1 y1 x2 y2`, `@key meta+z`, `@type text` (CSS px). A PNG is written after every step.
 ```
-CANVASCL_DATA_DIR=<scratch>/data CANVASCL_SHOT=<scratch>/s.png CANVASCL_SCRIPT=<scratch>/steps.js CANVASCL_QUIT=1 npx electron-vite dev
+SIDERA_DATA_DIR=<scratch>/data SIDERA_SHOT=<scratch>/s.png SIDERA_SCRIPT=<scratch>/steps.js SIDERA_QUIT=1 npx electron-vite dev
 ```
-Navigate by writing `localStorage['canvascl.ui'] = {sidebarOpen, chatOpen, tabs: [{id, view}], activeTabId}` then `location.reload()` (do it in its own step). Settings via `window.app.setSettings()`. Seed via `window.api.*`. Kill leftover `Electron .` processes if port 3845 is busy (`CANVASCL_MCP_PORT` overrides the port).
-`CANVASCL_DATA_DIR` skips sign-in (session kind `dev`). To test the sign-in screen use `CANVASCL_AUTH_ROOT=<scratch>` instead (account registry in scratch, dev only).
+Navigate by writing `localStorage['sidera.ui'] = {sidebarOpen, chatOpen, tabs: [{id, view}], activeTabId}` then `location.reload()` (do it in its own step). Settings via `window.app.setSettings()`. Seed via `window.api.*`. Kill leftover `Electron .` processes if port 3845 is busy (`SIDERA_MCP_PORT` overrides the port).
+`SIDERA_DATA_DIR` skips sign-in (session kind `dev`). To test the sign-in screen use `SIDERA_AUTH_ROOT=<scratch>` instead (account registry in scratch, dev only).
 
 ## Layout
 - `src/shared/` — types (`types.ts`), IPC/API contract (`api.ts`), Tiptap↔Markdown (`doc.ts`). Pure, no Electron imports.
