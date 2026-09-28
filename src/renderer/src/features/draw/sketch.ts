@@ -69,7 +69,7 @@ export interface SketchFile {
 const r2 = (n: number): number => Math.round(n * 100) / 100
 const seed = (): number => Math.floor(Math.random() * 2 ** 31)
 
-function strokeToSkeleton(s: DrawStroke): SketchSkeleton {
+export function strokeToSkeleton(s: DrawStroke): SketchSkeleton {
   const pts = s.points.length === 1 ? [s.points[0], [s.points[0][0] + 0.01, s.points[0][1], s.points[0][2]] as typeof s.points[0]] : s.points
   const [x0, y0] = pts[0]
   const common = {

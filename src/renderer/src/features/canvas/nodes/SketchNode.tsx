@@ -1,27 +1,61 @@
 import type { NodeProps } from '@xyflow/react'
 import { PenTool } from '@/components/icons'
-import { memo } from 'react'
+import { memo, useMemo } from 'react'
 import { cn } from '@/lib/utils'
 import { useAppSelector } from '@/store'
+import { InkSvg } from '@/features/ink/InkSvg'
+import { isFrameless } from '@/features/ink/frame'
+import { inkBounds } from '@/features/ink/geometry'
 import type { ObjectNode } from '../types'
 import { Handles, Resizer } from './NodeChrome'
 
 export const EDIT_SKETCH_EVENT = 'sidera:edit-sketch'
 
 /**
- * Freehand sketch (Excalidraw). Preview is a static SVG rendered as <img> so it can't run scripts.
- * Dark mode: sketches with images carry a pre-rendered `svgDark` (Excalidraw's dark export: ink inverted, photos
- * re-inverted so they keep their colours), shown without a filter; ink-only sketches are inverted with CSS as before.
+ * Freehand sketch (Excalidraw), framed or frameless ("ink").
+ *
+ * Framed: a card whose preview is the stored static SVG shown as <img> (can't run scripts). Dark mode: sketches with
+ * images carry a pre-rendered `svgDark` (Excalidraw's dark export, photos keep their colours), shown without a
+ * filter; ink-only sketches are inverted with CSS.
+ *
+ * Frameless (`data.frameless`): no border/background/padding — the strokes are drawn straight onto the board as
+ * inline SVG built from the elements (`InkSvg`). The node itself ignores the pointer (CSS in canvas.css); only the
+ * painted ink and photos are hit, so empty space inside the bounding box still reaches whatever lies below.
  */
-export const SketchNode = memo(function SketchNode({ id, data, selected }: NodeProps<ObjectNode>) {
+export const SketchNode = memo(function SketchNode({ id, data, selected, width }: NodeProps<ObjectNode>) {
   const dark = useAppSelector((s) => s.ui.theme) === 'dark'
-  const darkSvg = typeof data.object.data.svgDark === 'string' ? data.object.data.svgDark : ''
-  const svg = dark && darkSvg ? darkSvg : typeof data.object.data.svg === 'string' ? data.object.data.svg : ''
+  const d = data.object.data
+  const elements = Array.isArray(d.elements) ? (d.elements as unknown[]) : undefined
+  const files = d.files && typeof d.files === 'object' ? (d.files as Record<string, unknown>) : undefined
+  const bounds = useMemo(() => inkBounds(elements), [elements])
+  const edit = () => window.dispatchEvent(new CustomEvent(EDIT_SKETCH_EVENT, { detail: id }))
+
+  if (isFrameless(d) && bounds) {
+    const w = width ?? data.object.width
+    return (
+      <>
+        <Resizer selected={selected} minWidth={16} minHeight={16} keepAspectRatio />
+        <div className="sketch-frameless relative h-full w-full" onDoubleClick={edit}>
+          <InkSvg elements={elements} files={files} dark={dark} scale={w / bounds.width} interactive className="absolute inset-0" />
+          <div
+            className={cn(
+              'ink-outline pointer-events-none absolute -inset-1.5 rounded-md border border-dashed border-brand/50 opacity-0 transition-opacity',
+              selected && 'border-solid border-brand/70 opacity-100'
+            )}
+          />
+        </div>
+        <Handles />
+      </>
+    )
+  }
+
+  const darkSvg = typeof d.svgDark === 'string' ? d.svgDark : ''
+  const svg = dark && darkSvg ? darkSvg : typeof d.svg === 'string' ? d.svg : ''
   return (
     <>
       <Resizer selected={selected} minWidth={160} minHeight={120} />
       <div
-        onDoubleClick={() => window.dispatchEvent(new CustomEvent(EDIT_SKETCH_EVENT, { detail: id }))}
+        onDoubleClick={edit}
         className={cn('flex h-full w-full items-center justify-center overflow-hidden rounded-xl border bg-card p-2 shadow-sm', selected && 'ring-2 ring-brand/70')}
       >
         {svg ? (
@@ -31,6 +65,11 @@ export const SketchNode = memo(function SketchNode({ id, data, selected }: NodeP
             className={cn('h-full w-full object-contain', !darkSvg && 'dark:invert dark:hue-rotate-180')}
             src={`data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`}
           />
+        ) : bounds ? (
+          // ink drawn in pen mode has no stored preview: render it from the elements
+          <div className="h-full w-full p-4">
+            <InkSvg elements={elements} files={files} dark={dark} scale={1} />
+          </div>
         ) : (
           <div className="flex flex-col items-center gap-1.5 text-sm text-muted-foreground">
             <PenTool className="size-5" />

@@ -144,7 +144,8 @@ import {
   IconUnderline,
   IconStrikethrough,
   IconFatMarker,
-  IconEraser
+  IconEraser,
+  IconFrame
 } from 'obra-icons-react'
 
 export type AppIcon = ComponentType<SVGProps<SVGSVGElement> & { size?: number }>
@@ -265,6 +266,7 @@ export const Underline = IconUnderline
 export const Strikethrough = IconStrikethrough
 export const Highlighter = IconFatMarker
 export const Eraser = IconEraser
+export const Frame = IconFrame
 
 // Charts & diagrams
 export const BarChart = IconBarChart

@@ -16,3 +16,19 @@
 .canvas-root.tool-section .react-flow__pane { cursor: crosshair; }
 .canvas-root.tool-connector .react-flow__node { cursor: cell; }
 .canvas-root .react-flow__attribution { background: transparent; font-size: 9px; opacity: 0.5; left: 64px; }
+
+/* Frameless sketches (ink): the node box ignores the pointer, only painted ink / photos take it (see SketchNode).
+   !important: xyflow puts an inline `pointer-events: all` on every node. */
+.canvas-root .react-flow__node:has(> .sketch-frameless) { pointer-events: none !important; }
+.canvas-root .react-flow__node:has(> .sketch-frameless) .react-flow__resize-control { pointer-events: all !important; }
+.canvas-root .react-flow__node:has(> .sketch-frameless):hover .ink-outline { opacity: 1; }
+
+/* Pen mode (InkLayer sets data-pen on the canvas root): one cursor over the whole board. */
+.canvas-root[data-pen] .react-flow,
+.canvas-root[data-pen] .react-flow * { cursor: inherit !important; }
+.canvas-root[data-pen='pen'] .react-flow {
+  cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24'%3E%3Cpath d='M3 21l1.2-4.6L16.6 4a2 2 0 0 1 2.8 0l.6.6a2 2 0 0 1 0 2.8L7.6 19.8z' fill='white' stroke='black' stroke-width='1.4' stroke-linejoin='round'/%3E%3Cpath d='M3 21l1.2-4.6 3.4 3.4z' fill='black'/%3E%3C/svg%3E") 3 21, crosshair !important;
+}
+.canvas-root[data-pen='eraser'] .react-flow {
+  cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24'%3E%3Ccircle cx='12' cy='12' r='10' fill='rgba(255,255,255,0.35)' stroke='black' stroke-width='1.2'/%3E%3Ccircle cx='12' cy='12' r='9' fill='none' stroke='white' stroke-width='0.8'/%3E%3C/svg%3E") 12 12, cell !important;
+}

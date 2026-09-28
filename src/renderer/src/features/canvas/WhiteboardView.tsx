@@ -62,7 +62,9 @@ import { nodeTypes } from './nodes'
 import { SAVE_LINK_DONE_EVENT, SAVE_LINK_EVENT } from './nodes/LinkNode'
 import { EDIT_SKETCH_EVENT } from './nodes/SketchNode'
 import { DrawOnIpadDialog, SIDERA_DRAW_OPEN_EVENT } from '@/features/draw/DrawOnIpadDialog'
-import { sketchNodeSize } from '@/features/draw/sketch'
+import { InkLayer } from '@/features/ink/InkLayer'
+import { framelessSize, isFrameless, toggledFrameBox } from '@/features/ink/frame'
+import { fitTransform, inkBounds, reboxed } from '@/features/ink/geometry'
 import type { DrawSubmission } from '@shared/drawProtocol'
 
 const SketchEditor = lazy(() => import('./SketchEditor'))
@@ -214,6 +216,15 @@ function Canvas({ detail }: { detail: WhiteboardDetail }) {
       else if (a === 'delete-card' && o.refId) {
         await deleteCard(o.refId)
         recordDelete('card', o.refId)
+      } else if (a === 'frame') {
+        // "Remove frame" / "Add frame": ink on the board vs. a framed card — the ink stays where it is
+        const box = { x: node.position.x, y: node.position.y, width: node.width ?? o.width, height: node.height ?? o.height }
+        const frameless = !isFrameless(o.data)
+        const next = toggledFrameBox(box, o.data.elements as unknown[] | undefined, frameless)
+        const before: ObjectPatch = { id: o.id, ...box, data: o.data }
+        const after: ObjectPatch = { id: o.id, ...next, data: { ...o.data, frameless } }
+        await applyOp({ type: 'patch', before: [before], after: [after] })
+        record({ label: frameless ? 'Remove frame' : 'Add frame', undo: () => applyOp({ type: 'patch', before: [after], after: [before] }), redo: () => applyOp({ type: 'patch', before: [before], after: [after] }) })
       } else if (a === 'front' || a === 'back') {
         const zs = rf.getNodes().map((n) => n.data.object.z)
         const z = a === 'front' ? Math.max(...zs) + 1 : Math.min(...zs) - 1
@@ -225,6 +236,7 @@ function Canvas({ detail }: { detail: WhiteboardDetail }) {
         })
       }
     },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     [dispatch, rf, deleteCard]
   )
 
@@ -413,7 +425,7 @@ function Canvas({ detail }: { detail: WhiteboardDetail }) {
               position: { x: p.x ?? n.position.x, y: p.y ?? n.position.y },
               width: p.width ?? n.width,
               height: p.height ?? n.height,
-              data: { ...n.data, object: { ...n.data.object, ...p, data: n.data.object.data } }
+              data: { ...n.data, object: { ...n.data.object, ...p, data: p.data ?? n.data.object.data } }
             }
           })
         )
@@ -484,8 +496,9 @@ function Canvas({ detail }: { detail: WhiteboardDetail }) {
     async (drawing: DrawSubmission) => {
       try {
         const { buildSketchData } = await import('@/features/draw/toExcalidraw')
-        const data = await buildSketchData(drawing)
-        const size = sketchNodeSize(drawing)
+        // iPad drawings land frameless: ink straight on the board
+        const data = { ...(await buildSketchData(drawing)), frameless: true }
+        const size = framelessSize(data.elements)
         const c = center()
         const o = await place('sketch', { x: c.x - size.width / 2, y: c.y - size.height / 2 }, { data, ...size })
         if (!o) return
@@ -959,11 +972,12 @@ function Canvas({ detail }: { detail: WhiteboardDetail }) {
         connectionMode={ConnectionMode.Loose}
         snapToGrid={snapToGrid}
         snapGrid={[22, 22]}
-        nodesDraggable={tool !== 'connector'}
+        nodesDraggable={tool !== 'connector' && tool !== 'pen'}
+        elementsSelectable={tool !== 'pen'}
         panOnScroll
         zoomOnDoubleClick={false}
         selectionOnDrag={tool === 'select'}
-        panOnDrag={tool === 'select' ? [1, 2] : true}
+        panOnDrag={tool === 'select' || tool === 'pen' ? [1, 2] : true}
         minZoom={0.05}
         maxZoom={4}
         deleteKeyCode={['Backspace', 'Delete']}
@@ -973,6 +987,7 @@ function Canvas({ detail }: { detail: WhiteboardDetail }) {
       >
         <Background variant={BackgroundVariant.Dots} gap={22} size={1.4} color="var(--canvas-dot)" />
       </ReactFlow>
+      {tool === 'pen' && <InkLayer host={wrapper} boardId={boardId} />}
       <CanvasToolbar tool={tool} onTool={(t) => void changeTool(t)} onAction={(a) => void onAction(a)} />
       <ZoomControls />
       <CardDrawer onBoard={cardIds} />
@@ -1007,11 +1022,37 @@ function Canvas({ detail }: { detail: WhiteboardDetail }) {
           <SketchEditor
             initial={(nodes.find((n) => n.id === sketchId)?.data.object.data ?? {}) as { elements?: unknown[]; files?: Record<string, unknown> }}
             onClose={() => setSketchId(null)}
-            onSave={async (data) => {
+            onSave={async (saved) => {
               const id = sketchId
               setSketchId(null)
-              await window.api.updateObjects([{ id, data }])
-              setNodes((ns) => ns.map((n) => (n.id === id ? { ...n, data: { ...n.data, object: { ...n.data.object, data } } } : n)))
+              const node = nodes.find((n) => n.id === id)
+              if (!node) return
+              // keep flags like `frameless`; a stale dark preview must not survive an edit that removed the photos
+              const { svgDark: _old, ...prev } = node.data.object.data
+              void _old
+              const data = { ...prev, ...saved }
+              const patch: ObjectPatch = { id, data }
+              // frameless ink keeps its scale: added / removed strokes grow or shrink the box around what stays put
+              const oldB = inkBounds(prev.elements as unknown[] | undefined)
+              const newB = inkBounds(saved.elements)
+              if (isFrameless(prev) && oldB && newB) {
+                const box = { x: node.position.x, y: node.position.y, width: node.width ?? node.data.object.width, height: node.height ?? node.data.object.height }
+                Object.assign(patch, reboxed(fitTransform(oldB, box), newB))
+              }
+              await window.api.updateObjects([patch])
+              setNodes((ns) =>
+                ns.map((n) =>
+                  n.id === id
+                    ? {
+                        ...n,
+                        position: { x: patch.x ?? n.position.x, y: patch.y ?? n.position.y },
+                        width: patch.width ?? n.width,
+                        height: patch.height ?? n.height,
+                        data: { ...n.data, object: { ...n.data.object, ...patch, data } }
+                      }
+                    : n
+                )
+              )
               dispatch(api.util.invalidateTags([{ type: 'Whiteboard', id: boardId }]))
             }}
           />

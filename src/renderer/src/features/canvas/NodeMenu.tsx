@@ -1,8 +1,8 @@
-import { ArrowDownToLine, ArrowUpToLine, Expand, LayoutDashboard, Trash2, X } from '@/components/icons'
+import { ArrowDownToLine, ArrowUpToLine, Expand, Frame, LayoutDashboard, Trash2, X } from '@/components/icons'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import type { ObjectNode } from './types'
 
-export type NodeMenuAction = 'open' | 'front' | 'back' | 'remove' | 'delete-card'
+export type NodeMenuAction = 'open' | 'front' | 'back' | 'remove' | 'delete-card' | 'frame'
 
 interface Props {
   menu: { node: ObjectNode; x: number; y: number } | null
@@ -28,6 +28,11 @@ export function NodeMenu({ menu, onClose, onAction }: Props) {
         {node?.type === 'whiteboard' && (
           <DropdownMenuItem onClick={act('open')}>
             <LayoutDashboard /> Open whiteboard
+          </DropdownMenuItem>
+        )}
+        {node?.type === 'sketch' && (
+          <DropdownMenuItem onClick={act('frame')}>
+            <Frame /> {node.data.object.data.frameless === true ? 'Add frame' : 'Remove frame'}
           </DropdownMenuItem>
         )}
         <DropdownMenuItem onClick={act('front')}>

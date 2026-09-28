@@ -13,10 +13,21 @@ export function Handles() {
   )
 }
 
-export function Resizer({ selected, minWidth = 120, minHeight = 40 }: { selected?: boolean; minWidth?: number; minHeight?: number }) {
+export function Resizer({
+  selected,
+  minWidth = 120,
+  minHeight = 40,
+  keepAspectRatio
+}: {
+  selected?: boolean
+  minWidth?: number
+  minHeight?: number
+  keepAspectRatio?: boolean
+}) {
   return (
     <NodeResizer
       isVisible={!!selected}
+      keepAspectRatio={keepAspectRatio}
       minWidth={minWidth}
       minHeight={minHeight}
       lineClassName="!border-brand/60"
