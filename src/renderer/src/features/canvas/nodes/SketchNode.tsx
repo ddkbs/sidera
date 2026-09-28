@@ -8,6 +8,7 @@ import { isFrameless } from '@/features/ink/frame'
 import { inkBounds } from '@/features/ink/geometry'
 import type { ObjectNode } from '../types'
 import { Handles, Resizer } from './NodeChrome'
+import { Rotatable } from './Rotatable'
 
 export const EDIT_SKETCH_EVENT = 'sidera:edit-sketch'
 
@@ -28,6 +29,7 @@ export const SketchNode = memo(function SketchNode({ id, data, selected, width }
   const elements = Array.isArray(d.elements) ? (d.elements as unknown[]) : undefined
   const files = d.files && typeof d.files === 'object' ? (d.files as Record<string, unknown>) : undefined
   const bounds = useMemo(() => inkBounds(elements), [elements])
+  const rotation = Number(d.rotation) || 0
   const edit = () => window.dispatchEvent(new CustomEvent(EDIT_SKETCH_EVENT, { detail: id }))
 
   if (isFrameless(d) && bounds) {
@@ -36,13 +38,15 @@ export const SketchNode = memo(function SketchNode({ id, data, selected, width }
       <>
         <Resizer selected={selected} minWidth={16} minHeight={16} keepAspectRatio />
         <div className="sketch-frameless relative h-full w-full" onDoubleClick={edit}>
-          <InkSvg elements={elements} files={files} dark={dark} scale={w / bounds.width} interactive className="absolute inset-0" />
-          <div
-            className={cn(
-              'ink-outline pointer-events-none absolute -inset-1.5 rounded-md border border-dashed border-brand/50 opacity-0 transition-opacity',
-              selected && 'border-solid border-brand/70 opacity-100'
-            )}
-          />
+          <Rotatable id={id} rotation={rotation} selected={!!selected}>
+            <InkSvg elements={elements} files={files} dark={dark} scale={w / bounds.width} interactive className="absolute inset-0" />
+            <div
+              className={cn(
+                'ink-outline pointer-events-none absolute -inset-1.5 rounded-md border border-dashed border-brand/50 opacity-0 transition-opacity',
+                selected && 'border-solid border-brand/70 opacity-100'
+              )}
+            />
+          </Rotatable>
         </div>
         <Handles />
       </>
@@ -54,29 +58,34 @@ export const SketchNode = memo(function SketchNode({ id, data, selected, width }
   return (
     <>
       <Resizer selected={selected} minWidth={160} minHeight={120} />
-      <div
-        onDoubleClick={edit}
-        className={cn('flex h-full w-full items-center justify-center overflow-hidden rounded-xl border bg-card p-2 shadow-sm', selected && 'ring-2 ring-brand/70')}
-      >
-        {svg ? (
-          <img
-            alt="Sketch"
-            draggable={false}
-            className={cn('h-full w-full object-contain', !darkSvg && 'dark:invert dark:hue-rotate-180')}
-            src={`data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`}
-          />
-        ) : bounds ? (
-          // ink drawn in pen mode has no stored preview: render it from the elements
-          <div className="h-full w-full p-4">
-            <InkSvg elements={elements} files={files} dark={dark} scale={1} />
-          </div>
-        ) : (
-          <div className="flex flex-col items-center gap-1.5 text-sm text-muted-foreground">
-            <PenTool className="size-5" />
-            Double-click to draw
-          </div>
-        )}
-      </div>
+      <Rotatable id={id} rotation={rotation} selected={!!selected}>
+        <div
+          onDoubleClick={edit}
+          className={cn(
+            'flex h-full w-full items-center justify-center overflow-hidden rounded-xl border bg-card p-2 shadow-sm',
+            selected && 'ring-2 ring-brand/70'
+          )}
+        >
+          {svg ? (
+            <img
+              alt="Sketch"
+              draggable={false}
+              className={cn('h-full w-full object-contain', !darkSvg && 'dark:invert dark:hue-rotate-180')}
+              src={`data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`}
+            />
+          ) : bounds ? (
+            // ink drawn in pen mode has no stored preview: render it from the elements
+            <div className="h-full w-full p-4">
+              <InkSvg elements={elements} files={files} dark={dark} scale={1} />
+            </div>
+          ) : (
+            <div className="flex flex-col items-center gap-1.5 text-sm text-muted-foreground">
+              <PenTool className="size-5" />
+              Double-click to draw
+            </div>
+          )}
+        </div>
+      </Rotatable>
       <Handles />
     </>
   )
