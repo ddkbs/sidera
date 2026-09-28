@@ -78,6 +78,11 @@ export interface Whiteboard {
   updatedAt: number
 }
 
+/** A whiteboard plus lightweight stats for list/tile views (e.g. Home) that shouldn't load the full board. */
+export interface WhiteboardSummary extends Whiteboard {
+  objectCount: number
+}
+
 /** Sidebar folder for organizing whiteboards. Folders can nest inside other folders. */
 export interface Folder {
   id: ID

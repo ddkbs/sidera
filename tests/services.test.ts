@@ -161,6 +161,17 @@ describe('whiteboards', () => {
     expect(api.getWhiteboard(board.id)!.objects).toHaveLength(2)
   })
 
+  it('lists boards with an object count, for Home tiles', () => {
+    const empty = api.createWhiteboard({ name: 'Empty' })
+    const busy = api.createWhiteboard({ name: 'Busy' })
+    api.addObject({ whiteboardId: busy.id, kind: 'text', x: 0, y: 0, data: { text: 'a' } })
+    api.addObject({ whiteboardId: busy.id, kind: 'text', x: 100, y: 0, data: { text: 'b' } })
+
+    const stats = api.listWhiteboardsWithStats()
+    expect(stats.find((b) => b.id === empty.id)).toMatchObject({ objectCount: 0 })
+    expect(stats.find((b) => b.id === busy.id)).toMatchObject({ objectCount: 2 })
+  })
+
   it('stores free-form key/value properties on a whiteboard', () => {
     const board = api.createWhiteboard({ name: 'Notes' })
     expect(board.properties).toEqual([])

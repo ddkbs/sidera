@@ -33,7 +33,8 @@ import type {
   Whiteboard,
   WhiteboardDetail,
   WhiteboardObject,
-  WhiteboardProperty
+  WhiteboardProperty,
+  WhiteboardSummary
 } from './types'
 
 /**
@@ -69,6 +70,8 @@ export interface CanvasApi {
 
   // whiteboards
   listWhiteboards(): Promise<Whiteboard[]>
+  /** Same boards as listWhiteboards, with an object count for each — used by Home's board tiles. */
+  listWhiteboardsWithStats(): Promise<WhiteboardSummary[]>
   getWhiteboard(id: ID): Promise<WhiteboardDetail | null>
   createWhiteboard(input: { name: string; parentId?: ID | null; folderId?: ID | null }): Promise<Whiteboard>
   updateWhiteboard(input: { id: ID; name?: string; viewport?: Whiteboard['viewport'] }): Promise<Whiteboard>
@@ -194,7 +197,7 @@ export const API_METHODS: ApiMethod[] = [
   'listTags', 'createTag', 'updateTag', 'deleteTag', 'setCardTags',
   'listProperties', 'createProperty', 'updateProperty', 'setPropertyValue',
   'getKanban', 'moveKanbanItem',
-  'listWhiteboards', 'getWhiteboard', 'createWhiteboard', 'updateWhiteboard', 'updateWhiteboardProperties', 'deleteWhiteboard', 'restoreWhiteboard', 'moveWhiteboardToFolder', 'duplicateWhiteboard',
+  'listWhiteboards', 'listWhiteboardsWithStats', 'getWhiteboard', 'createWhiteboard', 'updateWhiteboard', 'updateWhiteboardProperties', 'deleteWhiteboard', 'restoreWhiteboard', 'moveWhiteboardToFolder', 'duplicateWhiteboard',
   'listFolders', 'createFolder', 'renameFolder', 'deleteFolder', 'moveFolder',
   'addObject', 'updateObjects', 'removeObjects', 'restoreObjects', 'addConnection', 'updateConnection', 'removeConnections', 'organizeBoard',
   'listTasks', 'setTaskChecked', 'addTask', 'updateTask', 'listTaskActivity',
