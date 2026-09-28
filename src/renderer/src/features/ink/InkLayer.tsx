@@ -39,6 +39,8 @@ interface Stroke {
   done: boolean
   /** committed: drop from the overlay once this object shows the element */
   committedTo?: string
+  /** cached overlay paint for finished strokes (the outline is expensive to recompute every frame) */
+  paint?: { path: Path2D; color: string; alpha: number; dark: boolean }
 }
 
 interface Group {
@@ -131,10 +133,15 @@ export function InkLayer({ host, boardId }: { host: RefObject<HTMLDivElement | n
     ctx.setTransform(dpr * vp.zoom, 0, 0, dpr * vp.zoom, dpr * vp.x, dpr * vp.y)
     for (const s of strokes.current) {
       if (!s.points.length) continue
-      const el = strokeElement(s)
-      ctx.globalAlpha = (el.opacity ?? 100) / 100
-      ctx.fillStyle = (darkRef.current ? darkInk(el.strokeColor) : el.strokeColor) ?? '#1e1e1e'
-      ctx.fill(new Path2D(outlinePath(freedrawOutline(el))))
+      let cached = s.paint
+      if (!cached || cached.dark !== darkRef.current) {
+        const el = strokeElement(s)
+        cached = { path: new Path2D(outlinePath(freedrawOutline(el))), color: (darkRef.current ? darkInk(el.strokeColor) : el.strokeColor) ?? '#1e1e1e', alpha: (el.opacity ?? 100) / 100, dark: darkRef.current }
+        if (s.done) s.paint = cached
+      }
+      ctx.globalAlpha = cached.alpha
+      ctx.fillStyle = cached.color
+      ctx.fill(cached.path)
     }
     ctx.globalAlpha = 1
   }
@@ -240,8 +247,11 @@ export function InkLayer({ host, boardId }: { host: RefObject<HTMLDivElement | n
     let drawing: Stroke | null = null
     let erasing: { originals: Map<string, WhiteboardObject>; hit: Map<string, Set<string>> } | null = null
     let pointerId: number | null = null
+    // measured once per stroke: getBoundingClientRect on every (coalesced) move forces layout
+    let originCache: Point | null = null
 
     const origin = (): Point => {
+      if (originCache) return originCache
       const r = el.getBoundingClientRect()
       return { x: r.left, y: r.top }
     }
@@ -307,6 +317,8 @@ export function InkLayer({ host, boardId }: { host: RefObject<HTMLDivElement | n
         /* synthetic / already released pointer */
       }
       clearTimeout(idle.current)
+      originCache = null
+      originCache = origin() // re-measure (window may have scrolled/resized since the last stroke)
       const s = settingsRef.current
       const p = toBoard(e)
       if (s.tool === 'eraser') {
@@ -334,6 +346,7 @@ export function InkLayer({ host, boardId }: { host: RefObject<HTMLDivElement | n
       if (e.pointerId !== pointerId) return
       e.stopPropagation()
       const events = e.getCoalescedEvents?.() ?? []
+      const vpZoom = rf.getViewport().zoom
       for (const ev of events.length ? events : [e]) {
         const p = toBoard(ev)
         if (erasing) {
@@ -341,8 +354,9 @@ export function InkLayer({ host, boardId }: { host: RefObject<HTMLDivElement | n
           continue
         }
         if (!drawing) continue
+        const zoom = vpZoom
         const last = drawing.points[drawing.points.length - 1]
-        if (Math.hypot(p.x - last[0], p.y - last[1]) * rf.getViewport().zoom < 0.75) continue
+        if (Math.hypot(p.x - last[0], p.y - last[1]) * zoom < 0.75) continue
         drawing.points.push([p.x, p.y, pressure(ev)])
       }
       if (drawing) schedule()
@@ -352,6 +366,7 @@ export function InkLayer({ host, boardId }: { host: RefObject<HTMLDivElement | n
       if (e.pointerId !== pointerId) return
       e.stopPropagation()
       pointerId = null
+      originCache = null
       try {
         if (el.hasPointerCapture(e.pointerId)) el.releasePointerCapture(e.pointerId)
       } catch {
