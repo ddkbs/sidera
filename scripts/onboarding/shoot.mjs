@@ -6,9 +6,10 @@
  *   node scripts/onboarding/shoot.mjs dark       # one theme only
  *
  * For every theme it starts the dev app via the devShot hook (see CLAUDE.md) against a throw-away data
- * dir, seeds a demo workspace (scripts/onboarding/seed.js), captures each view and converts the crops to
- * WebP with `cwebp` (brew install webp). Also refreshes the small app icon used on the welcome screen.
- * Never touches your real data dir. Env: SIDERA_MCP_PORT (default 3852), ONBOARDING_SHOTS_DIR (scratch).
+ * dir, seeds a demo workspace (scripts/onboarding/seed.js — the fictional "Nimbus Aerospace" board), captures
+ * each view and converts the captures to WebP with `cwebp` (brew install webp). Also refreshes the small app
+ * icon used on the welcome screen. Never touches your real data dir.
+ * Env: SIDERA_MCP_PORT (default 3852), ONBOARDING_SHOTS_DIR (scratch).
  */
 import { execFileSync, spawnSync } from 'node:child_process'
 import { existsSync, mkdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs'
@@ -27,45 +28,30 @@ const ZOOM = 1.25
 /** Output width of every WebP (the source capture is 2× the 1440×900 window). */
 const WIDTH = 1600
 
-const ui = (view, extra = '') => `(async () => {
-  ${extra}
-  localStorage['sidera.ui'] = JSON.stringify({ sidebarOpen: true, chatOpen: ${view.chat ? 'true' : 'false'}, tabs: [{ id: 't1', view: ${view.expr} }], activeTabId: 't1' })
+export const board = `(await window.api.listWhiteboards()).find((b) => b.name.includes('Nimbus'))`
+/** Opens the Nimbus board at a given viewport (layout px of the zoomed app), optionally with the chat panel. */
+export const openBoard = (viewport, chat = false) => `(async () => {
+  const b = ${board}
+  await window.api.updateWhiteboard({ id: b.id, viewport: ${JSON.stringify(viewport)} })
+  localStorage['sidera.ui'] = JSON.stringify({ sidebarOpen: true, chatOpen: ${chat}, tabs: [{ id: 't1', view: { type: 'whiteboard', id: b.id } }], activeTabId: 't1' })
   setTimeout(() => location.reload(), 50)
 })()`
-const zoomStep = `document.documentElement.style.zoom = '${ZOOM}'; window.dispatchEvent(new Event('resize')); 1`
-/** park the pointer on empty space so no hover state (connection handles, row highlight) ends up in a shot */
-const park = '@click 700 860'
-const board = `(await window.api.listWhiteboards()).find((b) => b.name.startsWith('Atlas'))`
-const tag = (name) => `(await window.api.listTags()).find((t) => t.name === ${JSON.stringify(name)})`
+const zoomStep = `document.documentElement.style.zoom = '${ZOOM}'; window.dispatchEvent(new Event('resize')); new Promise((r) => setTimeout(() => r(1), 900))`
 
-/** Each shot: steps that lead to it (the last step's PNG is the one kept) + crop in window CSS px. */
+export const chatExchange = `window.__devChatMessage?.('Summarize Nimbus Aerospace for me — how is the business doing?', {
+  tools: ['get_whiteboard'],
+  text: "**Nimbus Aerospace** builds reusable small-satellite launchers in Bremen (founded 2016, ~420 people).\\n\\n- Revenue grew from **€4m to €83m** between 2021 and 2025 — **+73%** last year\\n- First orbit in 2022, first booster landing in 2024\\n- €310m raised in total, most recently a €180m Series C\\n\\nWant me to add a table of upcoming launches and link a chart to it?"
+})`
+
+/** Each shot: steps that lead to it (the last step's PNG is the one kept). */
 const shots = [
+  { name: 'board', steps: [openBoard({ x: 96, y: 124, zoom: 0.5 }), zoomStep, '@click 864 720'] },
+  { name: 'charts', steps: [openBoard({ x: -236, y: -84, zoom: 0.9 }), zoomStep, '@click 792 800'] },
   {
-    name: 'whiteboard',
-    steps: [
-      ui(
-        { expr: `{ type: 'whiteboard', id: b.id }` },
-        `const b = ${board}; await window.api.updateWhiteboard({ id: b.id, viewport: { x: 120, y: 150, zoom: 0.64 } })`
-      ),
-      zoomStep
-    ]
+    name: 'draw',
+    steps: [openBoard({ x: -470, y: -100, zoom: 0.85 }), zoomStep, '@click 1080 792', '@click [aria-label="Pen"]', 'new Promise((r) => setTimeout(() => r(1), 400))']
   },
-  { name: 'library', steps: [ui({ expr: `{ type: 'library', tagId: t.id, mode: 'table' }` }, `const t = ${tag('Atlas v2')}`), zoomStep] },
-  { name: 'kanban', steps: [ui({ expr: `{ type: 'library', tagId: t.id, mode: 'kanban' }` }, `const t = ${tag('Atlas v2')}`), zoomStep] },
-  {
-    name: 'ai',
-    steps: [
-      ui(
-        { expr: `{ type: 'whiteboard', id: b.id }`, chat: true },
-        `const b = ${board}; await window.api.updateWhiteboard({ id: b.id, viewport: { x: 100, y: 150, zoom: 0.5 } })`
-      ),
-      zoomStep +
-        `; setTimeout(() => window.__devChatMessage?.('Link my research to the launch goals and add a card with open questions', {
-          tools: ['search_cards', 'connect_objects', 'create_card', 'add_card_to_whiteboard'],
-          text: "Done — I connected **Interview synthesis** and **Pricing survey** to *Launch goals* and added an **Open questions** card next to them:\\n\\n- Which tier do teams expect for 5+ seats?\\n- Should the beta include offline sync?\\n- Who owns the partner case studies?\\n\\nWant me to turn these into tasks for this week?"
-        }), 200); 1`
-    ]
-  }
+  { name: 'ai', steps: [openBoard({ x: 90, y: 96, zoom: 0.36 }, true), zoomStep, '@click 600 760', `${chatExchange}; new Promise((r) => setTimeout(() => r(1), 600))`] }
 ]
 
 function run(theme) {
@@ -76,7 +62,7 @@ function run(theme) {
   const steps = [seed, settings]
   const keep = []
   for (const s of shots) {
-    steps.push(...s.steps, park)
+    steps.push(...s.steps)
     keep.push({ name: s.name, index: steps.length - 1 })
   }
   writeFileSync(join(dir, 'steps.js'), steps.join('\n---\n'))
@@ -95,7 +81,7 @@ function run(theme) {
     },
     timeout: 300_000
   })
-  for (const line of `${res.stdout}\n${res.stderr}`.split('\n')) if (/\[shot\]/.test(line)) console.log('  ', line.trim())
+  for (const line of `${res.stdout}\n${res.stderr}`.split('\n')) if (/\[shot\]/.test(line)) console.log('  ', line.trim().slice(0, 160))
   mkdirSync(outDir, { recursive: true })
   for (const k of keep) {
     const src = join(dir, `s-${k.index}.png`)
@@ -106,6 +92,8 @@ function run(theme) {
   }
 }
 
-for (const t of themes) run(t)
-execFileSync('sips', ['-Z', '128', join(root, 'build/icon.png'), '--out', join(outDir, 'app-icon.png')], { stdio: 'ignore' })
-console.log('done')
+if (process.argv[1] === fileURLToPath(import.meta.url)) {
+  for (const t of themes) run(t)
+  execFileSync('sips', ['-Z', '128', join(root, 'build/icon.png'), '--out', join(outDir, 'app-icon.png')], { stdio: 'ignore' })
+  console.log('done')
+}
