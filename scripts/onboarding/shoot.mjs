@@ -8,7 +8,7 @@
  * For every theme it starts the dev app via the devShot hook (see CLAUDE.md) against a throw-away data
  * dir, seeds a demo workspace (scripts/onboarding/seed.js), captures each view and converts the crops to
  * WebP with `cwebp` (brew install webp). Also refreshes the small app icon used on the welcome screen.
- * Never touches your real data dir. Env: CANVASCL_MCP_PORT (default 3852), ONBOARDING_SHOTS_DIR (scratch).
+ * Never touches your real data dir. Env: SIDERA_MCP_PORT (default 3852), ONBOARDING_SHOTS_DIR (scratch).
  */
 import { execFileSync, spawnSync } from 'node:child_process'
 import { existsSync, mkdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs'
@@ -18,7 +18,7 @@ import { fileURLToPath } from 'node:url'
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '../..')
 const outDir = join(root, 'src/renderer/src/assets/onboarding')
-const scratch = process.env.ONBOARDING_SHOTS_DIR ?? join(tmpdir(), 'canvascl-onboarding-shots')
+const scratch = process.env.ONBOARDING_SHOTS_DIR ?? join(tmpdir(), 'sidera-onboarding-shots')
 const themes = process.argv.slice(2).length ? process.argv.slice(2) : ['light', 'dark']
 const seed = readFileSync(join(root, 'scripts/onboarding/seed.js'), 'utf8')
 
@@ -29,7 +29,7 @@ const WIDTH = 1600
 
 const ui = (view, extra = '') => `(async () => {
   ${extra}
-  localStorage['canvascl.ui'] = JSON.stringify({ sidebarOpen: true, chatOpen: ${view.chat ? 'true' : 'false'}, tabs: [{ id: 't1', view: ${view.expr} }], activeTabId: 't1' })
+  localStorage['sidera.ui'] = JSON.stringify({ sidebarOpen: true, chatOpen: ${view.chat ? 'true' : 'false'}, tabs: [{ id: 't1', view: ${view.expr} }], activeTabId: 't1' })
   setTimeout(() => location.reload(), 50)
 })()`
 const zoomStep = `document.documentElement.style.zoom = '${ZOOM}'; window.dispatchEvent(new Event('resize')); 1`
@@ -87,11 +87,11 @@ function run(theme) {
     encoding: 'utf8',
     env: {
       ...process.env,
-      CANVASCL_MCP_PORT: process.env.CANVASCL_MCP_PORT ?? '3852',
-      CANVASCL_DATA_DIR: join(dir, 'data'),
-      CANVASCL_SHOT: join(dir, 's.png'),
-      CANVASCL_SCRIPT: join(dir, 'steps.js'),
-      CANVASCL_QUIT: '1'
+      SIDERA_MCP_PORT: process.env.SIDERA_MCP_PORT ?? '3852',
+      SIDERA_DATA_DIR: join(dir, 'data'),
+      SIDERA_SHOT: join(dir, 's.png'),
+      SIDERA_SCRIPT: join(dir, 'steps.js'),
+      SIDERA_QUIT: '1'
     },
     timeout: 300_000
   })

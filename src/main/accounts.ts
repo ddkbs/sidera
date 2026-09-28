@@ -4,6 +4,7 @@ import { extname, isAbsolute, join, relative } from 'node:path'
 import { nanoid } from 'nanoid'
 import { MIN_PASSWORD_LENGTH, type AccountPatch, type NewAccountInput, type PublicAccount } from '@shared/auth'
 import { TAG_COLORS } from '@shared/util'
+import { hasDbFile, migrateDbFilename } from './db/client'
 
 /** Registry entry as stored in accounts.json. Main-process only — never send this to the renderer. */
 export interface StoredAccount {
@@ -151,7 +152,7 @@ export class AccountRegistry {
     const reg = this.read()
     const acc = reg.accounts.find((a) => a.id === reg.activeAccountId) ?? reg.accounts.find((a) => a.id === reg.lastAccountId)
     if (acc) return acc.dataDir
-    return existsSync(join(this.legacyDir, 'canvascl.db')) ? this.legacyDir : null
+    return hasDbFile(this.legacyDir) ? this.legacyDir : null
   }
 
   /**
@@ -163,7 +164,10 @@ export class AccountRegistry {
     if (reg.legacyChecked) return null
     reg.legacyChecked = true
     let adopted: StoredAccount | null = null
-    const hasDb = existsSync(join(this.legacyDir, 'canvascl.db'))
+    // Rename a pre-rename canvascl.db in place before checking, so the file-existence check below and any
+    // later Session.open() for this folder agree on the current filename.
+    migrateDbFilename(this.legacyDir)
+    const hasDb = hasDbFile(this.legacyDir)
     if (hasDb && !reg.accounts.some((a) => a.dataDir === this.legacyDir)) {
       let who: ReturnType<LegacyPeek> = null
       try {

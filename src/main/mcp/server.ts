@@ -7,7 +7,7 @@ import { createMcpServer, type ToolCallListener } from './tools'
 const MAX_BODY_BYTES = 10 * 1024 * 1024
 
 /** Stateless Streamable-HTTP MCP endpoint bound to localhost only. */
-export function startHttpMcp(api: Services, version: string, onCall?: ToolCallListener, port = Number(process.env.CANVASCL_MCP_PORT ?? 3845)): Promise<{ url: string; server: Server } | null> {
+export function startHttpMcp(api: Services, version: string, onCall?: ToolCallListener, port = Number(process.env.SIDERA_MCP_PORT ?? 3845)): Promise<{ url: string; server: Server } | null> {
   const http = createServer(async (req, res) => {
     if (!req.url?.startsWith('/mcp')) {
       res.writeHead(404).end()

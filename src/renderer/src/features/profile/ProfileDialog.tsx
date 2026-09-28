@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { toast } from 'sonner'
+import { fileUrl } from '@shared/fileProtocol'
 import { TAG_COLORS } from '@shared/util'
 import { Check, Trash2, Upload } from '@/components/icons'
 import { Button } from '@/components/ui/button'
@@ -67,7 +68,7 @@ function ProfileForm({ id, onDone }: { id: string | null; onDone: () => void }) 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [existing?.id])
 
-  const preview = { name: name || '?', color: tone, avatarUrl: avatarFileId ? `canvascl-file://files/${encodeURIComponent(avatarFileId)}` : null }
+  const preview = { name: name || '?', color: tone, avatarUrl: avatarFileId ? fileUrl(avatarFileId) : null }
   const canDelete = !!existing && existing.id !== active?.id && profiles.length > 1
 
   const upload = async (file: File | undefined) => {

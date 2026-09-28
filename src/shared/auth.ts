@@ -20,7 +20,7 @@ export type SessionKind = 'account' | 'guest' | 'dev'
 
 export interface SessionInfo {
   kind: SessionKind
-  /** null for guest and dev (CANVASCL_DATA_DIR) sessions */
+  /** null for guest and dev (SIDERA_DATA_DIR) sessions */
   account: PublicAccount | null
   /** suffix for renderer localStorage keys, so tabs & UI state don't leak between accounts ('' = bare keys) */
   storageNamespace: string

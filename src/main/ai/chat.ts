@@ -115,7 +115,7 @@ export class ChatAgent {
   private async connect(): Promise<void> {
     if (this.mcp) return
     const server = createMcpServer(this.api, this.version, this.onCall)
-    const client = new Client({ name: 'canvascl-chat', version: this.version })
+    const client = new Client({ name: 'sidera-chat', version: this.version })
     const [a, b] = InMemoryTransport.createLinkedPair()
     await Promise.all([server.connect(a), client.connect(b)])
     const { tools } = await client.listTools()

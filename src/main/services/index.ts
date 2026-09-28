@@ -3,6 +3,7 @@ import { userInfo } from 'node:os'
 import { nanoid } from 'nanoid'
 import type { CanvasApi, DbChangeScope } from '@shared/api'
 import { docToText, emptyDoc, extractMentions, markdownToDoc } from '@shared/doc'
+import { fileUrl } from '@shared/fileProtocol'
 import { appendTask, collectTasks, ensureTaskIds, isIsoDate, isoDate, matchesDue, setTaskChecked as applyTaskChecked, setTaskText } from '@shared/tasks'
 import type {
   Card,
@@ -98,7 +99,6 @@ export function defaultProfileName(): string {
   return name.charAt(0).toUpperCase() + name.slice(1)
 }
 
-const fileUrl = (id: string): string => `canvascl-file://files/${encodeURIComponent(id)}`
 
 export function createServices(
   db: DB,
