@@ -53,7 +53,7 @@ interface Prefs {
   collapsed: string[]
 }
 
-const PREFS_KEY = storageKey('canvascl.tasks.prefs')
+const PREFS_KEY = storageKey('sidera.tasks.prefs')
 const DEFAULT_PREFS: Prefs = { mode: 'list', groupBy: 'status', filters: EMPTY_FILTERS, collapsed: ['done'] }
 
 const loadPrefs = (): Prefs => {

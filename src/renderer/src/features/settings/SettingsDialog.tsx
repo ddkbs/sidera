@@ -685,7 +685,7 @@ function DataSettings() {
         <code className="mt-2 block rounded bg-muted px-2 py-1.5 font-mono text-xs break-all">{info?.dataDir ?? '…'}</code>
         <ul className="mt-3 space-y-1 text-sm text-muted-foreground">
           <li>
-            <code className="font-mono text-xs text-foreground">canvascl.db</code> — cards, whiteboards, tags (SQLite){info && ` · ${bytes(info.dbBytes)}`}
+            <code className="font-mono text-xs text-foreground">sidera.db</code> — cards, whiteboards, tags (SQLite){info && ` · ${bytes(info.dbBytes)}`}
           </li>
           <li>
             <code className="font-mono text-xs text-foreground">files/</code> — imported PDFs and images{info && ` · ${info.fileCount} files`}

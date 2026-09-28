@@ -5,7 +5,7 @@ import { Extension, InputRule } from '@tiptap/core'
  * `||| ` (one pipe per extra column) starts a table, `>> ` starts a toggle.
  */
 export const BlockInputRules = Extension.create({
-  name: 'canvasclBlockInputRules',
+  name: 'sideraBlockInputRules',
   addInputRules() {
     return [
       new InputRule({

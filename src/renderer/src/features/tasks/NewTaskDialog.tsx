@@ -21,7 +21,7 @@ export interface NewTaskDefaults {
   card?: CardTarget
 }
 
-const TARGET_KEY = storageKey('canvascl.tasks.target')
+const TARGET_KEY = storageKey('sidera.tasks.target')
 const loadTarget = (): CardTarget => {
   try {
     const t = JSON.parse(localStorage.getItem(TARGET_KEY) ?? 'null') as CardTarget | null

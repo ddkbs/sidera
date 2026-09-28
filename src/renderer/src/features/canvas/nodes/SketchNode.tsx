@@ -5,7 +5,7 @@ import { cn } from '@/lib/utils'
 import type { ObjectNode } from '../types'
 import { Handles, Resizer } from './NodeChrome'
 
-export const EDIT_SKETCH_EVENT = 'canvascl:edit-sketch'
+export const EDIT_SKETCH_EVENT = 'sidera:edit-sketch'
 
 /** Freehand sketch (Excalidraw). Preview is a static SVG rendered as <img> so it can't run scripts. */
 export const SketchNode = memo(function SketchNode({ id, data, selected }: NodeProps<ObjectNode>) {

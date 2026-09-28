@@ -21,7 +21,7 @@ import { PropertyList } from './PropertyList'
 import { TagPicker } from './TagPicker'
 import { storageKey } from '@/lib/storage'
 
-const DOCK_KEY = storageKey('canvascl.card.dock')
+const DOCK_KEY = storageKey('sidera.card.dock')
 
 /**
  * The card window. By default a centered overlay (~900px) over the whole app; the

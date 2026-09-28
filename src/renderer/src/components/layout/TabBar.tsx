@@ -33,10 +33,10 @@ function TabItem({ id, view, index, active, closable }: { id: string; view: View
   return (
     <div
       draggable
-      onDragStart={(e) => e.dataTransfer.setData('application/x-canvascl-tab', String(index))}
-      onDragOver={(e) => e.dataTransfer.types.includes('application/x-canvascl-tab') && e.preventDefault()}
+      onDragStart={(e) => e.dataTransfer.setData('application/x-sidera-tab', String(index))}
+      onDragOver={(e) => e.dataTransfer.types.includes('application/x-sidera-tab') && e.preventDefault()}
       onDrop={(e) => {
-        const from = Number(e.dataTransfer.getData('application/x-canvascl-tab'))
+        const from = Number(e.dataTransfer.getData('application/x-sidera-tab'))
         if (!Number.isNaN(from) && from !== index) dispatch(moveTab({ from, to: index }))
       }}
       onMouseDown={(e) => {
