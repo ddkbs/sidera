@@ -185,7 +185,7 @@ describe('draw server', () => {
     expect(page.headers.get('referrer-policy')).toBe('no-referrer')
     expect(page.headers.get('x-frame-options')).toBe('DENY')
     expect(page.headers.get('access-control-allow-origin')).toBeNull()
-    for (const path of ['/', `/d/${s.sessionId.slice(0, -1)}A`, `/d/${s.sessionId}/other`, `/d/${s.sessionId}?x=1`, '/favicon.ico']) {
+    for (const path of ['/', `/d/${s.sessionId.slice(0, -1)}${s.sessionId.endsWith('A') ? 'B' : 'A'}`, `/d/${s.sessionId}/other`, `/d/${s.sessionId}?x=1`, '/favicon.ico']) {
       const r = await fetch(base + path)
       expect(r.status, path).toBe(404)
       expect(await r.text()).toBe('')

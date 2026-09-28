@@ -1,15 +1,16 @@
-import { Excalidraw, exportToSvg } from '@excalidraw/excalidraw'
+import { Excalidraw } from '@excalidraw/excalidraw'
 import '@excalidraw/excalidraw/index.css'
 import { useEffect, useRef, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog'
 import { useAppSelector } from '@/store'
+import { renderSketchPreviews, type SketchPreviews } from '../draw/toExcalidraw'
 
 type Api = Parameters<NonNullable<React.ComponentProps<typeof Excalidraw>['excalidrawAPI']>>[0]
 
 interface Props {
   initial: { elements?: unknown[]; files?: Record<string, unknown> }
-  onSave: (data: { elements: unknown[]; files: Record<string, unknown>; svg: string }) => void
+  onSave: (data: { elements: unknown[]; files: Record<string, unknown> } & SketchPreviews) => void
   onClose: () => void
 }
 
@@ -38,9 +39,11 @@ export default function SketchEditor({ initial, onSave, onClose }: Props) {
   const save = async () => {
     if (!api) return onClose()
     const elements = api.getSceneElements()
-    const files = api.getFiles()
-    const svg = await exportToSvg({ elements, files, appState: { exportBackground: false, exportWithDarkMode: false }, exportPadding: 16 })
-    onSave({ elements: [...elements], files: files as Record<string, unknown>, svg: svg.outerHTML })
+    // keep only files still used by an image (a deleted photo would otherwise stay in the object data forever)
+    const used = new Set(elements.flatMap((el) => (el.type === 'image' && el.fileId ? [el.fileId as string] : [])))
+    const files = Object.fromEntries(Object.entries(api.getFiles()).filter(([id]) => used.has(id))) as Record<string, unknown>
+    const previews = await renderSketchPreviews(elements, files)
+    onSave({ elements: [...elements], files, ...previews })
   }
 
   return (
