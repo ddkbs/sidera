@@ -39,6 +39,7 @@ export const COMMANDS: CommandDef[] = [
   { id: 'tool.text', scope: 'whiteboard', label: 'Text tool', group: 'Whiteboard tools', binding: 'T' },
   { id: 'tool.section', scope: 'whiteboard', label: 'Section tool', group: 'Whiteboard tools', binding: 'S' },
   { id: 'tool.search', scope: 'whiteboard', label: 'Add existing card', group: 'Whiteboard tools', binding: 'F' },
+  { id: 'tool.pen', scope: 'whiteboard', label: 'Pen (draw on the whiteboard)', group: 'Whiteboard tools', binding: 'P' },
   { id: 'canvas.fit', scope: 'whiteboard', label: 'Fit to screen', group: 'Whiteboard editing', binding: 'Shift+1' },
   { id: 'canvas.find', scope: 'whiteboard', label: 'Find on whiteboard', group: 'Whiteboard editing', binding: 'Mod+F', global: true },
   { id: 'canvas.copy', scope: 'whiteboard', label: 'Copy objects', group: 'Whiteboard editing', binding: 'Mod+C' },
