@@ -299,6 +299,28 @@ describe('draw server', () => {
     expect(b.states.at(-1)?.reason).toBe('heartbeat-timeout')
   })
 
+  it('does not treat a slow upload as silence', async () => {
+    const { s, states } = await startServer({ staleMs: 60, idleMs: 150, tickMs: 20 })
+    const c = client(s)
+    const token = (await c.send({ type: 'hello' })).token as string
+    const body = JSON.stringify(c.envelope({ type: 'ping', token }))
+    const status = await new Promise<number>((resolve, reject) => {
+      const req = request(
+        { host: '127.0.0.1', port: s.port, path: `/d/${c.sessionId}/api`, method: 'POST', headers: { 'content-type': 'application/json' } },
+        (res) => {
+          res.resume()
+          resolve(res.statusCode ?? 0)
+        }
+      )
+      req.on('error', reject)
+      req.write(body.slice(0, 20))
+      setTimeout(() => req.end(body.slice(20)), 400)
+    })
+    expect(status).toBe(200)
+    expect(s.closed).toBe(false)
+    expect(states.map((x) => x.state)).toEqual(['waiting', 'connected'])
+  })
+
   it('releases the port on close()', async () => {
     const { s } = await startServer()
     await s.close('cancelled')

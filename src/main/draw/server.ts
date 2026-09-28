@@ -109,6 +109,8 @@ export class DrawServer {
   private lastC2s = 0
   private s2c = 0
   private failures = 0
+  /** request bodies being received right now: a large upload is not "silence" (bounded by requestTimeout / maxMs) */
+  private uploading = 0
   private lastSeen = 0
   private startedAt = Date.now()
   private watchdog: NodeJS.Timeout | null = null
@@ -182,6 +184,7 @@ export class DrawServer {
       if (now - this.startedAt > this.timeouts.pairMs) void this.close('pairing-timeout')
       return
     }
+    if (this.uploading > 0) return
     const silent = now - this.lastSeen
     if (silent > this.timeouts.idleMs) void this.close('heartbeat-timeout')
     else if (silent > this.timeouts.staleMs && this.state === 'connected') this.setState('disconnected')
@@ -201,7 +204,13 @@ export class DrawServer {
     }
     if (req.method !== 'POST') throw new HttpError(405)
     if (!/^application\/json\b/i.test(req.headers['content-type'] ?? '')) throw new HttpError(415)
-    const body = await readBody(req, DRAW_MAX_BODY_BYTES)
+    this.uploading++
+    let body: string
+    try {
+      body = await readBody(req, DRAW_MAX_BODY_BYTES)
+    } finally {
+      this.uploading--
+    }
     let msg: Message
     try {
       msg = open(this.key, this.sessionId, 'c2s', JSON.parse(body))
@@ -298,5 +307,7 @@ function readBody(req: IncomingMessage, max: number): Promise<string> {
     })
     req.on('end', () => resolve(Buffer.concat(chunks).toString('utf8')))
     req.on('error', reject)
+    // client went away mid-body (no-op once resolved)
+    req.on('close', () => reject(new HttpError(400)))
   })
 }
