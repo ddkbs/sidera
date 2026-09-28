@@ -574,7 +574,11 @@ stage.addEventListener('pointerdown', (e) => {
     if ((e.width || 0) > PALM_SIZE || (e.height || 0) > PALM_SIZE) return
   } else if (e.pointerType === 'mouse' && e.button !== 0) return
   if (current || erasing) return
-  stage.setPointerCapture(e.pointerId)
+  try {
+    stage.setPointerCapture(e.pointerId)
+  } catch {
+    // pointer already gone (or synthetic): draw without capture
+  }
   startStroke(e)
 })
 

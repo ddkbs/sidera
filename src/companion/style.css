@@ -265,15 +265,17 @@ svg {
 .toolbar {
   position: absolute;
   z-index: 10;
-  left: 50%;
+  /* centred without translate so the shrink-to-fit width can use the whole screen */
+  left: 12px;
+  right: 12px;
+  width: fit-content;
+  margin-inline: auto;
   bottom: calc(16px + env(safe-area-inset-bottom));
-  transform: translateX(-50%);
   display: flex;
   flex-wrap: wrap;
   justify-content: center;
   align-items: center;
   gap: 4px;
-  max-width: calc(100vw - 24px);
   padding: 5px;
   border: 1px solid var(--border);
   border-radius: 18px;
@@ -487,10 +489,11 @@ svg {
 .toast {
   position: absolute;
   z-index: 30;
-  left: 50%;
+  left: 16px;
+  right: 16px;
+  width: fit-content;
+  margin-inline: auto;
   bottom: calc(86px + env(safe-area-inset-bottom));
-  transform: translateX(-50%);
-  max-width: calc(100vw - 32px);
   padding: 9px 14px;
   border-radius: 12px;
   background: var(--primary);
