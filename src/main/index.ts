@@ -22,7 +22,8 @@ import { AccountRegistry, type StoredAccount } from './accounts'
 import { applyCaptureShortcut, hideCaptureWindow, showCaptureWindow, teardownCapture, toAccelerator } from './capture'
 import { createTray, destroyTray } from './tray'
 import { DB_FILENAME, migrateDbFilename } from './db/client'
-import { addToClaudeCode, addToClaudeDesktop, isInClaudeCode, isInClaudeDesktop } from './integrations'
+import { addToClaudeCode, addToClaudeDesktop, claudeDesktopConfigPath, isInClaudeCode, isInClaudeDesktop } from './integrations'
+import { migrateUserData } from './userDataMigration'
 import { listModels as listOpenAiModels } from './ai/openaiCompatible'
 import { registerIpc } from './ipc'
 import { startStdioMcp } from './mcp/server'
@@ -30,10 +31,9 @@ import { Session } from './session'
 import { hardenWindow, rendererUrl } from './windowSecurity'
 
 const STDIO = process.argv.includes('--mcp-stdio')
-// The data folder stays at its pre-rename location (the app's old name, "CanvasCL") so the Sidera rename
-// never moves anyone's data; set before setName, which would otherwise derive userData from the new name.
-// This literal is intentionally legacy — never rename it.
-app.setPath('userData', join(app.getPath('appData'), 'CanvasCL'))
+// Moves the pre-rename `CanvasCL` folder to `Sidera` once (before anything opens it); keeps using the old
+// folder only if that move isn't possible.
+app.setPath('userData', migrateUserData(app.getPath('appData'), APP_NAME, claudeDesktopConfigPath()))
 app.setName(APP_NAME)
 /** Dev/test escape hatch: open this folder directly, no accounts, no sign-in screen (devShot, tests, stdio). */
 const DEV_DATA_DIR = process.env.SIDERA_DATA_DIR

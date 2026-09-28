@@ -49,7 +49,7 @@ alongside you.
   wiped on sign-out. No cloud account, ever.
 - **Guided onboarding** — welcome slides and a spotlight tour to get to a first whiteboard in under two
   minutes.
-- **Local-first** — everything lives in `~/Library/Application Support/CanvasCL/` (SQLite + imported files);
+- **Local-first** — everything lives in `~/Library/Application Support/Sidera/` (SQLite + imported files);
   Markdown export/import any time.
 
 ## Screenshots
@@ -145,7 +145,7 @@ Electron · electron-vite · React · TypeScript · Tailwind v4 · shadcn/ui · 
 ## Privacy
 
 Sidera is local-first: your database and imported files live in
-`~/Library/Application Support/CanvasCL/` and never touch a server unless you explicitly connect an AI
+`~/Library/Application Support/Sidera/` and never touch a server unless you explicitly connect an AI
 provider or MCP client. Accounts are local (scrypt-hashed passwords, no cloud sync); guest workspaces are
 ephemeral and deleted on sign-out. Bring your own Anthropic/OpenAI API key for the in-app assistant — it's
 stored encrypted with the macOS Keychain.
