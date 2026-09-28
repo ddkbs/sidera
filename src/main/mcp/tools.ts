@@ -12,6 +12,12 @@ const ok = (value: unknown) => ({
   content: [{ type: 'text' as const, text: typeof value === 'string' ? value : JSON.stringify(value, null, 2) }]
 })
 
+/** Compact description of a sketch object's data (element / image counts instead of the raw scene). */
+function sketchSummary(data: Record<string, unknown>): Record<string, unknown> {
+  const elements = Array.isArray(data.elements) ? (data.elements as { type?: unknown; isDeleted?: unknown }[]).filter((e) => e && !e.isDeleted) : []
+  return { elements: elements.length, images: elements.filter((e) => e.type === 'image').length }
+}
+
 /** Builds an MCP server exposing Sidera's knowledge base. Every tool delegates to services. */
 export type ToolCallListener = (tool: string, args: Record<string, unknown>) => void
 
@@ -270,7 +276,12 @@ export function createMcpServer(api: Services, version: string, onCall?: ToolCal
       if (!wb) return { ...ok(`Whiteboard ${whiteboard_id} not found`), isError: true }
       return ok({
         ...wb,
-        objects: wb.objects.map((o) => ({ ...o, title: o.kind === 'card' && o.refId ? wb.cards[o.refId]?.title : undefined })),
+        objects: wb.objects.map((o) => ({
+          ...o,
+          // sketches hold Excalidraw scenes, SVG previews and embedded photos (megabytes of base64): summarise them
+          ...(o.kind === 'sketch' ? { data: sketchSummary(o.data) } : {}),
+          title: o.kind === 'card' && o.refId ? wb.cards[o.refId]?.title : undefined
+        })),
         cards: undefined
       })
     }

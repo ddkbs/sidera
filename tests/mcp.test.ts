@@ -41,6 +41,19 @@ describe('mcp', () => {
     expect(names).toEqual(expect.arrayContaining(['search_cards', 'create_card', 'add_card_to_whiteboard', 'move_kanban_item']))
   })
 
+  it('summarises sketch objects instead of dumping scenes and embedded images', async () => {
+    const { api, call } = await connect()
+    const wb = await call('create_whiteboard', { name: 'Sketches' })
+    const data = {
+      elements: [{ type: 'freedraw' }, { type: 'image', fileId: 'f' }, { type: 'line', isDeleted: true }],
+      files: { f: { dataURL: `data:image/png;base64,${'A'.repeat(1000)}` } },
+      svg: '<svg/>'
+    }
+    await api.addObject({ whiteboardId: wb.id, kind: 'sketch', x: 0, y: 0, data })
+    const got = await call('get_whiteboard', { whiteboard_id: wb.id })
+    expect(got.objects[0].data).toEqual({ elements: 2, images: 1 })
+  })
+
   it('creates, searches, places and moves cards', async () => {
     const { call } = await connect()
     const card = await call('create_card', { title: 'Ship MCP', markdown: 'Expose **tools**', tags: ['Roadmap'] })

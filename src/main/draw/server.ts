@@ -109,6 +109,8 @@ export class DrawServer {
   private lastC2s = 0
   private s2c = 0
   private failures = 0
+  /** request bodies being received right now: a large upload is not "silence" (bounded by requestTimeout / maxMs) */
+  private uploading = 0
   private lastSeen = 0
   private startedAt = Date.now()
   private watchdog: NodeJS.Timeout | null = null
@@ -122,7 +124,8 @@ export class DrawServer {
     this.timeouts = { ...DEFAULT_TIMEOUTS, ...opts.timeouts }
     this.headers = companionHeaders(opts.html)
     this.log = opts.log ?? ((m) => console.log(`[sidera-draw] ${m}`))
-    this.server = createServer({ requestTimeout: 30_000, headersTimeout: 10_000, keepAliveTimeout: 5_000, maxHeaderSize: 8192 }, (req, res) =>
+    // generous request timeout: a drawing with photos can be tens of MB over slow Wi-Fi (the body cap still applies)
+    this.server = createServer({ requestTimeout: 180_000, headersTimeout: 10_000, keepAliveTimeout: 5_000, maxHeaderSize: 8192 }, (req, res) =>
       void this.handle(req, res).catch((e) => this.fail(res, e))
     )
     this.server.on('clientError', (_e, socket) => socket.destroy())
@@ -181,6 +184,7 @@ export class DrawServer {
       if (now - this.startedAt > this.timeouts.pairMs) void this.close('pairing-timeout')
       return
     }
+    if (this.uploading > 0) return
     const silent = now - this.lastSeen
     if (silent > this.timeouts.idleMs) void this.close('heartbeat-timeout')
     else if (silent > this.timeouts.staleMs && this.state === 'connected') this.setState('disconnected')
@@ -200,7 +204,13 @@ export class DrawServer {
     }
     if (req.method !== 'POST') throw new HttpError(405)
     if (!/^application\/json\b/i.test(req.headers['content-type'] ?? '')) throw new HttpError(415)
-    const body = await readBody(req, DRAW_MAX_BODY_BYTES)
+    this.uploading++
+    let body: string
+    try {
+      body = await readBody(req, DRAW_MAX_BODY_BYTES)
+    } finally {
+      this.uploading--
+    }
     let msg: Message
     try {
       msg = open(this.key, this.sessionId, 'c2s', JSON.parse(body))
@@ -248,7 +258,7 @@ export class DrawServer {
       } catch (e) {
         return { type: 'error', error: 'invalid-drawing', message: (e as Error).message }
       }
-      this.log(`drawing received (${drawing.strokes.length} strokes)`)
+      this.log(`drawing received (${drawing.strokes.length} strokes, ${drawing.images?.length ?? 0} images)`)
       this.opts.onReceived(drawing, this.sessionId)
       this.setState('received')
       this.closeAfterReply = 'received'
@@ -297,5 +307,7 @@ function readBody(req: IncomingMessage, max: number): Promise<string> {
     })
     req.on('end', () => resolve(Buffer.concat(chunks).toString('utf8')))
     req.on('error', reject)
+    // client went away mid-body (no-op once resolved)
+    req.on('close', () => reject(new HttpError(400)))
   })
 }

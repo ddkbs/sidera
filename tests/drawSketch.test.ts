@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { sketchNodeSize, strokesToSkeletons } from '../src/renderer/src/features/draw/sketch'
+import { drawingBounds, drawingToSkeletons, sketchNodeSize, strokesToSkeletons } from '../src/renderer/src/features/draw/sketch'
 import { FREEDRAW_DIAMETER_PER_STROKE_WIDTH, type DrawSubmission } from '../src/shared/drawProtocol'
 
 const drawing: DrawSubmission = {
@@ -49,5 +49,36 @@ describe('iPad strokes → Excalidraw skeletons', () => {
     expect(wide.width / wide.height).toBeCloseTo(2050 / 550, 1)
     const tiny = sketchNodeSize({ width: 1, height: 1, strokes: [{ tool: 'pen', color: '#000000', width: 2, opacity: 1, points: [[0, 0, 0.5], [10, 10, 0.5]] }] })
     expect(tiny).toEqual({ width: 160, height: 120 })
+  })
+})
+
+describe('iPad images → Excalidraw image elements', () => {
+  const png = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg=='
+  const withImages: DrawSubmission = {
+    ...drawing,
+    images: [
+      { id: 'top', mime: 'image/png', data: png, x: 900, y: -50, width: 200, height: 100, strokesBelow: 4 },
+      { id: 'bottom', mime: 'image/jpeg', data: '/9j/4AAQ', x: 10, y: 20, width: 50, height: 40, strokesBelow: 0 },
+      { id: 'mid', mime: 'image/webp', data: 'UklGRg==', x: 0, y: 0, width: 10, height: 10, strokesBelow: 2 }
+    ]
+  }
+
+  it('interleaves images with strokes in their stacking order and builds the files map', () => {
+    const { skeletons, files } = drawingToSkeletons(withImages, 123)
+    expect(skeletons.map((s) => (s.type === 'image' ? s.fileId : s.type))).toEqual(['ipad-bottom', 'freedraw', 'line', 'ipad-mid', 'freedraw', 'freedraw', 'ipad-top'])
+    expect(skeletons.at(-1)).toMatchObject({ type: 'image', x: 900, y: -50, width: 200, height: 100, status: 'saved', scale: [1, 1] })
+    expect(files['ipad-top']).toEqual({ id: 'ipad-top', mimeType: 'image/png', dataURL: `data:image/png;base64,${png}`, created: 123 })
+    expect(Object.keys(files)).toHaveLength(3)
+    // no images → unchanged
+    expect(drawingToSkeletons(drawing).skeletons.every((s) => s.type !== 'image')).toBe(true)
+  })
+
+  it('includes images in the bounds and node size', () => {
+    const b = drawingBounds(withImages)!
+    expect(b.minX).toBe(0)
+    expect(b.minY).toBe(-50)
+    expect(b.minX + b.width).toBe(1100)
+    const onlyImage = sketchNodeSize({ width: 1, height: 1, strokes: [], images: [withImages.images![0]] })
+    expect(onlyImage.width / onlyImage.height).toBeCloseTo((200 + 48) / (100 + 48), 1)
   })
 })

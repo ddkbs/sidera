@@ -1,9 +1,11 @@
-import { FREEDRAW_DIAMETER_PER_STROKE_WIDTH, pressureFactor, type DrawStroke, type DrawSubmission } from '@shared/drawProtocol'
+import { FREEDRAW_DIAMETER_PER_STROKE_WIDTH, pressureFactor, type DrawImage, type DrawStroke, type DrawSubmission } from '@shared/drawProtocol'
 
 /**
  * Pure part of the iPad → Excalidraw conversion (unit-tested in Node): every stroke becomes a native Excalidraw
  * element skeleton, so the sketch stays fully editable on the Mac — freehand strokes are `freedraw` elements with
  * their real pencil pressures, snapped straight strokes are two-point `line` elements whose ends can be dragged.
+ * Photos become `image` elements backed by the sketch's `files` map (same coordinates as the strokes, no transform),
+ * interleaved with the strokes in the order they were stacked on the iPad.
  * `toExcalidraw.ts` feeds these through Excalidraw's own helpers (convertToExcalidrawElements / restoreElements).
  */
 
@@ -41,6 +43,28 @@ export interface LineSkeleton extends Common {
 }
 
 export type SketchSkeleton = FreedrawSkeleton | LineSkeleton
+
+export interface ImageSkeleton {
+  type: 'image'
+  x: number
+  y: number
+  width: number
+  height: number
+  fileId: string
+  status: 'saved'
+  scale: [1, 1]
+  locked: false
+  opacity: 100
+  angle: 0
+}
+
+/** Entry of an Excalidraw `files` map (BinaryFileData). */
+export interface SketchFile {
+  id: string
+  mimeType: string
+  dataURL: string
+  created: number
+}
 
 const r2 = (n: number): number => Math.round(n * 100) / 100
 const seed = (): number => Math.floor(Math.random() * 2 ** 31)
@@ -91,7 +115,30 @@ export function strokesToSkeletons(drawing: DrawSubmission): SketchSkeleton[] {
   return drawing.strokes.map(strokeToSkeleton)
 }
 
-/** Bounding box of the drawn ink (stroke widths included). */
+const imageFileId = (img: DrawImage): string => `ipad-${img.id}`
+
+/**
+ * Every stroke and image as element skeletons in stacking order (first = bottom), plus the `files` map the image
+ * elements point to. An image with `strokesBelow = n` sits above the first n strokes and below the rest.
+ */
+export function drawingToSkeletons(drawing: DrawSubmission, now = Date.now()): { skeletons: (SketchSkeleton | ImageSkeleton)[]; files: Record<string, SketchFile> } {
+  const strokes = strokesToSkeletons(drawing)
+  const images = drawing.images ?? []
+  const files: Record<string, SketchFile> = {}
+  const imageAt = (img: DrawImage): ImageSkeleton => {
+    const fileId = imageFileId(img)
+    files[fileId] = { id: fileId, mimeType: img.mime, dataURL: `data:${img.mime};base64,${img.data}`, created: now }
+    return { type: 'image', x: r2(img.x), y: r2(img.y), width: r2(img.width), height: r2(img.height), fileId, status: 'saved', scale: [1, 1], locked: false, opacity: 100, angle: 0 }
+  }
+  const skeletons: (SketchSkeleton | ImageSkeleton)[] = []
+  for (let i = 0; i <= strokes.length; i++) {
+    for (const img of images) if (Math.min(img.strokesBelow ?? 0, strokes.length) === i) skeletons.push(imageAt(img))
+    if (i < strokes.length) skeletons.push(strokes[i])
+  }
+  return { skeletons, files }
+}
+
+/** Bounding box of the drawn ink (stroke widths included) and the placed images. */
 export function drawingBounds(drawing: DrawSubmission): { minX: number; minY: number; width: number; height: number } | null {
   let minX = Infinity
   let minY = Infinity
@@ -105,6 +152,12 @@ export function drawingBounds(drawing: DrawSubmission): { minX: number; minY: nu
       maxX = Math.max(maxX, x + half)
       maxY = Math.max(maxY, y + half)
     }
+  }
+  for (const img of drawing.images ?? []) {
+    minX = Math.min(minX, img.x)
+    minY = Math.min(minY, img.y)
+    maxX = Math.max(maxX, img.x + img.width)
+    maxY = Math.max(maxY, img.y + img.height)
   }
   return Number.isFinite(minX) ? { minX, minY, width: maxX - minX, height: maxY - minY } : null
 }

@@ -1,7 +1,20 @@
+import { request } from 'node:http'
 import { afterEach, describe, expect, it } from 'vitest'
 import { DrawServer, MAX_AUTH_FAILURES, companionHeaders, type DrawTimeouts } from '../src/main/draw/server'
 import { isPrivateIPv4, lanInterfaces } from '../src/main/draw/network'
-import { fromB64u, open, seal, toB64u, validateSubmission, type DrawSubmission, type Envelope, type Message } from '../src/shared/drawProtocol'
+import {
+  DRAW_LIMITS,
+  DRAW_MAX_BODY_BYTES,
+  fromB64u,
+  open,
+  seal,
+  toB64u,
+  validateSubmission,
+  type DrawImage,
+  type DrawSubmission,
+  type Envelope,
+  type Message
+} from '../src/shared/drawProtocol'
 import type { DrawState } from '../src/shared/draw'
 
 const HTML = '<!doctype html><html><head><style>body{margin:0}</style></head><body><script>console.log(1)</script></body></html>'
@@ -63,6 +76,17 @@ const drawing: DrawSubmission = {
   ]
 }
 
+/** a real 1×1 PNG */
+const PNG_B64 = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg=='
+const b64 = (bytes: number[], pad = 0): string => Buffer.concat([Buffer.from(bytes), Buffer.alloc(pad)]).toString('base64')
+const JPEG_B64 = b64([0xff, 0xd8, 0xff, 0xe0, 0, 0x10, 0x4a, 0x46, 0x49, 0x46], 30)
+const WEBP_B64 = b64([0x52, 0x49, 0x46, 0x46, 0x24, 0, 0, 0, 0x57, 0x45, 0x42, 0x50, 0x56, 0x50, 0x38, 0x20], 30)
+const image: DrawImage = { id: 'img_1', mime: 'image/png', data: PNG_B64, x: 40, y: 60, width: 300, height: 200, strokesBelow: 1 }
+const withImages: DrawSubmission = {
+  ...drawing,
+  images: [image, { ...image, id: 'img-2', mime: 'image/jpeg', data: JPEG_B64 }, { ...image, id: 'Img3', mime: 'image/webp', data: WEBP_B64, strokesBelow: undefined }]
+}
+
 const refused = async (s: DrawServer): Promise<boolean> => {
   try {
     await fetch(`http://127.0.0.1:${s.port}/d/${s.sessionId}`)
@@ -106,6 +130,44 @@ describe('draw protocol', () => {
     const clean = validateSubmission({ ...drawing, evil: 1, strokes: [{ ...drawing.strokes[0], __proto__x: 1 }] })
     expect(Object.keys(clean.strokes[0])).not.toContain('__proto__x')
   })
+
+  it('validates images strictly', () => {
+    const ok = validateSubmission(withImages)
+    expect(ok.images).toHaveLength(3)
+    expect(ok.images![2].strokesBelow).toBe(0)
+    expect(validateSubmission(drawing).images).toEqual([])
+    const bad = (patch: Record<string, unknown>) => () => validateSubmission({ ...drawing, images: [{ ...image, ...patch }] })
+    // wrong / unsupported types and mismatching magic bytes
+    expect(bad({ mime: 'image/gif' })).toThrow(/type/)
+    expect(bad({ mime: 'image/svg+xml' })).toThrow(/type/)
+    expect(bad({ mime: 'image/jpeg' })).toThrow(/does not match/)
+    expect(bad({ mime: 'image/webp', data: JPEG_B64 })).toThrow(/does not match/)
+    expect(bad({ data: b64([0x3c, 0x73, 0x76, 0x67], 20) })).toThrow(/does not match/)
+    // malformed data
+    expect(bad({ data: 'data:image/png;base64,' + PNG_B64 })).toThrow(/data/)
+    expect(bad({ data: PNG_B64.slice(0, -1) })).toThrow(/data/)
+    expect(bad({ data: 42 })).toThrow(/data/)
+    // oversize: one image, and all of them together
+    const big = PNG_B64.slice(0, 12) + 'A'.repeat(Math.ceil(DRAW_LIMITS.maxImageBytes / 3) * 4 - 12)
+    expect(bad({ data: big })).toThrow(/data|too large/)
+    const nearCap = PNG_B64.slice(0, 12) + 'A'.repeat(Math.floor((DRAW_LIMITS.maxImageBytes - 1024) / 3) * 4 - 12)
+    expect(() => validateSubmission({ ...drawing, images: [0, 1, 2, 3].map((i) => ({ ...image, id: `a${i}`, data: nearCap })) })).not.toThrow()
+    expect(() => validateSubmission({ ...drawing, images: [0, 1, 2, 3, 4, 5].map((i) => ({ ...image, id: `a${i}`, data: nearCap })) })).toThrow(/images too large/)
+    // count, ids, bounds, order
+    expect(() => validateSubmission({ ...drawing, images: Array.from({ length: 21 }, (_, i) => ({ ...image, id: `i${i}` })) })).toThrow(/too many images/)
+    expect(() => validateSubmission({ ...drawing, images: [image, image] })).toThrow(/id/)
+    expect(bad({ id: '../x' })).toThrow(/id/)
+    expect(bad({ id: '' })).toThrow(/id/)
+    expect(bad({ x: Infinity })).toThrow(/bounds/)
+    expect(bad({ width: 0 })).toThrow(/bounds/)
+    expect(bad({ height: 1e9 })).toThrow(/bounds/)
+    expect(bad({ y: '1' })).toThrow(/bounds/)
+    expect(bad({ strokesBelow: 4 })).toThrow(/order/)
+    expect(bad({ strokesBelow: 0.5 })).toThrow(/order/)
+    expect(() => validateSubmission({ ...drawing, images: {} })).toThrow(/images/)
+    // unknown keys are dropped
+    expect(Object.keys(validateSubmission({ ...drawing, images: [{ ...image, onload: 'x' }] }).images![0])).not.toContain('onload')
+  })
 })
 
 describe('draw server', () => {
@@ -123,7 +185,7 @@ describe('draw server', () => {
     expect(page.headers.get('referrer-policy')).toBe('no-referrer')
     expect(page.headers.get('x-frame-options')).toBe('DENY')
     expect(page.headers.get('access-control-allow-origin')).toBeNull()
-    for (const path of ['/', `/d/${s.sessionId.slice(0, -1)}A`, `/d/${s.sessionId}/other`, `/d/${s.sessionId}?x=1`, '/favicon.ico']) {
+    for (const path of ['/', `/d/${s.sessionId.slice(0, -1)}${s.sessionId.endsWith('A') ? 'B' : 'A'}`, `/d/${s.sessionId}/other`, `/d/${s.sessionId}?x=1`, '/favicon.ico']) {
       const r = await fetch(base + path)
       expect(r.status, path).toBe(404)
       expect(await r.text()).toBe('')
@@ -177,6 +239,44 @@ describe('draw server', () => {
     expect(await refused(s)).toBe(true)
   })
 
+  it('accepts a drawing with images and rejects invalid images without closing', async () => {
+    const { s, received } = await startServer()
+    const c = client(s)
+    const token = (await c.send({ type: 'hello' })).token as string
+    const wrong = await c.send({ type: 'submit', token, drawing: { ...withImages, images: [{ ...image, mime: 'image/webp' }] } })
+    expect(wrong).toMatchObject({ type: 'error', error: 'invalid-drawing' })
+    expect(s.closed).toBe(false)
+    expect(await c.send({ type: 'submit', token, drawing: withImages })).toMatchObject({ type: 'ok', done: true })
+    expect(received).toHaveLength(1)
+    expect(received[0].images!.map((i) => i.id)).toEqual(['img_1', 'img-2', 'Img3'])
+    expect(received[0].images![0].data).toBe(PNG_B64)
+  })
+
+  it('refuses oversized bodies (declared or streamed) before decrypting', async () => {
+    const { s } = await startServer()
+    const path = `/d/${s.sessionId}/api`
+    const status = (headers: Record<string, string | number>, body?: (write: (b: Buffer) => boolean) => void): Promise<number | 'reset'> =>
+      new Promise((resolve) => {
+        const req = request({ host: '127.0.0.1', port: s.port, path, method: 'POST', headers: { 'content-type': 'application/json', ...headers } }, (res) => {
+          res.resume()
+          resolve(res.statusCode ?? 0)
+        })
+        req.on('error', () => resolve('reset'))
+        if (body) body((b) => req.write(b))
+        req.end()
+      })
+    // the server drops the socket as soon as the cap is exceeded, so the client sees a 413 or a reset
+    expect([413, 'reset']).toContain(await status({ 'content-length': DRAW_MAX_BODY_BYTES + 1 }))
+    const chunk = Buffer.alloc(1024 * 1024, 0x61)
+    const streamed = await status({ 'transfer-encoding': 'chunked' }, (write) => {
+      for (let i = 0; i <= DRAW_MAX_BODY_BYTES / chunk.length; i++) write(chunk)
+    })
+    expect([413, 'reset']).toContain(streamed)
+    // the session itself survives (an oversized body is not an authenticated message)
+    expect(s.closed).toBe(false)
+    expect((await client(s).send({ type: 'hello' })).type).toBe('ok')
+  })
+
   it('closes after too many authentication failures', async () => {
     const { s, states } = await startServer()
     const intruder = client(s, new Uint8Array(32).fill(3))
@@ -197,6 +297,28 @@ describe('draw server', () => {
     await new Promise((r) => setTimeout(r, 400))
     expect(b.states.map((x) => x.state)).toEqual(['waiting', 'connected', 'disconnected', 'closed'])
     expect(b.states.at(-1)?.reason).toBe('heartbeat-timeout')
+  })
+
+  it('does not treat a slow upload as silence', async () => {
+    const { s, states } = await startServer({ staleMs: 60, idleMs: 150, tickMs: 20 })
+    const c = client(s)
+    const token = (await c.send({ type: 'hello' })).token as string
+    const body = JSON.stringify(c.envelope({ type: 'ping', token }))
+    const status = await new Promise<number>((resolve, reject) => {
+      const req = request(
+        { host: '127.0.0.1', port: s.port, path: `/d/${c.sessionId}/api`, method: 'POST', headers: { 'content-type': 'application/json' } },
+        (res) => {
+          res.resume()
+          resolve(res.statusCode ?? 0)
+        }
+      )
+      req.on('error', reject)
+      req.write(body.slice(0, 20))
+      setTimeout(() => req.end(body.slice(20)), 400)
+    })
+    expect(status).toBe(200)
+    expect(s.closed).toBe(false)
+    expect(states.map((x) => x.state)).toEqual(['waiting', 'connected'])
   })
 
   it('releases the port on close()', async () => {

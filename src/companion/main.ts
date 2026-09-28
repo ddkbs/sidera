@@ -4,8 +4,21 @@
  * with the key from the URL fragment (see src/shared/drawProtocol.ts).
  */
 import { APP_NAME } from '../shared/brand'
-import { DRAW_HEARTBEAT_MS, fromB64u, open, seal, type DrawStroke, type DrawSubmission, type Message } from '../shared/drawProtocol'
-import { average, hitsStroke, isRoughlyStraight, pressureFactor, type Pt } from './geometry'
+import {
+  base64Bytes,
+  DRAW_HEARTBEAT_MS,
+  DRAW_LIMITS,
+  fromB64u,
+  open,
+  seal,
+  type DrawImage,
+  type DrawImageMime,
+  type DrawStroke,
+  type DrawSubmission,
+  type Message
+} from '../shared/drawProtocol'
+import { average, contains, corners, darkInk, fitSize, hitsStroke, isRoughlyStraight, pressureFactor, resizeFromCorner, type Pt, type Rect } from './geometry'
+import { encodeImage, imageFromBase64, imageStore } from './images'
 
 // ─── elements ───────────────────────────────────────────────────────────────────────────────────────
 
@@ -20,7 +33,7 @@ const statusBtn = $<HTMLButtonElement>('status')
 
 // ─── palette ────────────────────────────────────────────────────────────────────────────────────────
 
-type Tool = 'pen' | 'highlighter' | 'eraser'
+type Tool = 'select' | 'pen' | 'highlighter' | 'eraser'
 const COLORS: Record<'pen' | 'highlighter', { name: string; hex: string }[]> = {
   pen: [
     { name: 'Ink', hex: '#1e1e1e' },
@@ -45,6 +58,9 @@ const ERASER_RADIUS = 12
 const HOLD_MS = 500
 const HOLD_SLOP = 4
 const PALM_SIZE = 44
+/** grab radius of an image's corner handle (screen px; generous for fingers) */
+const HANDLE_HIT = 24
+const HANDLE_R = 7
 
 type FingerMode = 'auto' | 'on' | 'off'
 
@@ -60,12 +76,29 @@ const ui = {
 const sessionId = location.pathname.split('/')[2] ?? ''
 const STORE_KEY = `sidera-draw:v1:${sessionId}`
 
+/** An inserted photo. Its pixels live in `pixels` (and IndexedDB), so undo snapshots and sessionStorage stay small. */
+interface ImageItem {
+  kind: 'image'
+  id: string
+  mime: DrawImageMime
+  x: number
+  y: number
+  width: number
+  height: number
+}
+/** The drawing, bottom to top: strokes drawn after an image appear above it. */
+type Item = DrawStroke | ImageItem
+const isImage = (it: Item): it is ImageItem => (it as ImageItem).kind === 'image'
+const isStroke = (it: Item): it is DrawStroke => !isImage(it)
+
 interface Saved {
   k: string
   t?: string
   s?: number
   r?: number
+  /** before images existed */
   strokes?: DrawStroke[]
+  items?: Item[]
   sent?: boolean
 }
 
@@ -93,23 +126,34 @@ try {
 let token = saved?.k === keyB64 ? saved?.t : undefined
 let seq = Math.max(saved?.s ?? 0, Date.now())
 let lastS2c = saved?.r ?? 0
-let strokes: DrawStroke[] = saved?.k === keyB64 ? (saved?.strokes ?? []) : []
+let items: Item[] = saved?.k === keyB64 ? (saved?.items ?? saved?.strokes ?? []) : []
 let sent = saved?.sent === true
 
+/** image id → encoded bytes (what gets sent) + something drawable; kept while any undo snapshot may refer to it */
+const pixels = new Map<string, { mime: DrawImageMime; data: string; source: CanvasImageSource | null }>()
+
 let saveTimer = 0
+let storageWarned = false
 function persist(now = false): void {
   const write = (): void => {
     saveTimer = 0
     if (!keyB64) return
     try {
-      sessionStorage.setItem(STORE_KEY, JSON.stringify({ k: keyB64, t: token, s: seq, r: lastS2c, strokes, sent } satisfies Saved))
+      sessionStorage.setItem(STORE_KEY, JSON.stringify({ k: keyB64, t: token, s: seq, r: lastS2c, items, sent } satisfies Saved))
     } catch {
       // storage full: the drawing still exists in memory
+      warnStorage()
     }
   }
   clearTimeout(saveTimer)
   if (now) write()
   else saveTimer = window.setTimeout(write, 300)
+}
+
+function warnStorage(): void {
+  if (storageWarned) return
+  storageWarned = true
+  toast('This iPad couldn’t save a backup of the drawing — it’s kept while this tab stays open.')
 }
 
 // ─── transport ──────────────────────────────────────────────────────────────────────────────────────
@@ -223,27 +267,64 @@ function onNetworkError(e: unknown): void {
   } else if (conn === 'connected' && failures >= 2) setConn('offline')
 }
 
+/** The wire payload: strokes in order, images with the number of strokes stacked below them. */
+function submission(): DrawSubmission | null {
+  const strokes: DrawStroke[] = []
+  const images: DrawImage[] = []
+  for (const it of items) {
+    if (isStroke(it)) {
+      strokes.push(it)
+      continue
+    }
+    const px = pixels.get(it.id)
+    if (!px) return null
+    images.push({ id: it.id, mime: px.mime, data: px.data, x: round(it.x), y: round(it.y), width: round(it.width), height: round(it.height), strokesBelow: strokes.length })
+  }
+  return { width: Math.round(stage.clientWidth), height: Math.round(stage.clientHeight), strokes, images }
+}
+
+let sending = false
+/** the Mac answered but refused the drawing (e.g. validation) */
+class Refused extends Error {}
+
 async function send(): Promise<void> {
-  if (!strokes.length || conn !== 'connected') return
+  if (!items.length || conn !== 'connected' || sending) return
+  const drawing = submission()
+  if (!drawing) return toast('Images are still loading — try again in a moment.')
+  sending = true
+  select(null)
+  const bytes = (drawing.images ?? []).reduce((n, i) => n + i.data.length, 0)
+  const mb = bytes / (1024 * 1024)
   sendBtn.disabled = true
-  $('send-text').textContent = 'Sending…'
-  const drawing: DrawSubmission = { width: Math.round(stage.clientWidth), height: Math.round(stage.clientHeight), strokes }
+  sendBtn.dataset.busy = 'true'
+  $('send-text').textContent = mb >= 1 ? `Sending ${mb.toFixed(1)} MB…` : 'Sending…'
+  // no heartbeat while uploading: a ping overtaking a slow submit would make the submit look replayed
+  clearInterval(heartbeat)
   try {
-    const r = await call({ type: 'submit', drawing }, 60_000)
-    if (r.type !== 'ok') throw new Error(typeof r.message === 'string' ? r.message : String(r.error))
+    // envelope ≈ 4/3 of the JSON; allow ~150 KB/s on a poor Wi-Fi link (the Mac waits up to 180 s)
+    const r = await call({ type: 'submit', drawing }, Math.min(170_000, Math.max(60_000, (bytes * 4) / 3 / 150)))
+    if (r.type !== 'ok') throw new Refused(typeof r.message === 'string' ? r.message : String(r.error))
     sent = true
-    clearInterval(heartbeat)
     try {
       sessionStorage.removeItem(STORE_KEY)
     } catch {
       /* ignore */
     }
+    void imageStore.prune(sessionId, true)
     setConn('sent')
     showOverlay('check', `Sent to ${APP_NAME}`, 'Your drawing is on the whiteboard. You can close this tab.', 'ok')
   } catch (e) {
-    onNetworkError(e)
-    toast((conn as Conn) === 'closed' ? 'The session has closed — your drawing was not sent.' : `Couldn’t reach ${APP_NAME}. Check your Wi-Fi and try again.`)
+    if (e instanceof Refused) {
+      // the Mac answered but refused the drawing (e.g. validation): the connection itself is fine
+      toast(`${APP_NAME} couldn’t accept this drawing: ${e.message.replace(/^Invalid drawing: /, '')}`)
+    } else {
+      onNetworkError(e)
+      toast((conn as Conn) === 'closed' ? 'The session has closed — your drawing was not sent.' : `Couldn’t reach ${APP_NAME}. Check your Wi-Fi and try again.`)
+    }
+    if ((conn as Conn) !== 'closed') startHeartbeat()
   } finally {
+    sending = false
+    delete sendBtn.dataset.busy
     $('send-text').textContent = `Send to ${APP_NAME}`
     updateButtons()
   }
@@ -282,12 +363,23 @@ function viewChanged(): void {
 
 // ─── rendering ──────────────────────────────────────────────────────────────────────────────────────
 
+// Dark mode shows ink inverted (like the Mac's sketch preview) but photos as they are, so ink colours are mapped here
+// instead of filtering the whole canvas.
+const darkQuery = matchMedia('(prefers-color-scheme: dark)')
+const inkCache = new Map<string, string>()
+const ink = (hex: string): string => {
+  if (!darkQuery.matches) return hex
+  let c = inkCache.get(hex)
+  if (!c) inkCache.set(hex, (c = darkInk(hex)))
+  return c
+}
+
 function drawStroke(ctx: CanvasRenderingContext2D, s: DrawStroke): void {
   const pts = s.points
   ctx.save()
   ctx.globalAlpha = s.opacity
-  ctx.strokeStyle = s.color
-  ctx.fillStyle = s.color
+  ctx.strokeStyle = ink(s.color)
+  ctx.fillStyle = ink(s.color)
   ctx.lineCap = 'round'
   ctx.lineJoin = 'round'
   const widthAt = (p: number): number => (s.pressure && s.tool === 'pen' ? s.width * pressureFactor(p) : s.width)
@@ -330,13 +422,32 @@ function drawStroke(ctx: CanvasRenderingContext2D, s: DrawStroke): void {
   ctx.restore()
 }
 
+function drawImageItem(ctx: CanvasRenderingContext2D, it: ImageItem): void {
+  const src = pixels.get(it.id)?.source
+  if (src) {
+    ctx.imageSmoothingQuality = 'high'
+    ctx.drawImage(src, it.x, it.y, it.width, it.height)
+    return
+  }
+  // still loading (after a reload): a quiet placeholder
+  ctx.save()
+  ctx.fillStyle = darkQuery.matches ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.05)'
+  ctx.fillRect(it.x, it.y, it.width, it.height)
+  ctx.restore()
+}
+
 function renderBase(): void {
   baseCtx.setTransform(1, 0, 0, 1, 0, 0)
   baseCtx.clearRect(0, 0, base.width, base.height)
   applyView(baseCtx)
-  for (const s of strokes) drawStroke(baseCtx, s)
-  $('hint').classList.toggle('gone', strokes.length > 0 || !!current)
+  for (const it of items) {
+    if (isImage(it)) drawImageItem(baseCtx, it)
+    else drawStroke(baseCtx, it)
+  }
+  $('hint').classList.toggle('gone', items.length > 0 || !!current)
 }
+
+const toScreen = (x: number, y: number): [number, number] => [x * view.k + view.x, y * view.k + view.y]
 
 let liveQueued = false
 function renderLive(): void {
@@ -354,6 +465,42 @@ function renderLive(): void {
     liveCtx.lineWidth = 1.5
     liveCtx.stroke()
   }
+  renderSelection()
+}
+
+/** Outline + corner handles of the selected image (screen space), and the floating Delete action. */
+function renderSelection(): void {
+  const it = selectedItem()
+  const del = $('img-actions')
+  if (!it) {
+    del.hidden = true
+    return
+  }
+  const pts = corners(it).map(([x, y]) => toScreen(x, y))
+  liveCtx.setTransform(dpr, 0, 0, dpr, 0, 0)
+  const accent = darkQuery.matches ? '#8fb0ff' : '#3d6cf0'
+  liveCtx.strokeStyle = accent
+  liveCtx.lineWidth = 1.5
+  liveCtx.beginPath()
+  pts.forEach(([x, y], i) => (i ? liveCtx.lineTo(x, y) : liveCtx.moveTo(x, y)))
+  liveCtx.closePath()
+  liveCtx.stroke()
+  for (const [x, y] of pts) {
+    liveCtx.beginPath()
+    liveCtx.arc(x, y, HANDLE_R, 0, Math.PI * 2)
+    liveCtx.fillStyle = darkQuery.matches ? '#1f1f1f' : '#ffffff'
+    liveCtx.fill()
+    liveCtx.lineWidth = 2
+    liveCtx.stroke()
+  }
+  // the action sits above the image (below it when the image touches the top bar), clamped into the screen
+  del.hidden = !!manip
+  const [x0, y0] = pts[0]
+  const [x1, y1] = pts[2]
+  const w = del.offsetWidth || 90
+  const left = Math.min(Math.max(8, (x0 + x1) / 2 - w / 2), stage.clientWidth - w - 8)
+  const top = y0 - 52 > 64 ? y0 - 52 : Math.min(y1 + 14, stage.clientHeight - 130)
+  del.style.transform = `translate(${Math.round(left)}px, ${Math.round(top)}px)`
 }
 const queueLive = (): void => {
   if (!liveQueued) {
@@ -364,37 +511,242 @@ const queueLive = (): void => {
 
 // ─── history ────────────────────────────────────────────────────────────────────────────────────────
 
-const undoStack: DrawStroke[][] = []
-const redoStack: DrawStroke[][] = []
+// snapshots of the item list (items are never mutated once committed, so snapshots share them)
+const undoStack: Item[][] = []
+const redoStack: Item[][] = []
 
-function commit(next: DrawStroke[]): void {
-  undoStack.push(strokes)
+function commit(next: Item[]): void {
+  undoStack.push(items)
   if (undoStack.length > 200) undoStack.shift()
   redoStack.length = 0
-  strokes = next
+  items = next
   changed()
 }
 
 function changed(): void {
+  if (selected && !selectedItem()) selected = null
   renderBase()
+  queueLive()
   persist()
   updateButtons()
 }
 
 function undo(): void {
+  if (manip || current) return
   const prev = undoStack.pop()
   if (!prev) return
-  redoStack.push(strokes)
-  strokes = prev
+  redoStack.push(items)
+  items = prev
   changed()
 }
 
 function redo(): void {
+  if (manip || current) return
   const next = redoStack.pop()
   if (!next) return
-  undoStack.push(strokes)
-  strokes = next
+  undoStack.push(items)
+  items = next
   changed()
+}
+
+// ─── images ─────────────────────────────────────────────────────────────────────────────────────────
+
+let selected: string | null = null
+const selectedItem = (): ImageItem | null => (selected ? ((items.find((it) => isImage(it) && it.id === selected) as ImageItem | undefined) ?? null) : null)
+
+function select(id: string | null): void {
+  if (selected === id) return
+  selected = id
+  queueLive()
+}
+
+/** Topmost image under a screen point. */
+function imageAt(sx: number, sy: number): ImageItem | null {
+  const [x, y] = toWorld(sx, sy)
+  for (let i = items.length - 1; i >= 0; i--) {
+    const it = items[i]
+    if (isImage(it) && contains(it, x, y)) return it
+  }
+  return null
+}
+
+/** Corner handle of the selected image under a screen point (index into `corners`), or -1. */
+function handleAt(sx: number, sy: number): number {
+  const it = selectedItem()
+  if (!it) return -1
+  let best = -1
+  let bestD = HANDLE_HIT
+  corners(it).forEach(([x, y], i) => {
+    const [hx, hy] = toScreen(x, y)
+    const d = Math.hypot(hx - sx, hy - sy)
+    if (d <= bestD) {
+      best = i
+      bestD = d
+    }
+  })
+  return best
+}
+
+interface Manip {
+  id: number
+  type: string
+  image: string
+  /** -1 = move, 0–3 = resize by that corner */
+  corner: number
+  start: [number, number]
+  orig: ImageItem
+  before: Item[]
+  moved: boolean
+}
+let manip: Manip | null = null
+
+function startManip(e: PointerEvent, it: ImageItem, corner: number): void {
+  const [sx, sy] = local(e)
+  select(it.id)
+  manip = { id: e.pointerId, type: e.pointerType, image: it.id, corner, start: [sx, sy], orig: it, before: items, moved: false }
+  $('hint').classList.add('gone')
+  queueLive()
+}
+
+function moveManip(e: PointerEvent): void {
+  const m = manip!
+  const [sx, sy] = local(e)
+  if (!m.moved && Math.hypot(sx - m.start[0], sy - m.start[1]) < 3) return
+  m.moved = true
+  let next: Rect
+  if (m.corner < 0) {
+    const dx = (sx - m.start[0]) / view.k
+    const dy = (sy - m.start[1]) / view.k
+    next = { x: m.orig.x + dx, y: m.orig.y + dy, width: m.orig.width, height: m.orig.height }
+  } else {
+    const [wx, wy] = toWorld(sx, sy)
+    next = resizeFromCorner(m.orig, m.corner, wx, wy, 24 / view.k)
+  }
+  items = m.before.map((it) => (isImage(it) && it.id === m.image ? { ...it, x: round(next.x), y: round(next.y), width: round(next.width), height: round(next.height) } : it))
+  queueBase()
+  queueLive()
+}
+
+function endManip(keep = true): void {
+  const m = manip
+  if (!m) return
+  manip = null
+  if (m.moved && keep) {
+    const after = items
+    items = m.before
+    commit(after)
+  } else {
+    items = m.before
+    renderBase()
+  }
+  queueLive()
+}
+
+function deleteSelected(): void {
+  const it = selectedItem()
+  if (!it || manip) return
+  selected = null
+  commit(items.filter((x) => x !== it))
+  toast('Image removed')
+}
+
+let imageNoteShown = false
+const imageCount = (): number => items.filter(isImage).length
+const imageBytes = (): number => items.reduce((n, it) => n + (isImage(it) ? base64Bytes(pixels.get(it.id)?.data ?? '') : 0), 0)
+
+/** Adds image files (picker, paste, drop): re-encoded, centred in the current view, selected afterwards. */
+async function insertImages(files: File[]): Promise<void> {
+  if (sent || conn === 'taken') return
+  const list = files.filter((f) => !f.type || f.type.startsWith('image/'))
+  if (!list.length) return
+  const room = DRAW_LIMITS.maxImages - imageCount()
+  if (room <= 0) return toast(`You can add up to ${DRAW_LIMITS.maxImages} images to one drawing.`)
+  if (list.length > room) toast(`Only ${room} more image${room === 1 ? '' : 's'} fit into this drawing.`)
+  imageButton.disabled = true
+  imageButton.dataset.busy = 'true'
+  const added: ImageItem[] = []
+  let failed = 0
+  let tooBig = false
+  let bytes = imageBytes()
+  try {
+    for (const file of list.slice(0, room)) {
+      try {
+        const enc = await encodeImage(file)
+        const size = base64Bytes(enc.data)
+        if (bytes + size > DRAW_LIMITS.maxTotalImageBytes) {
+          tooBig = true
+          continue
+        }
+        bytes += size
+        const id = `i${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`
+        pixels.set(id, { mime: enc.mime, data: enc.data, source: enc.source })
+        // natural size on a Retina screen, but at most 60 % of the visible area; cascade several images a little
+        const visW = stage.clientWidth / view.k
+        const visH = (stage.clientHeight - 150) / view.k
+        const size2 = fitSize(enc.width / Math.max(1, dpr), enc.height / Math.max(1, dpr), visW * 0.6, visH * 0.6)
+        const [cx, cy] = toWorld(stage.clientWidth / 2, (56 + stage.clientHeight - 90) / 2)
+        const off = (added.length * 24) / view.k
+        added.push({ kind: 'image', id, mime: enc.mime, x: round(cx - size2.width / 2 + off), y: round(cy - size2.height / 2 + off), width: round(size2.width), height: round(size2.height) })
+        void imageStore.put(sessionId, id, enc.mime, enc.data).then((ok) => {
+          if (!ok && !imageNoteShown) {
+            imageNoteShown = true
+            toast('Images can’t be saved on this iPad — they stay while this tab is open.')
+          }
+        })
+      } catch (e) {
+        console.warn('[sidera-draw] image import failed', e)
+        failed++
+      }
+    }
+  } finally {
+    imageButton.disabled = false
+    delete imageButton.dataset.busy
+  }
+  if (added.length) {
+    if (ui.tool === 'eraser') {
+      ui.tool = 'select'
+      renderTools()
+    }
+    selected = added[added.length - 1].id
+    commit([...items, ...added])
+  }
+  if (tooBig) toast('Some images were left out — the drawing is already at its size limit.')
+  else if (failed) toast(failed === 1 ? 'That image couldn’t be opened.' : `${failed} images couldn’t be opened.`)
+}
+
+/** After a reload: bring back the pixels of saved images from IndexedDB (images that can't be restored are dropped). */
+async function restoreImages(): Promise<void> {
+  const missing: string[] = []
+  await Promise.all(
+    items.filter(isImage).map(async (it) => {
+      const row = await imageStore.get(sessionId, it.id)
+      if (!row) return missing.push(it.id)
+      pixels.set(it.id, { mime: row.mime, data: row.data, source: null })
+      try {
+        pixels.set(it.id, { mime: row.mime, data: row.data, source: await imageFromBase64(row.mime, row.data) })
+      } catch {
+        missing.push(it.id)
+      }
+    })
+  )
+  if (missing.length) {
+    items = items.filter((it) => !(isImage(it) && missing.includes(it.id)))
+    persist()
+    toast(missing.length === 1 ? 'An image couldn’t be restored after the reload.' : `${missing.length} images couldn’t be restored after the reload.`)
+  }
+  renderBase()
+  updateButtons()
+}
+
+let baseQueued = false
+const queueBase = (): void => {
+  if (!baseQueued) {
+    baseQueued = true
+    requestAnimationFrame(() => {
+      baseQueued = false
+      renderBase()
+    })
+  }
 }
 
 // ─── input ──────────────────────────────────────────────────────────────────────────────────────────
@@ -410,7 +762,9 @@ let current: Current | null = null
 let penSeen = false
 let penUpAt = 0
 let eraserAt: [number, number] | null = null
-let erasing: { id: number; before: DrawStroke[]; removed: boolean } | null = null
+let erasing: { id: number; before: Item[]; removed: boolean } | null = null
+/** Select tool: one pointer on empty canvas pans */
+let panning: { id: number; type: string; sx: number; sy: number; vx: number; vy: number } | null = null
 const touches = new Map<number, { x: number; y: number }>()
 let gesture: { d0: number; k0: number; wx: number; wy: number } | null = null
 
@@ -425,13 +779,13 @@ const round = (n: number, d = 100): number => Math.round(n * d) / d
 function startStroke(e: PointerEvent): void {
   const [sx, sy] = local(e)
   if (ui.tool === 'eraser') {
-    erasing = { id: e.pointerId, before: strokes, removed: false }
+    erasing = { id: e.pointerId, before: items, removed: false }
     eraserAt = [sx, sy]
     eraseAt(sx, sy)
     queueLive()
     return
   }
-  const tool = ui.tool
+  const tool = ui.tool === 'highlighter' ? 'highlighter' : 'pen'
   const [x, y] = toWorld(sx, sy)
   current = {
     id: e.pointerId,
@@ -499,7 +853,7 @@ function endStroke(keep = true): void {
   if (!c) return
   clearTimeout(c.holdTimer)
   current = null
-  if (keep) commit([...strokes, c.stroke])
+  if (keep) commit([...items, c.stroke])
   queueLive()
   renderBase()
 }
@@ -507,12 +861,14 @@ function endStroke(keep = true): void {
 function eraseAt(sx: number, sy: number): void {
   const [x, y] = toWorld(sx, sy)
   const r = ERASER_RADIUS / view.k
-  const keep = strokes.filter((s) => {
+  // the eraser only removes strokes: images go via their Delete action
+  const keep = items.filter((s) => {
+    if (isImage(s)) return true
     const half = (s.pressure && s.tool === 'pen' ? s.width * pressureFactor(1) : s.width) / 2
     return !hitsStroke(s.points as Pt[], half, x, y, r)
   })
-  if (keep.length !== strokes.length) {
-    strokes = keep
+  if (keep.length !== items.length) {
+    items = keep
     if (erasing) erasing.removed = true
     renderBase()
   }
@@ -520,8 +876,8 @@ function eraseAt(sx: number, sy: number): void {
 
 function endErase(): void {
   if (erasing?.removed) {
-    const after = strokes
-    strokes = erasing.before
+    const after = items
+    items = erasing.before
     commit(after)
   }
   erasing = null
@@ -548,37 +904,85 @@ function moveGesture(): void {
   viewChanged()
 }
 
+const capture = (e: PointerEvent): void => {
+  try {
+    stage.setPointerCapture(e.pointerId)
+  } catch {
+    // pointer already gone (or synthetic): work without capture
+  }
+}
+
+/** Grab the selected image's corner handle or the topmost image under the pointer. */
+function grab(e: PointerEvent): boolean {
+  const [sx, sy] = local(e)
+  const h = handleAt(sx, sy)
+  const it = h >= 0 ? selectedItem() : imageAt(sx, sy)
+  if (!it) return false
+  capture(e)
+  startManip(e, it, h)
+  return true
+}
+
+function startPan(e: PointerEvent): void {
+  const [sx, sy] = local(e)
+  capture(e)
+  panning = { id: e.pointerId, type: e.pointerType, sx, sy, vx: view.x, vy: view.y }
+}
+
 stage.addEventListener('pointerdown', (e) => {
   if (sent || conn === 'taken') return
   closePopovers()
   if (e.pointerType === 'pen') {
     penSeen = true
     updateFinger()
-    // a pen always wins over a finger stroke or gesture that may have started from the resting hand
+    // a pen always wins over a finger stroke, gesture or image drag that may have started from the resting hand
     if (current && current.type === 'touch') endStroke(false)
+    if (manip && manip.type === 'touch') endManip(false)
+    if (panning && panning.type === 'touch') panning = null
     gesture = null
   }
   if (e.pointerType === 'touch') {
     const [x, y] = local(e)
     touches.set(e.pointerId, { x, y })
     // palm rejection: while (or right after) the pen is drawing, touches are ignored entirely
-    if ((current && current.type === 'pen') || Date.now() - penUpAt < 300) return
+    if ((current && current.type === 'pen') || (manip && manip.type !== 'touch') || Date.now() - penUpAt < 300) return
     if (touches.size === 2) {
       // second finger: this is a pan / pinch, not a drawing — drop a short finger stroke that just started
       if (current && current.type === 'touch') endStroke(current.stroke.points.length > 12)
       if (erasing) endErase()
+      if (manip) endManip(true)
+      panning = null
       startGesture()
       return
     }
-    if (touches.size > 2 || current || erasing || !fingerDraws()) return
+    if (touches.size > 2 || current || erasing || manip || panning) return
     if ((e.width || 0) > PALM_SIZE || (e.height || 0) > PALM_SIZE) return
+    // fingers that don't draw (palm rejection / finger drawing off) still select, move and resize images
+    if (!fingerDraws() || ui.tool === 'select') {
+      if (grab(e)) return
+      if (ui.tool === 'select') startPan(e)
+      else select(null)
+      return
+    }
   } else if (e.pointerType === 'mouse' && e.button !== 0) return
-  if (current || erasing) return
-  try {
-    stage.setPointerCapture(e.pointerId)
-  } catch {
-    // pointer already gone (or synthetic): draw without capture
+  if (current || erasing || manip || panning) return
+  if (ui.tool === 'select') {
+    if (!grab(e)) {
+      select(null)
+      startPan(e)
+    }
+    return
   }
+  // drawing tools draw over images; only the selected image's corner handles stay grabbable
+  const [sx, sy] = local(e)
+  const h = handleAt(sx, sy)
+  if (h >= 0) {
+    capture(e)
+    startManip(e, selectedItem()!, h)
+    return
+  }
+  select(null)
+  capture(e)
   startStroke(e)
 })
 
@@ -589,6 +993,13 @@ stage.addEventListener('pointermove', (e) => {
     if (gesture) return moveGesture()
   }
   if (current && e.pointerId === current.id) return extendStroke(e)
+  if (manip && e.pointerId === manip.id) return moveManip(e)
+  if (panning && e.pointerId === panning.id) {
+    const [sx, sy] = local(e)
+    view.x = panning.vx + sx - panning.sx
+    view.y = panning.vy + sy - panning.sy
+    return viewChanged()
+  }
   if (erasing && e.pointerId === erasing.id) {
     const events = typeof e.getCoalescedEvents === 'function' ? e.getCoalescedEvents() : []
     for (const ev of events.length ? events : [e]) {
@@ -608,6 +1019,8 @@ const pointerEnd = (e: PointerEvent): void => {
   if (e.pointerType === 'pen') penUpAt = Date.now()
   if (current && e.pointerId === current.id) endStroke(true)
   if (erasing && e.pointerId === erasing.id) endErase()
+  if (manip && e.pointerId === manip.id) endManip(e.type !== 'pointercancel')
+  if (panning && e.pointerId === panning.id) panning = null
 }
 stage.addEventListener('pointerup', pointerEnd)
 stage.addEventListener('pointercancel', pointerEnd)
@@ -643,6 +1056,8 @@ document.addEventListener('dblclick', (e) => e.preventDefault())
 
 // ─── toolbar ────────────────────────────────────────────────────────────────────────────────────────
 
+/** tools without colour / width */
+const noInk = (): boolean => ui.tool === 'eraser' || ui.tool === 'select'
 const swatches = $('swatches')
 const widths = $('widths')
 
@@ -660,9 +1075,9 @@ function renderTools(): void {
       b.title = c.name
       b.setAttribute('role', 'radio')
       b.setAttribute('aria-label', c.name)
-      b.setAttribute('aria-checked', String(ui.tool !== 'eraser' && ui.color[kind] === c.hex))
-      b.disabled = ui.tool === 'eraser'
-      b.style.opacity = ui.tool === 'eraser' ? '0.35' : ''
+      b.setAttribute('aria-checked', String(!noInk() && ui.color[kind] === c.hex))
+      b.disabled = noInk()
+      b.style.opacity = noInk() ? '0.35' : ''
       const dot = document.createElement('i')
       dot.style.setProperty('--c', c.hex)
       if (kind === 'highlighter') dot.style.opacity = '0.75'
@@ -682,9 +1097,9 @@ function renderTools(): void {
       b.title = ['Fine', 'Medium', 'Bold'][i]
       b.setAttribute('role', 'radio')
       b.setAttribute('aria-label', b.title)
-      b.setAttribute('aria-checked', String(ui.tool !== 'eraser' && ui.width[kind] === i))
-      b.disabled = ui.tool === 'eraser'
-      b.style.opacity = ui.tool === 'eraser' ? '0.35' : ''
+      b.setAttribute('aria-checked', String(!noInk() && ui.width[kind] === i))
+      b.disabled = noInk()
+      b.style.opacity = noInk() ? '0.35' : ''
       const dot = document.createElement('i')
       dot.style.setProperty('--d', `${[5, 9, 14][i]}px`)
       b.append(dot)
@@ -727,11 +1142,45 @@ $('zoom').addEventListener('click', () => {
   viewChanged()
 })
 
+const imageButton = $<HTMLButtonElement>('image')
+const fileInput = $<HTMLInputElement>('file')
+imageButton.addEventListener('click', () => {
+  closePopovers()
+  // iPadOS offers Photo Library, Take Photo and Files for accept="image/*"
+  fileInput.value = ''
+  fileInput.click()
+})
+fileInput.addEventListener('change', () => {
+  const files = [...(fileInput.files ?? [])]
+  fileInput.value = ''
+  void insertImages(files)
+})
+$('img-delete').addEventListener('click', deleteSelected)
+
+// paste (⌘V with a keyboard, or the system paste menu) and drag & drop (split view / desktop testing)
+document.addEventListener('paste', (e) => {
+  const files = [...(e.clipboardData?.items ?? [])].flatMap((i) => (i.kind === 'file' && i.type.startsWith('image/') ? [i.getAsFile()!].filter(Boolean) : []))
+  if (!files.length) return
+  e.preventDefault()
+  void insertImages(files)
+})
+const hasFiles = (e: DragEvent): boolean => [...(e.dataTransfer?.types ?? [])].includes('Files')
+stage.addEventListener('dragover', (e) => {
+  if (!hasFiles(e)) return
+  e.preventDefault()
+  if (e.dataTransfer) e.dataTransfer.dropEffect = 'copy'
+})
+stage.addEventListener('drop', (e) => {
+  if (!hasFiles(e)) return
+  e.preventDefault()
+  void insertImages([...(e.dataTransfer?.files ?? [])])
+})
+
 $('undo').addEventListener('click', undo)
 $('redo').addEventListener('click', redo)
 $('clear').addEventListener('click', () => {
   closePopovers()
-  if (strokes.length) $('confirm').hidden = false
+  if (items.length) $('confirm').hidden = false
 })
 $('confirm-cancel').addEventListener('click', closePopovers)
 $('confirm-ok').addEventListener('click', () => {
@@ -763,8 +1212,8 @@ function closePopovers(): void {
 function updateButtons(): void {
   $<HTMLButtonElement>('undo').disabled = !undoStack.length
   $<HTMLButtonElement>('redo').disabled = !redoStack.length
-  $<HTMLButtonElement>('clear').disabled = !strokes.length
-  sendBtn.disabled = !strokes.length || conn !== 'connected' || sent
+  $<HTMLButtonElement>('clear').disabled = !items.length
+  sendBtn.disabled = !items.length || conn !== 'connected' || sent || sending
 }
 
 window.addEventListener('keydown', (e) => {
@@ -773,7 +1222,10 @@ window.addEventListener('keydown', (e) => {
     e.preventDefault()
     if (e.shiftKey) redo()
     else undo()
-  }
+  } else if ((e.key === 'Backspace' || e.key === 'Delete') && selected) {
+    e.preventDefault()
+    deleteSelected()
+  } else if (e.key === 'Escape') select(null)
 })
 
 let toastTimer = 0
@@ -802,6 +1254,13 @@ function showOverlay(icon: keyof typeof ICONS, title: string, text: string, kind
 // ─── boot ───────────────────────────────────────────────────────────────────────────────────────────
 
 document.title = `${APP_NAME} Draw`
+darkQuery.addEventListener('change', () => {
+  inkCache.clear()
+  renderBase()
+  queueLive()
+})
+void imageStore.prune(sessionId)
+if (items.some(isImage)) void restoreImages()
 new ResizeObserver(resize).observe(stage)
 renderTools()
 updateFinger()
