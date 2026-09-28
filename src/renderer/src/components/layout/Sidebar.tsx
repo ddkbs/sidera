@@ -1,6 +1,7 @@
 import { record } from '@/lib/undo'
 import {
   BookOpen,
+  ChevronDown,
   ChevronRight,
   Folder as FolderIcon,
   FolderPlus,
@@ -40,6 +41,7 @@ import type { Folder, Whiteboard } from '@shared/types'
 import { storageKey } from '@/lib/storage'
 
 const COLLAPSED_KEY = storageKey('sidera.folders.collapsed')
+const MORE_COLLAPSED_KEY = storageKey('sidera.sidebar.moreCollapsed')
 const WHITEBOARD_DND = 'application/x-sidera-whiteboard'
 const FOLDER_DND = 'application/x-sidera-folder'
 
@@ -69,6 +71,23 @@ export function Sidebar() {
   const chatKey = formatBinding(useBinding('chat.toggle'))
   const [agentBusy, setAgentBusy] = useState(false)
   const [collapsed, setCollapsed] = useState<Set<string>>(loadCollapsed)
+  const [moreCollapsed, setMoreCollapsed] = useState(() => {
+    try {
+      return localStorage.getItem(MORE_COLLAPSED_KEY) === '1'
+    } catch {
+      return false
+    }
+  })
+  const toggleMore = () =>
+    setMoreCollapsed((prev) => {
+      const next = !prev
+      try {
+        localStorage.setItem(MORE_COLLAPSED_KEY, next ? '1' : '0')
+      } catch {
+        /* ignore */
+      }
+      return next
+    })
   const [draftFolder, setDraftFolder] = useState<{ parentId: string | null; name: string } | null>(null)
   const [renamingFolderId, setRenamingFolderId] = useState<string | null>(null)
   const [dropTarget, setDropTarget] = useState<string | null>(null) // folder id being dragged over, or 'root'
@@ -213,23 +232,6 @@ export function Sidebar() {
           <NavItem icon={<Home className="size-4" />} active={view.type === 'home'} onClick={(e) => go({ type: 'home' }, e)}>
             Home
           </NavItem>
-          <NavItem
-            tour="nav-tasks"
-            icon={<ListChecks className="size-4" />}
-            active={view.type === 'tasks'}
-            onClick={(e) => go({ type: 'tasks' }, e)}
-            badge={openTasks > 0 ? (openTasks > 99 ? '99+' : String(openTasks)) : undefined}
-          >
-            Tasks
-          </NavItem>
-          <NavItem
-            tour="nav-library"
-            icon={<BookOpen className="size-4" />}
-            active={view.type === 'library' && !view.tagId}
-            onClick={(e) => go({ type: 'library', tagId: null, mode: 'table' }, e)}
-          >
-            Card Library
-          </NavItem>
 
           <ContextMenu>
             <ContextMenuTrigger asChild>
@@ -314,6 +316,37 @@ export function Sidebar() {
               </ContextMenuItem>
             </ContextMenuContent>
           </ContextMenu>
+
+          <div className="mt-1 border-t border-sidebar-border pt-1">
+            <button
+              onClick={toggleMore}
+              className="flex h-6 w-full items-center gap-1 rounded-md px-2 text-xs font-medium text-muted-foreground transition hover:bg-sidebar-accent"
+            >
+              <ChevronDown className={cn('size-3 transition-transform', moreCollapsed && '-rotate-90')} />
+              More
+            </button>
+            {!moreCollapsed && (
+              <>
+                <NavItem
+                  tour="nav-library"
+                  icon={<BookOpen className="size-4" />}
+                  active={view.type === 'library' && !view.tagId}
+                  onClick={(e) => go({ type: 'library', tagId: null, mode: 'table' }, e)}
+                >
+                  Card Library
+                </NavItem>
+                <NavItem
+                  tour="nav-tasks"
+                  icon={<ListChecks className="size-4" />}
+                  active={view.type === 'tasks'}
+                  onClick={(e) => go({ type: 'tasks' }, e)}
+                  badge={openTasks > 0 ? (openTasks > 99 ? '99+' : String(openTasks)) : undefined}
+                >
+                  Tasks
+                </NavItem>
+              </>
+            )}
+          </div>
         </nav>
       </ScrollArea>
       <ProfileFooter status={agentBusy && last ? `Agent: ${last.tool}` : undefined} />
