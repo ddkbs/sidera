@@ -294,7 +294,21 @@ describe('seed', () => {
     const [board] = api.listWhiteboards()
     const detail = api.getWhiteboard(board.id)!
     expect(detail.objects.length).toBeGreaterThan(5)
-    expect(detail.connections).toHaveLength(2)
+    const kinds = detail.objects.map((o) => o.kind)
+    expect(kinds).toEqual(expect.arrayContaining(['text', 'card', 'table', 'chart', 'sketch']))
+    // the chart follows the table
+    const table = detail.objects.find((o) => o.kind === 'table')!
+    expect(detail.objects.find((o) => o.kind === 'chart')!.data.source).toEqual({ tableId: table.id })
+    // pen ink is frameless, like pen mode's
+    const ink = detail.objects.filter((o) => o.kind === 'sketch')
+    expect(ink.length).toBeGreaterThan(0)
+    for (const o of ink) {
+      expect(o.data.frameless).toBe(true)
+      expect((o.data.elements as { type: string }[]).every((e) => e.type === 'freedraw')).toBe(true)
+    }
+    // the basics are text blocks (cards of kind 'block'), not library cards
+    expect(api.listCards()).toHaveLength(0)
+    expect(api.listCards({ kind: 'block' }).length).toBeGreaterThanOrEqual(4)
   })
 })
 
