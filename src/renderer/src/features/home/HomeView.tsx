@@ -1,23 +1,31 @@
 import { ThinkingOrb } from 'thinking-orbs'
-import { ArrowRight, BookOpen, LayoutDashboard, Plus } from '@/components/icons'
-import { CardIcon } from '@/components/CardIcon'
+import { LayoutDashboard, Text } from '@/components/icons'
 import { motion } from 'motion/react'
 import { Button } from '@/components/ui/button'
 import { useAppDispatch, useAppSelector } from '@/store'
-import { useCreateCardMutation, useCreateWhiteboardMutation, useListCardsQuery, useListWhiteboardsQuery } from '@/store/api'
+import { useCreateCardMutation, useCreateWhiteboardMutation, useListWhiteboardsWithStatsQuery } from '@/store/api'
 import { navigate, openCard, setChatOpen } from '@/store/ui'
+import type { WhiteboardSummary } from '@shared/types'
 
 export function HomeView() {
   const dispatch = useAppDispatch()
   const theme = useAppSelector((s) => s.ui.theme)
-  const { data: boards = [] } = useListWhiteboardsQuery()
-  const { data: cards = [] } = useListCardsQuery({ limit: 8 })
+  const { data: boards = [] } = useListWhiteboardsWithStatsQuery()
   const [createWhiteboard] = useCreateWhiteboardMutation()
   const [createCard] = useCreateCardMutation()
 
+  const newBoard = async () => {
+    const r = await createWhiteboard({ name: 'Untitled whiteboard' })
+    if ('data' in r && r.data) dispatch(navigate({ type: 'whiteboard', id: r.data.id }))
+  }
+  const quickNote = async () => {
+    const r = await createCard({})
+    if ('data' in r && r.data) dispatch(openCard(r.data.id))
+  }
+
   return (
     <div className="h-full overflow-y-auto">
-      <div className="mx-auto max-w-4xl px-10 py-14">
+      <div className="mx-auto max-w-5xl px-10 py-14">
         <div className="flex items-center gap-4">
           <button
             onClick={() => dispatch(setChatOpen(true))}
@@ -34,69 +42,68 @@ export function HomeView() {
             <motion.h1 initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} className="text-3xl font-semibold tracking-tight">
               Good {greeting()}.
             </motion.h1>
-            <p className="mt-1 text-muted-foreground">Think visually. Your knowledge base is local, open and MCP-ready.</p>
+            <p className="mt-1 text-muted-foreground">Fast, visual notes on whiteboards — local, open and MCP-ready.</p>
           </div>
         </div>
 
-        <div className="mt-8 grid grid-cols-2 gap-3">
-          <QuickAction
-            icon={<LayoutDashboard className="size-4" />}
-            title="New whiteboard"
-            onClick={async () => {
-              const r = await createWhiteboard({ name: 'Untitled whiteboard' })
-              if ('data' in r && r.data) dispatch(navigate({ type: 'whiteboard', id: r.data.id }))
-            }}
-          />
-          <QuickAction
-            icon={<Plus className="size-4" />}
-            title="New card"
-            onClick={async () => {
-              const r = await createCard({})
-              if ('data' in r && r.data) dispatch(openCard(r.data.id))
-            }}
-          />
+        <div className="mt-8 flex items-center gap-3">
+          <Button size="lg" className="gap-2 shadow-sm" onClick={() => void newBoard()}>
+            <LayoutDashboard className="size-4" />
+            New board
+          </Button>
+          <button
+            onClick={() => void quickNote()}
+            className="flex h-10 items-center gap-2 rounded-md border bg-card px-3.5 text-sm font-medium text-muted-foreground transition hover:-translate-y-0.5 hover:text-foreground hover:shadow-md"
+          >
+            <Text className="size-4" />
+            Quick note
+          </button>
         </div>
 
-        <Section title="Whiteboards" onMore={boards.length ? undefined : undefined}>
+        <section className="mt-10">
+          <div className="mb-3 flex items-center justify-between">
+            <h2 className="text-sm font-semibold">Recent boards</h2>
+          </div>
           {boards.length === 0 ? (
-            <Empty>No whiteboards yet — create one to start mapping ideas.</Empty>
+            <button
+              onClick={() => void newBoard()}
+              className="flex w-full flex-col items-center justify-center gap-2 rounded-xl border border-dashed px-4 py-14 text-center text-sm text-muted-foreground transition hover:border-foreground/30 hover:text-foreground"
+            >
+              <LayoutDashboard className="size-6" />
+              No boards yet — create one to start mapping ideas.
+            </button>
           ) : (
-            <div className="grid grid-cols-3 gap-3">
+            <div className="grid grid-cols-3 gap-4">
               {boards.slice(0, 9).map((b) => (
-                <button
-                  key={b.id}
-                  onClick={() => dispatch(navigate({ type: 'whiteboard', id: b.id }))}
-                  className="group relative h-28 overflow-hidden rounded-xl border bg-card p-4 text-left transition hover:-translate-y-0.5 hover:shadow-md"
-                >
-                  <div className="absolute inset-0 opacity-50" style={{ backgroundImage: 'radial-gradient(var(--canvas-dot) 1px, transparent 1px)', backgroundSize: '14px 14px' }} />
-                  <div className="relative flex h-full flex-col justify-end">
-                    <div className="truncate font-medium">{b.name}</div>
-                    <div className="text-xs text-muted-foreground">Edited {new Date(b.updatedAt).toLocaleDateString()}</div>
-                  </div>
-                </button>
+                <BoardTile key={b.id} board={b} onOpen={() => dispatch(navigate({ type: 'whiteboard', id: b.id }))} />
               ))}
             </div>
           )}
-        </Section>
-
-        <Section title="Recent cards" onMore={() => dispatch(navigate({ type: 'library', tagId: null, mode: 'list' }))}>
-          {cards.length === 0 ? (
-            <Empty>Cards you create show up here.</Empty>
-          ) : (
-            <div className="divide-y rounded-xl border bg-card">
-              {cards.map((c) => (
-                <button key={c.id} onClick={() => dispatch(openCard(c.id))} className="flex w-full items-center gap-3 px-4 py-2.5 text-left transition first:rounded-t-xl last:rounded-b-xl hover:bg-accent">
-                  {c.icon ? <CardIcon icon={c.icon} className="size-4 text-[14px]" /> : <BookOpen className="size-4 text-muted-foreground" />}
-                  <span className="truncate text-sm font-medium">{c.title || 'Untitled'}</span>
-                  <span className="truncate text-xs text-muted-foreground">{c.excerpt.slice(0, 80)}</span>
-                  <span className="ml-auto shrink-0 text-xs text-muted-foreground">{new Date(c.updatedAt).toLocaleDateString()}</span>
-                </button>
-              ))}
-            </div>
-          )}
-        </Section>
+        </section>
       </div>
     </div>
+  )
+}
+
+function BoardTile({ board, onOpen }: { board: WhiteboardSummary; onOpen: () => void }) {
+  return (
+    <button
+      onClick={onOpen}
+      className="group relative flex h-40 flex-col justify-end overflow-hidden rounded-xl border bg-card p-4 text-left transition hover:-translate-y-0.5 hover:shadow-md"
+    >
+      <div
+        className="absolute inset-0 opacity-50 transition group-hover:opacity-70"
+        style={{ backgroundImage: 'radial-gradient(var(--canvas-dot) 1px, transparent 1px)', backgroundSize: '14px 14px' }}
+      />
+      <div className="relative flex flex-col gap-0.5">
+        <div className="truncate font-medium">{board.name}</div>
+        <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+          <span>{board.objectCount} {board.objectCount === 1 ? 'object' : 'objects'}</span>
+          <span aria-hidden>·</span>
+          <span>Edited {relativeTime(board.updatedAt)}</span>
+        </div>
+      </div>
+    </button>
   )
 }
 
@@ -105,31 +112,15 @@ const greeting = () => {
   return h < 12 ? 'morning' : h < 18 ? 'afternoon' : 'evening'
 }
 
-function QuickAction({ icon, title, onClick }: { icon: React.ReactNode; title: string; onClick: () => void }) {
-  return (
-    <button onClick={onClick} className="flex items-center gap-3 rounded-xl border bg-card px-4 py-3 text-left text-sm font-medium transition hover:-translate-y-0.5 hover:shadow-md">
-      <span className="grid size-8 place-items-center rounded-lg bg-secondary">{icon}</span>
-      {title}
-    </button>
-  )
+/** Short relative time for board tiles ("just now", "2h ago", "3d ago"), falling back to a date. */
+function relativeTime(ms: number): string {
+  const diff = Date.now() - ms
+  const min = Math.floor(diff / 60_000)
+  if (min < 1) return 'just now'
+  if (min < 60) return `${min}m ago`
+  const hr = Math.floor(min / 60)
+  if (hr < 24) return `${hr}h ago`
+  const day = Math.floor(hr / 24)
+  if (day < 7) return `${day}d ago`
+  return new Date(ms).toLocaleDateString()
 }
-
-function Section({ title, onMore, children }: { title: string; onMore?: () => void; children: React.ReactNode }) {
-  return (
-    <section className="mt-10">
-      <div className="mb-3 flex items-center justify-between">
-        <h2 className="text-sm font-semibold">{title}</h2>
-        {onMore && (
-          <Button variant="ghost" size="sm" onClick={onMore} className="text-muted-foreground">
-            View all <ArrowRight />
-          </Button>
-        )}
-      </div>
-      {children}
-    </section>
-  )
-}
-
-const Empty = ({ children }: { children: React.ReactNode }) => (
-  <div className="rounded-xl border border-dashed px-4 py-8 text-center text-sm text-muted-foreground">{children}</div>
-)

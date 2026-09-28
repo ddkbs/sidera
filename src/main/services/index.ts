@@ -30,7 +30,8 @@ import type {
   TaskStatus,
   Whiteboard,
   WhiteboardDetail,
-  WhiteboardObject
+  WhiteboardObject,
+  WhiteboardSummary
 } from '@shared/types'
 import { TASK_PRIORITIES, TASK_STATUSES } from '@shared/types'
 import { between, now, TAG_COLORS } from '@shared/util'
@@ -705,6 +706,23 @@ export function createServices(
         .orderBy(desc(s.whiteboards.updatedAt))
         .all()
         .map(toBoard)
+    },
+
+    /** Boards for tile views (e.g. Home): same as listWhiteboards, plus a count of objects on each. */
+    listWhiteboardsWithStats(): WhiteboardSummary[] {
+      const boards = db
+        .select()
+        .from(s.whiteboards)
+        .where(isNull(s.whiteboards.deletedAt))
+        .orderBy(desc(s.whiteboards.updatedAt))
+        .all()
+        .map(toBoard)
+      if (!boards.length) return []
+      const counts = sql
+        .prepare(`SELECT whiteboard_id AS id, COUNT(*) AS n FROM whiteboard_objects GROUP BY whiteboard_id`)
+        .all() as { id: string; n: number }[]
+      const byId = new Map(counts.map((c) => [c.id, c.n]))
+      return boards.map((b) => ({ ...b, objectCount: byId.get(b.id) ?? 0 }))
     },
 
     getWhiteboard(id) {

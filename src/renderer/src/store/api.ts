@@ -93,6 +93,10 @@ export const api = createApi({
       queryFn: () => call('listWhiteboards'),
       providesTags: [{ type: 'Whiteboard', id: 'LIST' }]
     }),
+    listWhiteboardsWithStats: b.query<Res<'listWhiteboardsWithStats'>, void>({
+      queryFn: () => call('listWhiteboardsWithStats'),
+      providesTags: [{ type: 'Whiteboard', id: 'LIST' }]
+    }),
     getWhiteboard: b.query<Res<'getWhiteboard'>, string>({
       queryFn: (id) => call('getWhiteboard', id),
       providesTags: (_r, _e, id) => [{ type: 'Whiteboard', id }, 'Whiteboard']
@@ -323,6 +327,7 @@ export const {
   useGetKanbanQuery,
   useMoveKanbanItemMutation,
   useListWhiteboardsQuery,
+  useListWhiteboardsWithStatsQuery,
   useGetWhiteboardQuery,
   useCreateWhiteboardMutation,
   useUpdateWhiteboardMutation,

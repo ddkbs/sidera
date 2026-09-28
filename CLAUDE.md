@@ -1,6 +1,6 @@
 # Sidera — Claude Code guide
 
-Free, open-source, MCP-first visual knowledge base: whiteboards, card library, kanban.
+Free, open-source, local-first visual notes: whiteboards with text blocks, tables, charts and sketches — MCP-ready. A card library and kanban are also included.
 macOS only, local-first. Keep answers & diffs small; don't re-explore what this file already says.
 Internal identifiers were renamed from `canvascl`/`CANVASCL_*` to `sidera`/`SIDERA_*` (npm package name, env vars, DB filename, localStorage keys, MCP tool names). Legacy `canvascl` names are migrated one-time and idempotently where they touch existing users' data: DB filename (`src/main/db/client.ts`), localStorage keys (`src/renderer/src/lib/storage.ts`), and the Claude Desktop/Code MCP config entry (`src/main/integrations.ts`). The `sidera-file://` protocol also keeps handling the legacy `canvascl-file://` scheme so old stored card/whiteboard content still resolves. The legacy `~/Library/Application Support/CanvasCL/` userData folder is moved to `…/Sidera/` once at startup (`src/main/userDataMigration.ts`, also rebases paths in accounts.json and Claude Desktop's config).
 
