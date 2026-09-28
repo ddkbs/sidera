@@ -21,7 +21,7 @@ export const SketchNode = memo(function SketchNode({ id, data, selected }: NodeP
           <img
             alt="Sketch"
             draggable={false}
-            className="h-full w-full object-contain dark:invert"
+            className="h-full w-full object-contain dark:invert dark:hue-rotate-180"
             src={`data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`}
           />
         ) : (

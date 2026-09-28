@@ -127,6 +127,10 @@ claude mcp add --scope user --transport http sidera http://127.0.0.1:3845/mcp
 Headless (no UI) stdio mode is also available: `Sidera --mcp-stdio`. Your data never leaves the Mac — the
 server only binds to `127.0.0.1`.
 
+**Draw on iPad** (whiteboard menu or ⇧⌘D) shows a QR code that opens a small drawing page on your iPad over the local
+Wi-Fi. Strokes arrive as an editable sketch. That connection is end-to-end encrypted (XChaCha20-Poly1305, key only in
+the QR code), bound to your private LAN address and open only while the dialog waits for the drawing.
+
 ## Build from source
 
 ```bash

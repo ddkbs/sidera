@@ -2,6 +2,7 @@ import { contextBridge, ipcRenderer, webUtils } from 'electron'
 import { SETTINGS_CHANGED, type AppSettings } from '@shared/settings'
 import type { AiProviderId } from '@shared/ai'
 import type { AuthBridge, SessionInfo } from '@shared/auth'
+import { SIDERA_DRAW_EVENT, type DrawBridge, type DrawEvent } from '@shared/draw'
 import {
   API_METHODS,
   CHAT_EVENT,
@@ -81,6 +82,16 @@ const appBridge: AppBridge = {
   isFullScreen: () => ipcRenderer.invoke('app:isFullScreen')
 }
 
+const draw: DrawBridge = {
+  start: (whiteboardId, address) => ipcRenderer.invoke('draw:start', whiteboardId, address),
+  cancel: () => ipcRenderer.invoke('draw:cancel'),
+  onEvent(cb) {
+    const listener = (_: unknown, e: DrawEvent): void => cb(e)
+    ipcRenderer.on(SIDERA_DRAW_EVENT, listener)
+    return () => ipcRenderer.removeListener(SIDERA_DRAW_EVENT, listener)
+  }
+}
+
 // Taken once per page load: main reloads every window when the session changes.
 const session = ipcRenderer.sendSync('auth:sessionSync') as SessionInfo | null
 
@@ -102,6 +113,7 @@ contextBridge.exposeInMainWorld('auth', auth)
 contextBridge.exposeInMainWorld('api', api)
 contextBridge.exposeInMainWorld('app', appBridge)
 contextBridge.exposeInMainWorld('chat', chat)
+contextBridge.exposeInMainWorld('draw', draw)
 contextBridge.exposeInMainWorld('events', events)
 contextBridge.exposeInMainWorld('platform', process.platform)
 contextBridge.exposeInMainWorld('files', { pathFor: (f: File) => webUtils.getPathForFile(f) })

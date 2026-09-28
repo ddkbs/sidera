@@ -23,6 +23,7 @@ You are the security auditor for **Sidera** (Electron + electron-vite, React ren
 ## 3. Local servers & MCP
 - MCP HTTP server binds to 127.0.0.1 only; check Host/Origin headers to prevent DNS-rebinding from websites; no CORS `*` on endpoints that mutate data.
 - Tool inputs validated (zod); no shell execution, no arbitrary file reads/writes from tool args.
+- Sidera Draw (`src/main/draw/`, iPad companion) is the ONLY listener on a LAN address and must stay separate from MCP: private RFC1918 IPv4 only (never 0.0.0.0), random port, open only while the dialog waits (closed on handoff/cancel/3 min unpaired/60 s silent/30 min cap/5 auth failures/sign-out/quit, `closeAllConnections()`); every API body is XChaCha20-Poly1305 (`shared/drawProtocol.ts`, key only in the URL fragment, AAD = session + direction, strictly increasing `seq`, single paired device via token); payload strictly validated before reaching the renderer; exact Host check; hashed CSP on the page. Residual: plain HTTP page, so an active LAN MITM could swap the page's JS.
 
 ## 4. Network / files / injection
 - URL fetching (link previews, web clipper, image download): http(s) only, size & time limits, content-type checks; consider blocking private/loopback IPs (SSRF against 127.0.0.1:3845).

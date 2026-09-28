@@ -69,6 +69,9 @@ import {
   IconCode,
   IconCommand,
   IconCopy,
+  IconTablet,
+  IconWifi,
+  IconWifiOff,
   IconCursor,
   IconDelete,
   IconDocument,
@@ -302,6 +305,11 @@ export const Music = ObraMusic
 export const Lock = ObraLock
 export const LogOut = IconLogOut
 export const Bug = ObraBug
+
+// Sidera Draw (iPad companion)
+export const Tablet = IconTablet
+export const Wifi = IconWifi
+export const WifiOff = IconWifiOff
 
 /** Obra has no undo/redo glyph — drawn in the same 24px, 1.5-stroke style. */
 const turnArrow = (flip: boolean): AppIcon =>
