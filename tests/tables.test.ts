@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { columnType, formatCell, normalizeTable, parseNumber, tableFromMatrix, tableToChart } from '../src/shared/tables'
+import { columnType, displayType, formatCell, normalizeTable, parseNumber, tableFromMatrix, tableToChart } from '../src/shared/tables'
 
 describe('table model', () => {
   it('parses numbers typed or pasted in different locales', () => {
@@ -39,5 +39,13 @@ describe('table model', () => {
     expect(tableToChart(t, { chartType: 'pie', title: 'Split' })).toMatchObject({ chartType: 'pie', title: 'Split', columns: ['Label', 'Value'], rows: [['2023', '8.7'], ['2024', '13.1']] })
     // shapes that cannot be derived from a table fall back to columns
     expect(tableToChart(t, { chartType: 'sankey' }).chartType).toBe('column')
+    // a blank row appended while typing is not an empty category
+    expect(tableToChart({ ...t, rows: [...t.rows, { id: 'blank', cells: {} }] }).rows).toHaveLength(2)
+  })
+
+  it('shows an untyped first column as labels (years are not formatted as numbers)', () => {
+    const t = tableFromMatrix(['Year', 'Revenue'], [['2023', '8.7']])
+    expect(displayType(t, 0)).toBe('text')
+    expect(displayType(t, 1)).toBe('number')
   })
 })

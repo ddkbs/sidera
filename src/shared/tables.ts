@@ -75,6 +75,14 @@ export function columnType(table: TableData, col: TableColumn): TableColumnType 
   return seen ? 'number' : 'text'
 }
 
+/** Type used for display: like columnType, but an untyped first column is the label column (years stay "2024", not "2,024"). */
+export function displayType(table: TableData, index: number): TableColumnType {
+  const col = table.columns[index]
+  if (!col) return 'text'
+  if (!col.type && index === 0) return 'text'
+  return columnType(table, col)
+}
+
 /** Store numbers as numbers in number columns (keeps text that doesn't parse). */
 export function coerceCell(value: TableCell, type: TableColumnType): TableCell {
   if (type !== 'number' || typeof value === 'number') return value
@@ -189,6 +197,8 @@ export function tableToChart(table: TableData, base?: Partial<ChartData> & { cha
     const n = parseNumber(r.cells[table.columns[ci].id])
     return n === null ? '' : String(n)
   }
+  // blank rows (e.g. one just appended while typing) don't become empty categories
+  table = { ...table, rows: table.rows.filter((r) => Object.values(r.cells).some((v) => v !== '')) }
   const title = base?.title ?? table.title ?? ''
   const options = base?.options ?? defaultChart(chartType).options
   if (CHART_DEFS[chartType].shape === 'parts') {
