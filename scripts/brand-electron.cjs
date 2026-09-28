@@ -12,7 +12,7 @@ const icns = join(root, 'build/icon.icns')
 if (!existsSync(plist) || !existsSync(icns)) process.exit(0)
 
 const NAME = 'Sidera'
-const stamp = join(bundle, '../.canvascl-brand')
+const stamp = join(bundle, '../.sidera-brand')
 const iconHash = require('node:crypto').createHash('sha1').update(readFileSync(icns)).digest('hex')
 if (existsSync(stamp) && readFileSync(stamp, 'utf8') === iconHash) process.exit(0)
 
