@@ -122,7 +122,8 @@ export class DrawServer {
     this.timeouts = { ...DEFAULT_TIMEOUTS, ...opts.timeouts }
     this.headers = companionHeaders(opts.html)
     this.log = opts.log ?? ((m) => console.log(`[sidera-draw] ${m}`))
-    this.server = createServer({ requestTimeout: 30_000, headersTimeout: 10_000, keepAliveTimeout: 5_000, maxHeaderSize: 8192 }, (req, res) =>
+    // generous request timeout: a drawing with photos can be tens of MB over slow Wi-Fi (the body cap still applies)
+    this.server = createServer({ requestTimeout: 180_000, headersTimeout: 10_000, keepAliveTimeout: 5_000, maxHeaderSize: 8192 }, (req, res) =>
       void this.handle(req, res).catch((e) => this.fail(res, e))
     )
     this.server.on('clientError', (_e, socket) => socket.destroy())
@@ -248,7 +249,7 @@ export class DrawServer {
       } catch (e) {
         return { type: 'error', error: 'invalid-drawing', message: (e as Error).message }
       }
-      this.log(`drawing received (${drawing.strokes.length} strokes)`)
+      this.log(`drawing received (${drawing.strokes.length} strokes, ${drawing.images?.length ?? 0} images)`)
       this.opts.onReceived(drawing, this.sessionId)
       this.setState('received')
       this.closeAfterReply = 'received'
