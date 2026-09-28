@@ -7,7 +7,7 @@
 
 # Sidera
 
-**Think visually. Your knowledge base is local, open and MCP-ready.**
+**Fast, visual notes on whiteboards — local, open and MCP-ready.**
 
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 ![Platform](https://img.shields.io/badge/platform-macOS-black)
@@ -15,42 +15,44 @@
 
 </div>
 
-Sidera is a free, open-source, local-first visual knowledge base — whiteboards, a card
-library with backlinks and tags, kanban boards and tasks — built **MCP-first**: every core action is exposed
-as an MCP tool, so Claude Desktop, Claude Code or any other MCP client can read and organize your knowledge
-alongside you.
+Sidera is a free, open-source, local-first app for fast, visual note-taking on whiteboards. Mix text blocks,
+tables, charts and hand drawings — including drawing straight from your iPad — on one infinite board, instead
+of splitting the same idea across a dozen documents. Built **MCP-first**: every core action is exposed as an
+MCP tool, so Claude Desktop, Claude Code or any other MCP client can read and organize your boards alongside
+you.
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/hero-dark.webp">
   <img src="docs/screenshots/hero.webp" alt="A Sidera whiteboard with research and launch cards grouped in sections, connected by arrows, with a chart and a mindmap">
 </picture>
 
+<!-- TODO: replace/add a hero screenshot of a mixed board — text blocks, a table, a chart and a pen sketch together (e.g. a "Tech Startups" board with a timeline, revenue chart and sketched architecture) -->
+
 ## Features
 
-- **Whiteboards** — an infinite canvas (React Flow) with cards, colored sections, labeled connections,
-  mindmaps, Mermaid diagrams, charts, Excalidraw sketches, and imported PDFs & images. Undo/redo, ⌘F find,
-  minimap and zoom.
+- **Whiteboards, first** — an infinite canvas (React Flow) with text blocks, tables, colored sections,
+  labeled connections, mindmaps, Mermaid diagrams, and imported PDFs & images. Undo/redo, ⌘F find, minimap
+  and zoom.
+- **Charts** — drop revenue, timeline or comparison charts straight onto a board, linked to the data behind
+  them.
+- **Pen mode & Sidera Draw** — sketch directly on a board, or draw on an iPad over the local Wi-Fi and have
+  the strokes arrive as an editable sketch — end-to-end encrypted (XChaCha20-Poly1305), no cloud in between.
 - **Cards & backlinks** — rich text (Tiptap) with `/` commands and `@` mentions that create real backlinks;
   one card can live on any number of whiteboards.
-- **Tags as databases** — tag a card and its tag becomes a table with typed properties, a kanban board, or a
-  list.
-- **Tasks** — checkboxes on any card, collected into a Tasks area with list/board views, priority, assignee,
-  due dates, filters and an activity timeline.
-- **Card library & search** — SQLite FTS5 search across every card and whiteboard, with instant results in
-  ⌘K.
-- **PDF reader** — select text in an imported PDF, save it as a colored highlight, and turn it into a quote
-  card linked back to the source page.
 - **AI chat, bring your own key** — an in-app Claude assistant (⌘J) that uses the exact same tools as the MCP
   server, so anything an external agent can do, it can do too. Optional native web search for Anthropic and
   OpenAI models.
-- **MCP server for every core action** — 34 tools over local HTTP or stdio, so Claude Desktop and Claude Code
-  can search, create and organize your whiteboards, cards, tags, kanban and tasks.
+- **MCP server for every core action** — dozens of tools over local HTTP or stdio, so Claude Desktop and
+  Claude Code can search, create and organize your whiteboards, cards, tags, kanban and tasks.
 - **Accounts & guest mode** — local accounts with an optional password, or a temporary guest workspace that's
   wiped on sign-out. No cloud account, ever.
-- **Guided onboarding** — welcome slides and a spotlight tour to get to a first whiteboard in under two
-  minutes.
 - **Local-first** — everything lives in `~/Library/Application Support/Sidera/` (SQLite + imported files);
   Markdown export/import any time.
+
+### Also included
+
+A card library with tags, backlinks and SQLite FTS5 search (⌘K), tags-as-databases with kanban boards and
+lists, and a Tasks area with list/board views, priority, assignee, due dates and an activity timeline.
 
 ## Screenshots
 
