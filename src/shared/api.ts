@@ -4,6 +4,7 @@ import type {
   ArrowEnds,
   Card,
   CardDetail,
+  CardKind,
   CardSummary,
   Connection,
   LineStyle,
@@ -30,12 +31,14 @@ import type {
   TaskPriority,
   TaskStatus,
   Profile,
+  TextBlockStyle,
   Whiteboard,
   WhiteboardDetail,
   WhiteboardObject,
   WhiteboardProperty,
   WhiteboardSummary
 } from './types'
+import type { ChartType } from './charts'
 
 /**
  * The single contract between renderer and main. Every method maps 1:1 to an
@@ -44,14 +47,26 @@ import type {
  */
 export interface CanvasApi {
   // cards
-  listCards(opts?: { tagId?: ID; limit?: number; offset?: number }): Promise<CardSummary[]>
+  /** `kind` defaults to 'card' (text blocks hidden) unless a tag is given, then to 'all'. */
+  listCards(opts?: { tagId?: ID; limit?: number; offset?: number; kind?: CardKind | 'all' }): Promise<CardSummary[]>
   getCard(id: ID): Promise<CardDetail | null>
-  createCard(input: { title?: string; content?: DocJSON; markdown?: string; tagIds?: ID[] }): Promise<Card>
-  updateCard(input: { id: ID; title?: string; content?: DocJSON; color?: string | null; icon?: string | null }): Promise<Card>
+  createCard(input: { title?: string; content?: DocJSON; markdown?: string; tagIds?: ID[]; kind?: CardKind }): Promise<Card>
+  /** For text blocks the title follows the first line of the content unless a title is given. `kind: 'card'` promotes a block. */
+  updateCard(input: { id: ID; title?: string; content?: DocJSON; color?: string | null; icon?: string | null; kind?: CardKind }): Promise<Card>
   deleteCard(id: ID): Promise<void>
   restoreCard(id: ID): Promise<void>
   /** Find-or-create the "Inbox" card used as the default target for tasks added without a card. */
   getInboxCard(): Promise<Card>
+  /** Create a text block: a card of kind 'block' placed on a whiteboard in one step. */
+  addTextBlock(input: {
+    whiteboardId: ID
+    x: number
+    y: number
+    width?: number
+    content?: DocJSON
+    markdown?: string
+    style?: TextBlockStyle
+  }): Promise<{ card: Card; object: WhiteboardObject }>
 
   // tags & properties
   listTags(): Promise<Tag[]>
@@ -113,6 +128,8 @@ export interface CanvasApi {
     data?: Record<string, unknown>
   }): Promise<void>
   removeConnections(ids: ID[]): Promise<void>
+  /** Insert a chart linked to a table object (next to it); the chart follows later table edits. */
+  chartFromTable(input: { tableId: ID; chartType?: ChartType }): Promise<WhiteboardObject>
   organizeBoard(input: {
     whiteboardId: ID
     groups: { title: string; color?: string; objectIds: ID[] }[]
@@ -155,7 +172,8 @@ export interface CanvasApi {
   setActiveProfile(id: ID): Promise<Profile>
 
   // search
-  search(query: string, limit?: number): Promise<SearchHit[]>
+  /** Finds cards and text blocks; `kind` narrows card hits. An empty query lists recent regular cards. */
+  search(query: string, limit?: number, opts?: { kind?: CardKind | 'all' }): Promise<SearchHit[]>
 
   // files
   importFiles(paths?: string[]): Promise<FileRecord[]>
@@ -193,13 +211,13 @@ export interface CanvasApi {
 export type ApiMethod = keyof CanvasApi
 
 export const API_METHODS: ApiMethod[] = [
-  'listCards', 'getCard', 'createCard', 'updateCard', 'deleteCard', 'restoreCard', 'getInboxCard',
+  'listCards', 'getCard', 'createCard', 'updateCard', 'deleteCard', 'restoreCard', 'getInboxCard', 'addTextBlock',
   'listTags', 'createTag', 'updateTag', 'deleteTag', 'setCardTags',
   'listProperties', 'createProperty', 'updateProperty', 'setPropertyValue',
   'getKanban', 'moveKanbanItem',
   'listWhiteboards', 'listWhiteboardsWithStats', 'getWhiteboard', 'createWhiteboard', 'updateWhiteboard', 'updateWhiteboardProperties', 'deleteWhiteboard', 'restoreWhiteboard', 'moveWhiteboardToFolder', 'duplicateWhiteboard',
   'listFolders', 'createFolder', 'renameFolder', 'deleteFolder', 'moveFolder',
-  'addObject', 'updateObjects', 'removeObjects', 'restoreObjects', 'addConnection', 'updateConnection', 'removeConnections', 'organizeBoard',
+  'addObject', 'updateObjects', 'removeObjects', 'restoreObjects', 'addConnection', 'updateConnection', 'removeConnections', 'chartFromTable', 'organizeBoard',
   'listTasks', 'setTaskChecked', 'addTask', 'updateTask', 'listTaskActivity',
   'listTaskComments', 'addTaskComment', 'updateTaskComment', 'deleteTaskComment',
   'listProfiles', 'createProfile', 'updateProfile', 'deleteProfile', 'getActiveProfile', 'setActiveProfile',

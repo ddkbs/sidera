@@ -297,3 +297,95 @@ describe('seed', () => {
     expect(detail.connections).toHaveLength(2)
   })
 })
+
+describe('text blocks', () => {
+  it('creates a block card on a board, titled by its first line and hidden from the library', () => {
+    const wb = api.createWhiteboard({ name: 'Tech Startups' })
+    const { card, object } = api.addTextBlock({ whiteboardId: wb.id, x: 10, y: 20, markdown: '# SpaceX\nFounded: 2002 · HQ: Hawthorne', style: 'framed' })
+    expect(card).toMatchObject({ kind: 'block', title: 'SpaceX' })
+    expect(object).toMatchObject({ kind: 'card', refId: card.id, x: 10, y: 20, data: { style: 'framed' } })
+    const regular = api.createCard({ title: 'Regular' })
+    expect(api.listCards().map((c) => c.id)).toEqual([regular.id])
+    expect(api.listCards({ kind: 'all' }).map((c) => c.id).sort()).toEqual([card.id, regular.id].sort())
+    expect(api.listCards({ kind: 'block' })[0]).toMatchObject({ id: card.id, kind: 'block' })
+    // search still finds blocks (and says what they are); empty query = recent regular cards only
+    expect(api.search('Hawthorne')[0]).toMatchObject({ id: card.id, cardKind: 'block' })
+    expect(api.search('Hawthorne', 20, { kind: 'card' })).toHaveLength(0)
+    expect(api.search('').map((h) => h.id)).toEqual([regular.id])
+    expect(api.getWhiteboard(wb.id)!.cards[card.id].kind).toBe('block')
+  })
+
+  it('keeps the title in sync with the first line and promotes a block to a card', () => {
+    const wb = api.createWhiteboard({ name: 'B' })
+    const { card } = api.addTextBlock({ whiteboardId: wb.id, x: 0, y: 0 })
+    expect(card.title).toBe('')
+    api.updateCard({ id: card.id, content: { type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text: 'Idee: more tests' }] }] } })
+    expect(api.getCard(card.id)!.title).toBe('Idee: more tests')
+    api.updateCard({ id: card.id, kind: 'card' })
+    expect(api.getCard(card.id)!.kind).toBe('card')
+    expect(api.listCards().map((c) => c.id)).toContain(card.id)
+    // a regular card keeps its own title when content changes
+    api.updateCard({ id: card.id, content: { type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text: 'Changed' }] }] } })
+    expect(api.getCard(card.id)!.title).toBe('Idee: more tests')
+  })
+
+  it('refuses unknown boards', () => {
+    expect(() => api.addTextBlock({ whiteboardId: 'nope', x: 0, y: 0 })).toThrow(/Whiteboard not found/)
+  })
+})
+
+describe('tables', () => {
+  const revenue = () => ({
+    title: 'Revenue',
+    columns: [
+      { id: 'y', name: 'Year' },
+      { id: 'r', name: 'Revenue', type: 'number' as const }
+    ],
+    rows: [
+      { id: 'a', cells: { y: '2022', r: '4,600' } as Record<string, string | number> },
+      { id: 'b', cells: { y: '2023', r: 8700 } as Record<string, string | number> }
+    ]
+  })
+
+  it('validates table data and stores numbers as numbers', () => {
+    const wb = api.createWhiteboard({ name: 'T' })
+    const t = api.addObject({ whiteboardId: wb.id, kind: 'table', x: 0, y: 0, data: revenue() })
+    expect(t.data.rows).toEqual([
+      { id: 'a', cells: { y: '2022', r: 4600 } },
+      { id: 'b', cells: { y: '2023', r: 8700 } }
+    ])
+    expect(() => api.addObject({ whiteboardId: wb.id, kind: 'table', x: 0, y: 0, data: { rows: [] } })).toThrow(/columns/)
+    const tooMany = { columns: [{ id: 'c', name: 'C' }], rows: Array.from({ length: 1001 }, (_, i) => ({ id: String(i), cells: {} })) }
+    expect(() => api.addObject({ whiteboardId: wb.id, kind: 'table', x: 0, y: 0, data: tooMany })).toThrow(/Too many rows/)
+  })
+
+  it('creates a linked chart that follows table edits until unlinked', () => {
+    const changes: string[] = []
+    const svc = createServices(openDatabase(':memory:'), (s) => changes.push(s))
+    const wb = svc.createWhiteboard({ name: 'T' })
+    const t = svc.addObject({ whiteboardId: wb.id, kind: 'table', x: 0, y: 0, width: 400, data: revenue() })
+    const chart = svc.chartFromTable({ tableId: t.id })
+    expect(chart).toMatchObject({ kind: 'chart', x: 460, y: 0 })
+    expect(chart.data).toMatchObject({ chartType: 'column', title: 'Revenue', columns: ['Year', 'Revenue'], rows: [['2022', '4600'], ['2023', '8700']], source: { tableId: t.id } })
+
+    // a UI edit of the table (generic updateObjects) re-derives the chart and tells the UI
+    changes.length = 0
+    const next = revenue()
+    next.rows.push({ id: 'c', cells: { y: '2024', r: '13100' } })
+    svc.updateObjects([{ id: t.id, data: next }])
+    expect(svc.getObject(chart.id)!.data.rows).toEqual([['2022', '4600'], ['2023', '8700'], ['2024', '13100']])
+    expect(changes).toContain('whiteboards')
+
+    // updateTable (MCP path) too; chart type / title chosen on the chart survive
+    svc.updateObjects([{ id: chart.id, data: { ...svc.getObject(chart.id)!.data, chartType: 'line', title: 'Growth' } }])
+    svc.updateTable(t.id, { rows: [{ id: 'z', cells: { y: '2025', r: 1 } }] })
+    expect(svc.getObject(chart.id)!.data).toMatchObject({ chartType: 'line', title: 'Growth', rows: [['2025', '1']] })
+
+    // unlinked charts keep their data
+    const { source: _s, ...unlinked } = svc.getObject(chart.id)!.data
+    svc.updateObjects([{ id: chart.id, data: unlinked }])
+    svc.updateTable(t.id, { rows: [] })
+    expect(svc.getObject(chart.id)!.data.rows).toEqual([['2025', '1']])
+    expect(() => svc.chartFromTable({ tableId: chart.id })).toThrow(/Table not found/)
+  })
+})

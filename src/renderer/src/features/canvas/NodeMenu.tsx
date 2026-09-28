@@ -1,8 +1,8 @@
-import { ArrowDownToLine, ArrowUpToLine, Expand, Frame, LayoutDashboard, Trash2, X } from '@/components/icons'
+import { ArrowDownToLine, ArrowUpToLine, BarChart, Check, Expand, Frame, LayoutDashboard, SquarePlus, Trash2, Unlink, X } from '@/components/icons'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import type { ObjectNode } from './types'
 
-export type NodeMenuAction = 'open' | 'front' | 'back' | 'remove' | 'delete-card' | 'frame'
+export type NodeMenuAction = 'open' | 'front' | 'back' | 'remove' | 'delete-card' | 'convert-card' | 'style-plain' | 'style-framed' | 'chart-from-table' | 'unlink-chart' | 'frame'
 
 interface Props {
   menu: { node: ObjectNode; x: number; y: number } | null
@@ -14,6 +14,9 @@ interface Props {
 export function NodeMenu({ menu, onClose, onAction }: Props) {
   const node = menu?.node
   const act = (a: NodeMenuAction) => () => node && onAction(a, node)
+  const block = node?.type === 'card' && node.data.card?.kind === 'block'
+  const framed = block && node.data.object.data.style === 'framed'
+  const linkedChart = node?.type === 'chart' && !!(node.data.object.data.source as { tableId?: string } | undefined)?.tableId
   return (
     <DropdownMenu open={!!menu} onOpenChange={(o) => !o && onClose()} modal={false}>
       <DropdownMenuTrigger asChild>
@@ -22,7 +25,32 @@ export function NodeMenu({ menu, onClose, onAction }: Props) {
       <DropdownMenuContent align="start" className="w-60">
         {node?.type === 'card' && (
           <DropdownMenuItem onClick={act('open')}>
-            <Expand /> Open card
+            <Expand /> {block ? 'Open as card' : 'Open card'}
+          </DropdownMenuItem>
+        )}
+        {block && (
+          <>
+            <DropdownMenuItem onClick={act('convert-card')}>
+              <SquarePlus /> Convert to card
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onClick={act('style-plain')}>
+              <Check className={framed ? 'opacity-0' : ''} /> Plain text
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={act('style-framed')}>
+              <Check className={framed ? '' : 'opacity-0'} /> Framed box
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+          </>
+        )}
+        {node?.type === 'table' && (
+          <DropdownMenuItem onClick={act('chart-from-table')}>
+            <BarChart /> Create chart from table
+          </DropdownMenuItem>
+        )}
+        {linkedChart && (
+          <DropdownMenuItem onClick={act('unlink-chart')}>
+            <Unlink /> Unlink from table
           </DropdownMenuItem>
         )}
         {node?.type === 'whiteboard' && (
@@ -42,10 +70,16 @@ export function NodeMenu({ menu, onClose, onAction }: Props) {
           <ArrowDownToLine /> Send to back
         </DropdownMenuItem>
         <DropdownMenuSeparator />
-        <DropdownMenuItem onClick={act('remove')}>
-          <X /> Remove from whiteboard
-        </DropdownMenuItem>
-        {node?.type === 'card' && (
+        {block ? (
+          <DropdownMenuItem variant="destructive" onClick={act('remove')}>
+            <Trash2 /> Delete text block
+          </DropdownMenuItem>
+        ) : (
+          <DropdownMenuItem onClick={act('remove')}>
+            <X /> Remove from whiteboard
+          </DropdownMenuItem>
+        )}
+        {node?.type === 'card' && !block && (
           <DropdownMenuItem variant="destructive" onClick={act('delete-card')}>
             <Trash2 /> Delete card everywhere
           </DropdownMenuItem>

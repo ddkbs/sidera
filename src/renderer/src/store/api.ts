@@ -151,6 +151,14 @@ export const api = createApi({
       queryFn: (input) => call('addObject', input),
       invalidatesTags: (_r, _e, { whiteboardId, refId }) => [{ type: 'Whiteboard', id: whiteboardId }, ...(refId ? [{ type: 'Card' as const, id: refId }] : [])]
     }),
+    addTextBlock: b.mutation<Res<'addTextBlock'>, Arg<'addTextBlock'>[0]>({
+      queryFn: (input) => call('addTextBlock', input),
+      invalidatesTags: (_r, _e, { whiteboardId }) => [{ type: 'Whiteboard', id: whiteboardId }]
+    }),
+    chartFromTable: b.mutation<Res<'chartFromTable'>, Arg<'chartFromTable'>[0] & { whiteboardId: string }>({
+      queryFn: ({ whiteboardId: _w, ...input }) => call('chartFromTable', input),
+      invalidatesTags: (_r, _e, { whiteboardId }) => [{ type: 'Whiteboard', id: whiteboardId }]
+    }),
     removeObjects: b.mutation<void, { whiteboardId: string; ids: string[] }>({
       queryFn: ({ ids }) => call('removeObjects', ids),
       invalidatesTags: ['Whiteboard', 'Card']
@@ -341,6 +349,8 @@ export const {
   useDeleteFolderMutation,
   useMoveFolderMutation,
   useAddObjectMutation,
+  useAddTextBlockMutation,
+  useChartFromTableMutation,
   useRemoveObjectsMutation,
   useAddConnectionMutation,
   useRemoveConnectionsMutation,

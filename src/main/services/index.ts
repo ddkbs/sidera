@@ -34,6 +34,9 @@ import type {
   WhiteboardSummary
 } from '@shared/types'
 import { TASK_PRIORITIES, TASK_STATUSES } from '@shared/types'
+import type { CardKind, TextBlockStyle } from '@shared/types'
+import { normalizeChart, type ChartData } from '@shared/charts'
+import { normalizeTable, tableToChart, type TableData } from '@shared/tables'
 import { between, now, TAG_COLORS } from '@shared/util'
 import type { DB } from '../db/client'
 import * as s from '../db/schema'
@@ -49,6 +52,8 @@ export type Services = ServiceMethods & {
   registerFile(input: Omit<FileRecord, 'id' | 'createdAt'>): FileRecord
   getFile(id: string): FileRecord | null
   getObject(id: string): WhiteboardObject | null
+  /** Replace parts of a table object's data (validated); linked charts follow. */
+  updateTable(id: string, patch: Partial<TableData>): WhiteboardObject
   /** Tell the UI that data changed outside of the renderer (e.g. MCP edits of object data). */
   notify(scope: DbChangeScope): void
   /** Hard-delete soft-deleted cards/whiteboards older than `olderThan` ms. */
@@ -65,8 +70,20 @@ const DEFAULT_SIZES: Record<string, [number, number]> = {
   mermaid: [420, 300],
   sketch: [380, 280],
   chart: [440, 300],
-  link: [320, 200]
+  link: [320, 200],
+  table: [420, 200]
 }
+
+/** Width of a new text block when none is given. */
+export const TEXT_BLOCK_WIDTH = 360
+
+/** Title of a text block: its first non-empty line (so search results, mentions and exports stay readable). */
+export function blockTitle(doc: DocJSON): string {
+  const line = docToText(doc).split('\n').map((l) => l.trim()).find(Boolean) ?? ''
+  return line.length > 80 ? line.slice(0, 79).trimEnd() + '…' : line
+}
+
+const cardKind = (k: unknown): CardKind => (k === 'block' ? 'block' : 'card')
 
 const json = <T>(v: string | null | undefined, fallback: T): T => {
   if (!v) return fallback
@@ -112,6 +129,7 @@ export function createServices(
   // ---------- mappers ----------
   const toCard = (r: typeof s.cards.$inferSelect): Card => ({
     id: r.id,
+    kind: cardKind(r.kind),
     title: r.title,
     content: json<DocJSON>(r.content, emptyDoc()),
     contentText: r.contentText,
@@ -396,6 +414,7 @@ export function createServices(
     const tags = tagsFor(rows.map((r) => r.id))
     return rows.map((r) => ({
       id: r.id,
+      kind: cardKind(r.kind),
       title: r.title,
       excerpt: r.contentText.slice(0, 4000),
       color: r.color ?? null,
@@ -448,25 +467,54 @@ export function createServices(
     })
   }
 
+  // ---------- tables & linked charts ----------
+  /** Set by syncLinkedCharts when a chart's data actually changed (so the UI refetches). */
+  let linkedChartsChanged = false
+
+  /** A chart object's data with a table source: rows/columns re-derived from the table if it still exists. */
+  const linkedChartData = (raw: Partial<ChartData>): Record<string, unknown> => {
+    const chart = normalizeChart(raw)
+    const table = chart.source ? api.getObject(chart.source.tableId) : null
+    if (!table || table.kind !== 'table') return chart as unknown as Record<string, unknown>
+    return { ...tableToChart(table.data as unknown as TableData, chart), source: chart.source } as unknown as Record<string, unknown>
+  }
+
+  /** Re-derive every chart that follows this table (MCP and UI edits alike). */
+  const syncLinkedCharts = (tableId: string): void => {
+    const table = api.getObject(tableId)
+    if (!table) return
+    const charts = sql
+      .prepare(`SELECT id, data FROM whiteboard_objects WHERE kind = 'chart' AND whiteboard_id = ? AND json_extract(data, '$.source.tableId') = ?`)
+      .all(table.whiteboardId, tableId) as { id: string; data: string }[]
+    for (const c of charts) {
+      const next = JSON.stringify(linkedChartData(json<Partial<ChartData>>(c.data, {})))
+      if (next === c.data) continue
+      db.update(s.whiteboardObjects).set({ data: next }).where(eq(s.whiteboardObjects.id, c.id)).run()
+      linkedChartsChanged = true
+    }
+  }
+
   const api: Services = {
     // ---------- cards ----------
     listCards(opts = {}) {
       const limit = opts.limit ?? 500
       const offset = opts.offset ?? 0
+      const kind = opts.kind ?? (opts.tagId ? 'all' : 'card')
+      const kindWhere = kind === 'all' ? '' : `AND c.kind = '${cardKind(kind)}'`
       const rows = opts.tagId
         ? (sql
             .prepare(
-              `SELECT c.id, c.title, c.content_text AS contentText, c.color, c.icon, c.updated_at AS updatedAt FROM cards c
+              `SELECT c.id, c.kind, c.title, c.content_text AS contentText, c.color, c.icon, c.updated_at AS updatedAt FROM cards c
                JOIN card_tags ct ON ct.card_id = c.id
-               WHERE ct.tag_id = ? AND c.deleted_at IS NULL
+               WHERE ct.tag_id = ? AND c.deleted_at IS NULL ${kindWhere}
                ORDER BY c.updated_at DESC LIMIT ? OFFSET ?`
             )
             .all(opts.tagId, limit, offset) as CardSummaryRow[])
         : (sql
             .prepare(
-              `SELECT id, title, content_text AS contentText, color, icon, updated_at AS updatedAt FROM cards
-               WHERE deleted_at IS NULL
-               ORDER BY updated_at DESC LIMIT ? OFFSET ?`
+              `SELECT c.id, c.kind, c.title, c.content_text AS contentText, c.color, c.icon, c.updated_at AS updatedAt FROM cards c
+               WHERE c.deleted_at IS NULL ${kindWhere}
+               ORDER BY c.updated_at DESC LIMIT ? OFFSET ?`
             )
             .all(limit, offset) as CardSummaryRow[])
       const cards = summarize(rows)
@@ -517,9 +565,11 @@ export function createServices(
     createCard(input) {
       const content = ensureTaskIds(input.content ?? (input.markdown ? markdownToDoc(input.markdown) : emptyDoc()))
       const t = now()
+      const kind = cardKind(input.kind)
       const row = {
         id: nanoid(),
-        title: input.title?.trim() ?? '',
+        kind,
+        title: input.title?.trim() || (kind === 'block' ? blockTitle(content) : ''),
         content: JSON.stringify(content),
         contentText: docToText(content),
         createdAt: t,
@@ -540,10 +590,13 @@ export function createServices(
       if (input.title !== undefined) patch.title = input.title
       if (input.color !== undefined) patch.color = input.color
       if (input.icon !== undefined) patch.icon = input.icon
+      if (input.kind !== undefined) patch.kind = cardKind(input.kind)
       const content = input.content !== undefined ? ensureTaskIds(input.content) : undefined
       if (content !== undefined) {
         patch.content = JSON.stringify(content)
         patch.contentText = docToText(content)
+        // a text block's title follows its first line
+        if (input.title === undefined && existing.kind === 'block' && input.kind !== 'card') patch.title = blockTitle(content)
       }
       tx(() => {
         db.update(s.cards).set(patch).where(eq(s.cards.id, input.id)).run()
@@ -570,6 +623,27 @@ export function createServices(
     /** Find a non-deleted card titled exactly "Inbox", or create one. Idempotent. */
     getInboxCard() {
       return getOrCreateInboxCard()
+    },
+
+    addTextBlock({ whiteboardId, x, y, width, content, markdown, style }) {
+      if (!db.select({ id: s.whiteboards.id }).from(s.whiteboards).where(eq(s.whiteboards.id, whiteboardId)).get())
+        throw new Error(`Whiteboard not found: ${whiteboardId}`)
+      const blockStyle: TextBlockStyle = style === 'framed' ? 'framed' : 'plain'
+      return tx(() => {
+        const card = api.createCard({ kind: 'block', content, markdown })
+        const lines = Math.max(1, card.contentText.split('\n').length)
+        const object = api.addObject({
+          whiteboardId,
+          kind: 'card',
+          refId: card.id,
+          x,
+          y,
+          width: width ?? TEXT_BLOCK_WIDTH,
+          height: Math.min(40 + lines * 24, 600),
+          data: { style: blockStyle }
+        })
+        return { card, object }
+      })
     },
 
     // ---------- tags ----------
@@ -762,7 +836,7 @@ export function createServices(
       const cardIds = objects.filter((o) => o.kind === 'card' && o.refId).map((o) => o.refId!)
       const cardRows = cardIds.length
         ? db
-            .select({ id: s.cards.id, title: s.cards.title, contentText: s.cards.contentText, color: s.cards.color, icon: s.cards.icon, updatedAt: s.cards.updatedAt })
+            .select({ id: s.cards.id, kind: s.cards.kind, title: s.cards.title, contentText: s.cards.contentText, color: s.cards.color, icon: s.cards.icon, updatedAt: s.cards.updatedAt })
             .from(s.cards)
             .where(inArray(s.cards.id, cardIds))
             .all()
@@ -893,6 +967,8 @@ export function createServices(
     },
 
     addObject(input) {
+      if (input.kind === 'table') input = { ...input, data: normalizeTable(input.data) as unknown as Record<string, unknown> }
+      if (input.kind === 'chart' && (input.data as Partial<ChartData> | undefined)?.source) input = { ...input, data: linkedChartData(input.data as Partial<ChartData>) }
       const [w, h] = DEFAULT_SIZES[input.kind] ?? [240, 160]
       const z = (sql.prepare('SELECT COALESCE(MAX(z), 0) + 1 AS z FROM whiteboard_objects WHERE whiteboard_id = ?').get(input.whiteboardId) as { z: number }).z
       const row = {
@@ -916,12 +992,47 @@ export function createServices(
     },
 
     updateObjects(patches) {
+      const tables: string[] = []
+      linkedChartsChanged = false
       tx(() => {
         for (const { id, data, ...rest } of patches) {
           const patch: Partial<typeof s.whiteboardObjects.$inferInsert> = { ...rest }
-          if (data !== undefined) patch.data = JSON.stringify(data)
+          if (data !== undefined) {
+            const kind = sql.prepare('SELECT kind FROM whiteboard_objects WHERE id = ?').pluck().get(id)
+            let next: unknown = data
+            if (kind === 'table') {
+              next = normalizeTable(data)
+              tables.push(id)
+            } else if (kind === 'chart' && (data as Partial<ChartData>)?.source) next = linkedChartData(data as Partial<ChartData>)
+            patch.data = JSON.stringify(next)
+          }
           if (Object.keys(patch).length) db.update(s.whiteboardObjects).set(patch).where(eq(s.whiteboardObjects.id, id)).run()
         }
+        for (const t of tables) syncLinkedCharts(t)
+      })
+      // renderer-driven edits don't refetch the board, except when charts had to follow a table
+      if (linkedChartsChanged) onChange('whiteboards')
+    },
+
+    updateTable(id, patch) {
+      const obj = api.getObject(id)
+      if (!obj || obj.kind !== 'table') throw new Error(`Table not found: ${id}`)
+      const data = normalizeTable({ ...obj.data, ...patch })
+      api.updateObjects([{ id, data: data as unknown as Record<string, unknown> }])
+      onChange('whiteboards')
+      return api.getObject(id)!
+    },
+
+    chartFromTable({ tableId, chartType }) {
+      const table = api.getObject(tableId)
+      if (!table || table.kind !== 'table') throw new Error(`Table not found: ${tableId}`)
+      const chart = tableToChart(table.data as unknown as TableData, { chartType: chartType ?? 'column' })
+      return api.addObject({
+        whiteboardId: table.whiteboardId,
+        kind: 'chart',
+        x: table.x + table.width + 60,
+        y: table.y,
+        data: { ...chart, source: { tableId } } as unknown as Record<string, unknown>
       })
     },
 
@@ -1249,14 +1360,16 @@ export function createServices(
     },
 
     // ---------- search ----------
-    search(query, limit = 20) {
+    search(query, limit = 20, opts = {}) {
       const q = query.trim()
+      const kind = opts.kind ?? (q ? 'all' : 'card')
+      const kindWhere = kind === 'all' ? '' : `AND c.kind = '${cardKind(kind)}'`
       if (!q) {
         return summarize(
           sql
-            .prepare(`SELECT id, title, content_text AS contentText, color, icon, updated_at AS updatedAt FROM cards WHERE deleted_at IS NULL ORDER BY updated_at DESC LIMIT ?`)
+            .prepare(`SELECT c.id, c.kind, c.title, c.content_text AS contentText, c.color, c.icon, c.updated_at AS updatedAt FROM cards c WHERE c.deleted_at IS NULL ${kindWhere} ORDER BY c.updated_at DESC LIMIT ?`)
             .all(limit) as CardSummaryRow[]
-        ).map((c): SearchHit => ({ id: c.id, title: c.title, snippet: c.excerpt.slice(0, 120), kind: 'card' }))
+        ).map((c): SearchHit => ({ id: c.id, title: c.title, snippet: c.excerpt.slice(0, 120), kind: 'card', cardKind: c.kind }))
       }
       const fts = q
         .split(/\s+/)
@@ -1272,13 +1385,13 @@ export function createServices(
         cards = (
           sql
             .prepare(
-              `SELECT c.id, c.title, snippet(cards_fts, 1, '', '', '…', 16) AS snippet
+              `SELECT c.id, c.kind AS cardKind, c.title, snippet(cards_fts, 1, '', '', '…', 16) AS snippet
                FROM cards_fts JOIN cards c ON c.rowid = cards_fts.rowid
-               WHERE cards_fts MATCH ? AND c.deleted_at IS NULL
+               WHERE cards_fts MATCH ? AND c.deleted_at IS NULL ${kindWhere}
                ORDER BY bm25(cards_fts, 5.0, 1.0) LIMIT ?`
             )
-            .all(fts, limit) as { id: string; title: string; snippet: string }[]
-        ).map((r) => ({ ...r, kind: 'card' as const }))
+            .all(fts, limit) as { id: string; cardKind: string; title: string; snippet: string }[]
+        ).map((r) => ({ ...r, cardKind: cardKind(r.cardKind), kind: 'card' as const }))
       }
       return [...boards.map((b) => ({ ...b, snippet: 'Whiteboard', kind: 'whiteboard' as const })), ...cards]
     },
@@ -1357,6 +1470,7 @@ export function createServices(
 
 interface CardSummaryRow {
   id: string
+  kind?: string
   title: string
   contentText: string
   color?: string | null

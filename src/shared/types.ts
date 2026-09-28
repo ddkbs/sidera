@@ -11,8 +11,15 @@ export interface DocJSON {
   marks?: { type: string; attrs?: Record<string, unknown> }[]
 }
 
+/** 'block' = a text block written directly on a whiteboard (hidden from the card library by default). */
+export type CardKind = 'card' | 'block'
+
+/** Display style of a text block, stored per placement in the whiteboard object's data (`style`). */
+export type TextBlockStyle = 'plain' | 'framed'
+
 export interface Card {
   id: ID
+  kind: CardKind
   title: string
   content: DocJSON
   contentText: string
@@ -26,6 +33,7 @@ export interface Card {
 
 export interface CardSummary {
   id: ID
+  kind: CardKind
   title: string
   excerpt: string
   color: string | null
@@ -93,7 +101,7 @@ export interface Folder {
   updatedAt: number
 }
 
-export type ObjectKind = 'card' | 'text' | 'section' | 'whiteboard' | 'file' | 'mindmap' | 'mermaid' | 'sketch' | 'chart' | 'link'
+export type ObjectKind = 'card' | 'text' | 'section' | 'whiteboard' | 'file' | 'mindmap' | 'mermaid' | 'sketch' | 'chart' | 'link' | 'table'
 
 export interface WhiteboardObject {
   id: ID
@@ -166,6 +174,8 @@ export interface SearchHit {
   title: string
   snippet: string
   kind: 'card' | 'whiteboard'
+  /** for card hits: regular card or text block */
+  cardKind?: CardKind
 }
 
 export interface FileRecord {

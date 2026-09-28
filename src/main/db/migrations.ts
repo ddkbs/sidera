@@ -215,5 +215,9 @@ export const migrations: string[] = [
   `,
   /* 10: whiteboard properties */ `
   ALTER TABLE whiteboards ADD COLUMN properties TEXT NOT NULL DEFAULT '[]';
+  `,
+  /* 11: text blocks (cards written directly on a whiteboard) */ `
+  ALTER TABLE cards ADD COLUMN kind TEXT NOT NULL DEFAULT 'card';
+  CREATE INDEX cards_kind_idx ON cards(kind);
   `
 ]

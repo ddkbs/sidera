@@ -291,3 +291,53 @@ describe('mcp http transport', () => {
     started!.server.close()
   })
 })
+
+describe('mcp text blocks & tables', () => {
+  it('adds text blocks that stay out of list_cards but are found by search', async () => {
+    const { call } = await connect()
+    const wb = await call('create_whiteboard', { name: 'Tech Startups' })
+    const block = await call('add_text_block', { whiteboard_id: wb.id, markdown: '## SpaceX\n- Founded: 2002\n- HQ: Hawthorne', style: 'framed' })
+    expect(block).toMatchObject({ title: 'SpaceX' })
+    await call('create_card', { title: 'Regular card' })
+    expect((await call('list_cards', {})).map((c: { title: string }) => c.title)).toEqual(['Regular card'])
+    expect((await call('list_cards', { kind: 'block' }))[0]).toMatchObject({ id: block.card_id, kind: 'block' })
+    const hits = await call('search_cards', { query: 'Hawthorne' })
+    expect(hits[0]).toMatchObject({ id: block.card_id, card_kind: 'block' })
+    const board = await call('get_whiteboard', { whiteboard_id: wb.id })
+    expect(board.objects[0]).toMatchObject({ id: block.object_id, kind: 'card', card_kind: 'block', data: { style: 'framed' } })
+    // blocks remain regular cards for the card tools
+    expect((await call('get_card', { card_id: block.card_id })).markdown).toContain('Hawthorne')
+  })
+
+  it('adds and updates tables and keeps linked charts in sync', async () => {
+    const { api, call, client } = await connect()
+    const wb = await call('create_whiteboard', { name: 'Numbers' })
+    const table = await call('add_table', {
+      whiteboard_id: wb.id,
+      title: 'Revenue ($bn)',
+      columns: ['Year', { name: 'Revenue', type: 'number' }],
+      rows: [['2022', 4.6], ['2023', '8.7']]
+    })
+    expect(table).toMatchObject({ columns: ['Year', 'Revenue'], rows: 2 })
+    const chart = await call('add_chart', { whiteboard_id: wb.id, chart_type: 'column', table_id: table.object_id })
+    expect(chart).toMatchObject({ columns: ['Year', 'Revenue'], rows: 2, linked_table_id: table.object_id })
+
+    await call('update_table', { object_id: table.object_id, append_rows: [['2024', 13.1]] })
+    expect(api.getObject(chart.object_id)!.data.rows).toEqual([['2022', '4.6'], ['2023', '8.7'], ['2024', '13.1']])
+
+    const board = await call('get_whiteboard', { whiteboard_id: wb.id })
+    const t = board.objects.find((o: { id: string }) => o.id === table.object_id)
+    expect(t.data).toEqual({ title: 'Revenue ($bn)', columns: ['Year', 'Revenue'], rows: [['2022', 4.6], ['2023', 8.7], ['2024', 13.1]] })
+
+    // replacing rows keeps the columns; unlinking stops following
+    await call('update_table', { object_id: table.object_id, rows: [['2025', 15]] })
+    expect(api.getObject(chart.object_id)!.data.rows).toEqual([['2025', '15']])
+    await call('update_chart', { object_id: chart.object_id, unlink: true })
+    await call('update_table', { object_id: table.object_id, rows: [] })
+    expect(api.getObject(chart.object_id)!.data.rows).toEqual([['2025', '15']])
+    expect(api.getObject(chart.object_id)!.data.source).toBeUndefined()
+
+    const bad = await client.callTool({ name: 'update_table', arguments: { object_id: 'nope' } })
+    expect(bad.isError).toBe(true)
+  })
+})

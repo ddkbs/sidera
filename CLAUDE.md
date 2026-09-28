@@ -34,6 +34,7 @@ Navigate by writing `localStorage['sidera.ui'] = {sidebarOpen, chatOpen, tabs: [
 - `src/preload/` — exposes `window.api: CanvasApi`, `window.app` (settings, data dir, integrations), `window.chat`, `window.events`.
 - Keyboard: every shortcut is a command in `renderer/src/lib/shortcuts.ts` (`COMMANDS`); register handlers with `useCommands()`, never raw keydown listeners. Pure key parsing in `lib/keys.ts`.
 - Undo: every user action goes through `lib/undo.ts` (`record({label, undo, redo})`, global ⌘Z/⇧⌘Z + tab-bar arrows); deletes are soft (`restoreCard`/`restoreWhiteboard`), use `recordDelete`/`recordCardPatch` from `lib/undo-actions.ts`. Navigation back/forward = ⌘[ / ⌘].
+- Text blocks = cards with `kind: 'block'` placed as a normal `card` object (style `plain|framed` in object data); `CardOrBlockNode` renders them via `nodes/TextBlockNode.tsx` (CardEditor inline, auto height). Hidden from `listCards`/empty search by default, title = first line, deleted with their placement, cloned on paste. Tables = object kind `table` (`shared/tables.ts`, `nodes/TableNode.tsx`); charts with `data.source.tableId` are re-derived in services whenever the table's data is written.
 - Canvas node editing: use `features/canvas/nodes/useEditMode.ts` (double-click to edit, outside click/Esc to finish).
 - `src/renderer/src/` — React. `store/` (RTK + RTK Query `api.ts` wrapping window.api), `features/<canvas|library|kanban|tasks|palette|card>`, `components/ui` (shadcn), `components/layout`.
 

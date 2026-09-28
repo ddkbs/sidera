@@ -10,6 +10,8 @@ import { MermaidNode } from './MermaidNode'
 import { MindmapNode } from './MindmapNode'
 import { SectionNode } from './SectionNode'
 import { SketchNode } from './SketchNode'
+import { TableNode } from './TableNode'
+import { TextBlockNode } from './TextBlockNode'
 import { TextNode } from './TextNode'
 import { WhiteboardNode } from './WhiteboardNode'
 
@@ -23,8 +25,13 @@ const safe = (C: ComponentType<NodeProps<ObjectNode>>) =>
     })
   }
 
+/** Card placements render as a text block when the card is one (kind 'block'). */
+function CardOrBlockNode(props: NodeProps<ObjectNode>) {
+  return createElement(props.data.card?.kind === 'block' ? TextBlockNode : CardNode, props)
+}
+
 export const nodeTypes: NodeTypes = {
-  card: safe(CardNode),
+  card: safe(CardOrBlockNode),
   text: safe(TextNode),
   section: safe(SectionNode),
   whiteboard: safe(WhiteboardNode),
@@ -33,5 +40,6 @@ export const nodeTypes: NodeTypes = {
   mindmap: safe(MindmapNode),
   mermaid: safe(MermaidNode),
   sketch: safe(SketchNode),
-  chart: safe(ChartNode)
+  chart: safe(ChartNode),
+  table: safe(TableNode)
 }
