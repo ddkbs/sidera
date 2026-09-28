@@ -61,6 +61,9 @@ import { NodeMenu, type NodeMenuAction } from './NodeMenu'
 import { nodeTypes } from './nodes'
 import { SAVE_LINK_DONE_EVENT, SAVE_LINK_EVENT } from './nodes/LinkNode'
 import { EDIT_SKETCH_EVENT } from './nodes/SketchNode'
+import { DrawOnIpadDialog, SIDERA_DRAW_OPEN_EVENT } from '@/features/draw/DrawOnIpadDialog'
+import { sketchNodeSize } from '@/features/draw/sketch'
+import type { DrawSubmission } from '@shared/drawProtocol'
 
 const SketchEditor = lazy(() => import('./SketchEditor'))
 import { persist, type ConnectionEdge, type ObjectNode } from './types'
@@ -143,6 +146,8 @@ function Canvas({ detail }: { detail: WhiteboardDetail }) {
   const [edges, setEdges] = useState<ConnectionEdge[]>(() => toEdges(detail))
   const [searchOpen, setSearchOpen] = useState(false)
   const autoEdit = useRef<string | undefined>(undefined)
+  /** object to select as soon as it shows up in the board data (e.g. a drawing from the iPad) */
+  const autoSelect = useRef<string | undefined>(undefined)
   const connectFrom = useRef<string | null>(null)
   const sectionDrag = useRef<{ start: { x: number; y: number }; children: Map<string, { x: number; y: number }> } | null>(null)
   const wrapper = useRef<HTMLDivElement>(null)
@@ -174,12 +179,18 @@ function Canvas({ detail }: { detail: WhiteboardDetail }) {
   /** Right-button press, to tell a right-click apart from a right-drag pan. */
   const rightDown = useRef<{ x: number; y: number; pane: boolean } | null>(null)
   const [sketchId, setSketchId] = useState<string | null>(null)
+  const [drawOpen, setDrawOpen] = useState(false)
   const [linkDialog, setLinkDialog] = useState(false)
   const [linkUrl, setLinkUrl] = useState('')
   useEffect(() => {
     const onEdit = (e: Event) => setSketchId((e as CustomEvent<string>).detail)
+    const onDraw = () => setDrawOpen(true)
     window.addEventListener(EDIT_SKETCH_EVENT, onEdit)
-    return () => window.removeEventListener(EDIT_SKETCH_EVENT, onEdit)
+    window.addEventListener(SIDERA_DRAW_OPEN_EVENT, onDraw)
+    return () => {
+      window.removeEventListener(EDIT_SKETCH_EVENT, onEdit)
+      window.removeEventListener(SIDERA_DRAW_OPEN_EVENT, onDraw)
+    }
   }, [])
 
   /** PDFs dock in the split-screen reader; other files still open in the modal viewer. */
@@ -218,7 +229,13 @@ function Canvas({ detail }: { detail: WhiteboardDetail }) {
   )
 
   useEffect(() => {
-    setNodes((prev) => toNodes(detail, prev, autoEdit.current))
+    setNodes((prev) => {
+      const next = toNodes(detail, prev, autoEdit.current)
+      const sel = autoSelect.current
+      if (!sel || !next.some((n) => n.id === sel)) return next
+      autoSelect.current = undefined
+      return next.map((n) => ({ ...n, selected: n.id === sel }))
+    })
     setEdges((prev) => toEdges(detail, prev))
     autoEdit.current = undefined
   }, [detail])
@@ -462,6 +479,27 @@ function Canvas({ detail }: { detail: WhiteboardDetail }) {
 
   const selectAll = useCallback(() => setNodes((ns) => ns.map((n) => ({ ...n, selected: true }))), [])
 
+  /** A drawing from the iPad companion: a native Excalidraw sketch at the viewport centre (undoable like any insert). */
+  const insertDrawing = useCallback(
+    async (drawing: DrawSubmission) => {
+      try {
+        const { buildSketchData } = await import('@/features/draw/toExcalidraw')
+        const data = await buildSketchData(drawing)
+        const size = sketchNodeSize(drawing)
+        const c = center()
+        const o = await place('sketch', { x: c.x - size.width / 2, y: c.y - size.height / 2 }, { data, ...size })
+        if (!o) return
+        autoSelect.current = o.id
+        setNodes((ns) => (ns.some((n) => n.id === o.id) ? ns.map((n) => ({ ...n, selected: n.id === o.id })) : ns))
+        toast.success('Drawing added', { description: 'Double-click it to edit every stroke.' })
+      } catch (e) {
+        console.error('[sidera-draw] could not insert drawing', e)
+        toast.error('Could not add the drawing')
+      }
+    },
+    [center, place]
+  )
+
   useCommands({
     'canvas.copy': () => {
       const selected = selectedObjects()
@@ -479,6 +517,7 @@ function Canvas({ detail }: { detail: WhiteboardDetail }) {
       void groupSelection()
     },
     'canvas.fit': () => void rf.fitView({ duration: 300, padding: 0.15 }),
+    'canvas.drawOnIpad': () => setDrawOpen(true),
     ...Object.fromEntries(TOOLS.map((tool) => [`tool.${tool.id}`, () => void changeTool(tool.id)]))
   })
 
@@ -632,6 +671,7 @@ function Canvas({ detail }: { detail: WhiteboardDetail }) {
         if (o) setSketchId(o.id)
         return
       }
+      if (a === 'draw-ipad') return setDrawOpen(true)
       if (a === 'mindmap') {
         const o = await place('mindmap', { x: c.x - 240, y: c.y - 160 }, { data: {} })
         if (o) autoEdit.current = o.id
@@ -977,6 +1017,7 @@ function Canvas({ detail }: { detail: WhiteboardDetail }) {
           />
         </Suspense>
       )}
+      <DrawOnIpadDialog open={drawOpen} whiteboardId={boardId} onOpenChange={setDrawOpen} onReceived={insertDrawing} />
       <FileViewer
         file={viewing}
         onClose={() => setViewing(null)}

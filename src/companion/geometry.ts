@@ -1,11 +1,6 @@
 /** Pure stroke geometry for the Sidera Draw companion (unit-tested in Node). */
+export { pressureFactor } from '../shared/drawProtocol'
 export type Pt = [number, number, number]
-
-/**
- * Perfect-freehand (Excalidraw's freedraw renderer) radius curve, normalised so that pressure 0.5 → 1.
- * Drawing with this factor on the iPad makes strokes look the same once they are Excalidraw elements on the Mac.
- */
-export const pressureFactor = (p: number): number => Math.sin((Math.PI / 2) * (0.2 + 0.6 * p)) / Math.SQRT1_2
 
 /** Distance from point p to segment ab. */
 export function segDist(px: number, py: number, ax: number, ay: number, bx: number, by: number): number {

@@ -11,6 +11,7 @@ import {
   PanelLeft,
   Plus,
   Sparkles,
+  Tablet,
   Compass,
   Upload
 } from '@/components/icons'
@@ -26,6 +27,7 @@ import { CommandDialog, CommandEmpty, CommandGroup, CommandInput, CommandItem, C
 import { useAppDispatch, useAppSelector } from '@/store'
 import { useClipUrlMutation, useCreateCardMutation, useCreateWhiteboardMutation, useGetWhiteboardQuery, useListTagsQuery, useSearchQuery } from '@/store/api'
 import { onboarding } from '@/features/onboarding/controller'
+import { SIDERA_DRAW_OPEN_EVENT } from '@/features/draw/DrawOnIpadDialog'
 import { navigate, openCard, openSettings, queueChatMessage, setPaletteOpen, toggleSidebar } from '@/store/ui'
 
 export function CommandPalette() {
@@ -118,6 +120,11 @@ export function CommandPalette() {
             >
               <LayoutDashboard /> {text ? `New whiteboard “${text}”` : 'New whiteboard'}
             </CommandItem>
+            {view.type === 'whiteboard' && (!text || /ipad|draw|pencil|sketch|tablet/i.test(text)) && (
+              <CommandItem value="draw-on-ipad" onSelect={run(() => window.dispatchEvent(new Event(SIDERA_DRAW_OPEN_EVENT)))}>
+                <Tablet /> Draw on iPad…
+              </CommandItem>
+            )}
             {!text && (
               <>
                 <CommandItem value="home" onSelect={run(() => dispatch(navigate({ type: 'home' })))}>

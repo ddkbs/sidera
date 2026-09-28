@@ -111,6 +111,17 @@ export function open(key: Uint8Array, sessionId: string, dir: Direction, env: un
   return msg
 }
 
+// ─── stroke look ────────────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Pressure → width factor of perfect-freehand (Excalidraw's freedraw renderer: thinning 0.6, easeOutSine),
+ * normalised so pressure 0.5 → 1. The companion draws with it, so strokes look the same once converted.
+ */
+export const pressureFactor = (p: number): number => Math.sin((Math.PI / 2) * (0.2 + 0.6 * p)) / Math.SQRT1_2
+
+/** Excalidraw freedraw diameter at pressure 0.5 is `strokeWidth × 4.25 × 2 × sin(π/4)`: divide a nominal width by this. */
+export const FREEDRAW_DIAMETER_PER_STROKE_WIDTH = 4.25 * 2 * Math.SQRT1_2
+
 // ─── drawing payload ────────────────────────────────────────────────────────────────────────────────
 
 export type DrawTool = 'pen' | 'highlighter'

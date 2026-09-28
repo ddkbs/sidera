@@ -21,6 +21,7 @@ import {
   PenTool,
   Search,
   SquarePlus,
+  Tablet,
   Type,
   Upload,
   Workflow,
@@ -36,6 +37,7 @@ export type CanvasAction =
   | 'section'
   | 'connector'
   | 'sketch'
+  | 'draw-ipad'
   | 'link'
   | 'mindmap'
   | 'mermaid'
@@ -57,6 +59,7 @@ export const INSERT_ITEMS: { action: CanvasAction; label: string; icon: AppIcon 
   { action: 'section', label: 'Section', icon: BoxSelect },
   { action: 'connector', label: 'Connector', icon: ArrowUpRight },
   { action: 'sketch', label: 'Sketch', icon: PenTool },
+  { action: 'draw-ipad', label: 'Draw on iPad…', icon: Tablet },
   { action: 'mindmap', label: 'Mindmap', icon: Network },
   { action: 'mermaid', label: 'Flowchart', icon: Workflow },
   { action: 'whiteboard', label: 'Nested whiteboard', icon: LayoutDashboard },
