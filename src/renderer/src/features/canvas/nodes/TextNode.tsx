@@ -3,13 +3,14 @@ import { memo, useEffect, useRef, useState } from 'react'
 import { cn } from '@/lib/utils'
 import { persist, type ObjectNode } from '../types'
 import { Handles, Resizer } from './NodeChrome'
+import { HEADING_DEFAULT_SIZE } from '../textSize'
 
 export const TextNode = memo(function TextNode({ id, data, selected }: NodeProps<ObjectNode>) {
   const [text, setText] = useState(String(data.object.data.text ?? ''))
   const [editing, setEditing] = useState(!!data.autoEdit)
   const ref = useRef<HTMLTextAreaElement>(null)
   const rf = useReactFlow()
-  const size = Number(data.object.data.size ?? 20)
+  const size = Number(data.object.data.size ?? HEADING_DEFAULT_SIZE)
 
   useEffect(() => {
     if (editing) ref.current?.focus()

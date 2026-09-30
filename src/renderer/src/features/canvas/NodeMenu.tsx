@@ -1,8 +1,30 @@
-import { ArrowDownToLine, ArrowUpToLine, BarChart, Check, Expand, Frame, LayoutDashboard, SquarePlus, Trash2, Unlink, X } from '@/components/icons'
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
+import { ArrowDownToLine, ArrowUpToLine, BarChart, Check, Expand, Frame, LayoutDashboard, SquarePlus, Type, Trash2, Unlink, X } from '@/components/icons'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
+  DropdownMenuTrigger
+} from '@/components/ui/dropdown-menu'
+import { TEXT_SIZE_PRESETS, type TextSizePreset } from './textSize'
 import type { ObjectNode } from './types'
 
-export type NodeMenuAction = 'open' | 'front' | 'back' | 'remove' | 'delete-card' | 'convert-card' | 'style-plain' | 'style-framed' | 'chart-from-table' | 'unlink-chart' | 'frame'
+export type NodeMenuAction =
+  | 'open'
+  | 'front'
+  | 'back'
+  | 'remove'
+  | 'delete-card'
+  | 'convert-card'
+  | 'style-plain'
+  | 'style-framed'
+  | 'chart-from-table'
+  | 'unlink-chart'
+  | 'frame'
+  | `size-${Lowercase<TextSizePreset>}`
 
 interface Props {
   menu: { node: ObjectNode; x: number; y: number } | null
@@ -17,6 +39,7 @@ export function NodeMenu({ menu, onClose, onAction }: Props) {
   const block = node?.type === 'card' && node.data.card?.kind === 'block'
   const framed = block && node.data.object.data.style === 'framed'
   const linkedChart = node?.type === 'chart' && !!(node.data.object.data.source as { tableId?: string } | undefined)?.tableId
+  const isText = node?.type === 'text' || block
   return (
     <DropdownMenu open={!!menu} onOpenChange={(o) => !o && onClose()} modal={false}>
       <DropdownMenuTrigger asChild>
@@ -62,6 +85,20 @@ export function NodeMenu({ menu, onClose, onAction }: Props) {
           <DropdownMenuItem onClick={act('frame')}>
             <Frame /> {node.data.object.data.frameless === true ? 'Add frame' : 'Remove frame'}
           </DropdownMenuItem>
+        )}
+        {isText && (
+          <DropdownMenuSub>
+            <DropdownMenuSubTrigger>
+              <Type /> Text size
+            </DropdownMenuSubTrigger>
+            <DropdownMenuSubContent>
+              {TEXT_SIZE_PRESETS.map((p) => (
+                <DropdownMenuItem key={p} onClick={act(`size-${p.toLowerCase()}` as NodeMenuAction)}>
+                  {p}
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuSubContent>
+          </DropdownMenuSub>
         )}
         <DropdownMenuItem onClick={act('front')}>
           <ArrowUpToLine /> Bring to front

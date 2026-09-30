@@ -10,11 +10,18 @@ import { api, useGetCardQuery, useUpdateCardMutation } from '@/store/api'
 import { openCard } from '@/store/ui'
 import { CardEditor } from '@/features/card/CardEditor'
 import type { ObjectNode } from '../types'
+import { BLOCK_DEFAULT_SIZE } from '../textSize'
 import { Handles } from './NodeChrome'
 import { useAutoHeight, WidthResizer } from './autoHeight'
 import { useEditMode } from './useEditMode'
 
 export const blockStyle = (data: Record<string, unknown> | undefined): TextBlockStyle => (data?.style === 'framed' ? 'framed' : 'plain')
+
+/** Per-placement font size (px), scaling the block's prose (headings inside stay proportional, they use em). */
+export const blockFontSize = (data: Record<string, unknown> | undefined): number => {
+  const n = Number(data?.fontSize)
+  return Number.isFinite(n) && n > 0 ? n : BLOCK_DEFAULT_SIZE
+}
 
 /**
  * A text block: a card of kind 'block' shown as lightweight rich text directly on the board.
@@ -27,6 +34,7 @@ export const TextBlockNode = memo(function TextBlockNode({ id, data, selected, h
   const { data: card } = useGetCardQuery(summary.id)
   const [update] = useUpdateCardMutation()
   const style = blockStyle(data.object.data)
+  const fontSize = blockFontSize(data.object.data)
   const tint = summary.color ? paletteColor(summary.color) : null
   const latest = useRef<DocJSON | null>(null)
   // what was just typed, shown until the refetched card catches up (avoids flashing the old text)
@@ -88,7 +96,11 @@ export const TextBlockNode = memo(function TextBlockNode({ id, data, selected, h
         >
           <Expand className="size-3.5" />
         </button>
-        <div ref={content} className={cn('text-block', style === 'framed' ? 'px-4 py-3' : 'px-2 py-1.5', !editing && 'pointer-events-none')}>
+        <div
+          ref={content}
+          style={{ '--block-font-size': `${fontSize}px` } as React.CSSProperties}
+          className={cn('text-block', style === 'framed' ? 'px-4 py-3' : 'px-2 py-1.5', !editing && 'pointer-events-none')}
+        >
           {card && (
             <CardEditor
               key={editing ? 'edit' : `view-${card.updatedAt}-${local ? 'local' : 'stored'}`}

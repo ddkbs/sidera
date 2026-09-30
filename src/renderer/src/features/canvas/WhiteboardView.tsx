@@ -75,6 +75,7 @@ import { persist, type ConnectionEdge, type ObjectNode } from './types'
 import { ZoomControls } from './ZoomControls'
 import { useCommands } from '@/lib/shortcuts'
 import { defaultChart, type ChartType } from '@shared/charts'
+import { BLOCK_DEFAULT_SIZE, HEADING_DEFAULT_SIZE, TEXT_SIZE_PX, steppedSize, type TextObjectKind, type TextSizePreset } from './textSize'
 import './canvas.css'
 
 export function WhiteboardView({ id }: { id: string }) {
@@ -238,6 +239,7 @@ function Canvas({ detail }: { detail: WhiteboardDetail }) {
     setBlockStyle: (nodeId: string, style: TextBlockStyle) => Promise<void>
     insertChartFromTable: (tableId: string) => Promise<void>
     unlinkChart: (nodeId: string) => Promise<void>
+    setTextSizePreset: (nodes: ObjectNode[], preset: TextSizePreset) => Promise<void>
   }>(null!)
 
   const onMenuAction = useCallback(
@@ -254,6 +256,7 @@ function Canvas({ detail }: { detail: WhiteboardDetail }) {
       else if (a === 'style-plain' || a === 'style-framed') void late.current.setBlockStyle(node.id, a === 'style-framed' ? 'framed' : 'plain')
       else if (a === 'chart-from-table') void late.current.insertChartFromTable(node.id)
       else if (a === 'unlink-chart') void late.current.unlinkChart(node.id)
+      else if (a.startsWith('size-')) void late.current.setTextSizePreset([node], a.slice(5).toUpperCase() as TextSizePreset)
       else if (a === 'frame') {
         // "Remove frame" / "Add frame": ink on the board vs. a framed card — the ink stays where it is
         const box = { x: node.position.x, y: node.position.y, width: node.width ?? o.width, height: node.height ?? o.height }
@@ -460,6 +463,54 @@ function Canvas({ detail }: { detail: WhiteboardDetail }) {
     [rf, patchData]
   )
 
+  /** 'text' (heading) or text-block 'card', or null for anything else. */
+  const textKindOf = useCallback((n: ObjectNode): TextObjectKind | null => (n.type === 'text' ? 'heading' : n.type === 'card' && n.data.card?.kind === 'block' ? 'block' : null), [])
+
+  const currentTextSize = useCallback(
+    (n: ObjectNode, kind: TextObjectKind): number => {
+      const raw = Number(n.data.object.data[kind === 'heading' ? 'size' : 'fontSize'])
+      return Number.isFinite(raw) && raw > 0 ? raw : kind === 'heading' ? HEADING_DEFAULT_SIZE : BLOCK_DEFAULT_SIZE
+    },
+    []
+  )
+
+  /**
+   * Change the font size of every text/text-block node in `nodes` (`sizeFor` picks the next px per node's kind
+   * and current size). Headings grow their box height proportionally so the bigger text still fits; text blocks
+   * already auto-grow height from their content, so only the data changes.
+   */
+  const applyTextSize = useCallback(
+    async (nodes: ObjectNode[], sizeFor: (kind: TextObjectKind, current: number) => number) => {
+      const before: ObjectPatch[] = []
+      const after: ObjectPatch[] = []
+      for (const n of nodes) {
+        const kind = textKindOf(n)
+        if (!kind) continue
+        const current = currentTextSize(n, kind)
+        const next = sizeFor(kind, current)
+        if (next === current) continue
+        const o = n.data.object
+        if (kind === 'heading') {
+          const h = n.height ?? o.height
+          const nextHeight = Math.max(30, Math.round(h * (next / current)))
+          before.push({ id: n.id, data: o.data, height: h })
+          after.push({ id: n.id, data: { ...o.data, size: next }, height: nextHeight })
+        } else {
+          before.push({ id: n.id, data: o.data })
+          after.push({ id: n.id, data: { ...o.data, fontSize: next } })
+        }
+      }
+      if (!before.length) return
+      await applyOp({ type: 'patch', before, after })
+      record({ label: 'Change text size', undo: () => applyOp({ type: 'patch', before: after, after: before }), redo: () => applyOp({ type: 'patch', before, after }) })
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [textKindOf, currentTextSize]
+  )
+
+  const setTextSizePreset = useCallback((nodes: ObjectNode[], preset: TextSizePreset) => applyTextSize(nodes, (kind) => TEXT_SIZE_PX[kind][preset]), [applyTextSize])
+  const stepTextSize = useCallback((nodes: ObjectNode[], dir: 1 | -1) => applyTextSize(nodes, (kind, current) => steppedSize(kind, current, dir)), [applyTextSize])
+
   const unlinkChart = useCallback(
     async (nodeId: string) => {
       const { source: _source, ...rest } = rf.getNode(nodeId)?.data.object.data ?? {}
@@ -493,7 +544,7 @@ function Canvas({ detail }: { detail: WhiteboardDetail }) {
     [chartFromTable, boardId]
   )
 
-  late.current = { convertToCard, setBlockStyle, insertChartFromTable, unlinkChart }
+  late.current = { convertToCard, setBlockStyle, insertChartFromTable, unlinkChart, setTextSizePreset }
 
   const importAt = useCallback(
     async (pos: { x: number; y: number }) => {
@@ -654,6 +705,16 @@ function Canvas({ detail }: { detail: WhiteboardDetail }) {
     },
     'canvas.fit': () => void rf.fitView({ duration: 300, padding: 0.15 }),
     'canvas.drawOnIpad': () => setDrawOpen(true),
+    'canvas.textBigger': () => {
+      const sel = rf.getNodes().filter((n) => n.selected)
+      if (!sel.length) return false
+      void stepTextSize(sel, 1)
+    },
+    'canvas.textSmaller': () => {
+      const sel = rf.getNodes().filter((n) => n.selected)
+      if (!sel.length) return false
+      void stepTextSize(sel, -1)
+    },
     'canvas.newTextBlock': () => void newTextBlockAt(pointer.current ? rf.screenToFlowPosition(pointer.current) : center()),
     ...Object.fromEntries(TOOLS.map((tool) => [`tool.${tool.id}`, () => void changeTool(tool.id)]))
   })
@@ -978,9 +1039,11 @@ function Canvas({ detail }: { detail: WhiteboardDetail }) {
       },
       blockStyle: (node: ObjectNode, style: TextBlockStyle) => void setBlockStyle(node.id, style),
       chartFromTable: (node: ObjectNode) => void insertChartFromTable(node.id),
-      unlinkChart: (node: ObjectNode) => void unlinkChart(node.id)
+      unlinkChart: (node: ObjectNode) => void unlinkChart(node.id),
+      textSizePreset: (preset: TextSizePreset) => void setTextSizePreset(rf.getNodes().filter((n) => n.selected), preset),
+      stepTextSize: (dir: 1 | -1) => void stepTextSize(rf.getNodes().filter((n) => n.selected), dir)
     }),
-    [colorSelection, arrangeSelection, groupSelection, pasteObjects, rf, dispatch, setBlockStyle, insertChartFromTable, unlinkChart]
+    [colorSelection, arrangeSelection, groupSelection, pasteObjects, rf, dispatch, setBlockStyle, insertChartFromTable, unlinkChart, setTextSizePreset, stepTextSize]
   )
 
   // ---- connection menu ---------------------------------------------------
