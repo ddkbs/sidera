@@ -1,4 +1,4 @@
-import { AskAI, BoxSelect, ChartsMenu, Copy, GitBranch, Maximize, Table2 } from '@/components/icons'
+import { AskAI, BoxSelect, ChartsMenu, Copy, GitBranch, Maximize, ShapesMenu, Table2 } from '@/components/icons'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -11,7 +11,7 @@ import {
   DropdownMenuTrigger
 } from '@/components/ui/dropdown-menu'
 import { cn } from '@/lib/utils'
-import { CHART_GROUPS, INSERT_ITEMS, type CanvasAction } from './actions'
+import { CHART_GROUPS, INSERT_ITEMS, SHAPE_ITEMS, type CanvasAction } from './actions'
 
 /**
  * Insert + board actions, shared by the toolbar overflow and the canvas right-click menu,
@@ -27,6 +27,18 @@ export function CanvasMenuItems({ onAction }: { onAction: (a: CanvasAction) => v
           <i.icon /> {i.label}
         </DropdownMenuItem>
       ))}
+      <DropdownMenuSub>
+        <DropdownMenuSubTrigger>
+          <ShapesMenu /> Shapes
+        </DropdownMenuSubTrigger>
+        <DropdownMenuSubContent className="w-48">
+          {SHAPE_ITEMS.map((s) => (
+            <DropdownMenuItem key={s.label} onClick={act(s.action)}>
+              <s.icon /> {s.label}
+            </DropdownMenuItem>
+          ))}
+        </DropdownMenuSubContent>
+      </DropdownMenuSub>
       <DropdownMenuSub>
         <DropdownMenuSubTrigger>
           <ChartsMenu /> Chart

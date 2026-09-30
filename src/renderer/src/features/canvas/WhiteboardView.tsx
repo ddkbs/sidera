@@ -68,6 +68,7 @@ import { DrawOnIpadDialog, SIDERA_DRAW_OPEN_EVENT } from '@/features/draw/DrawOn
 import { InkLayer } from '@/features/ink/InkLayer'
 import { framelessSize, isFrameless, toggledFrameBox } from '@/features/ink/frame'
 import { fitTransform, inkBounds, reboxed } from '@/features/ink/geometry'
+import { buildShape, type ShapeKind } from '@/features/ink/shapes'
 import type { DrawSubmission } from '@shared/drawProtocol'
 
 const SketchEditor = lazy(() => import('./SketchEditor'))
@@ -872,6 +873,17 @@ function Canvas({ detail }: { detail: WhiteboardDetail }) {
         const type = a.slice(6) as ChartType
         const o = await place('chart', { x: c.x - 220, y: c.y - 150 }, { data: defaultChart(type) as unknown as Record<string, unknown> })
         if (o) autoEdit.current = o.id
+        return
+      }
+      if (a.startsWith('shape:')) {
+        const kind = a.slice(6) as ShapeKind
+        const { elements, width, height } = buildShape(kind)
+        const o = await place(
+          'sketch',
+          { x: c.x - width / 2, y: c.y - height / 2 },
+          { data: { elements, files: {}, frameless: true }, width, height }
+        )
+        if (o) autoSelect.current = o.id
         return
       }
       if (a === 'sketch') {

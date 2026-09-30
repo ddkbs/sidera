@@ -20,6 +20,15 @@ import {
   Network,
   PenTool,
   Search,
+  ShapeArrow,
+  ShapeCheck,
+  ShapeCross,
+  ShapeCurvedArrow,
+  ShapeDiamond,
+  ShapeEllipse,
+  ShapeLine,
+  ShapeRectangle,
+  ShapeStar,
   SquarePlus,
   Table2,
   Tablet,
@@ -30,6 +39,7 @@ import {
   type AppIcon
 } from '@/components/icons'
 import type { ChartType } from '@shared/charts'
+import type { ShapeKind } from '@/features/ink/shapes'
 
 /** Everything the toolbar overflow and the canvas context menu can trigger. */
 export type CanvasAction =
@@ -54,6 +64,7 @@ export type CanvasAction =
   | 'organize'
   | 'properties'
   | `chart:${ChartType}`
+  | `shape:${ShapeKind}`
 
 /** Insert entries shared by the toolbar overflow and the right-click menu, in menu order. */
 export const INSERT_ITEMS: { action: CanvasAction; label: string; icon: AppIcon }[] = [
@@ -85,6 +96,26 @@ export interface ChartItem {
 }
 
 const chart = (type: ChartType): CanvasAction => `chart:${type}`
+const shape = (kind: ShapeKind): CanvasAction => `shape:${kind}`
+
+export interface ShapeItem {
+  label: string
+  icon: AppIcon
+  action: CanvasAction
+}
+
+/** Shape entries for the insert menus' "Shapes" group — frameless sketches built from native Excalidraw elements. */
+export const SHAPE_ITEMS: ShapeItem[] = [
+  { label: 'Rectangle', icon: ShapeRectangle, action: shape('rectangle') },
+  { label: 'Ellipse', icon: ShapeEllipse, action: shape('ellipse') },
+  { label: 'Diamond', icon: ShapeDiamond, action: shape('diamond') },
+  { label: 'Line', icon: ShapeLine, action: shape('line') },
+  { label: 'Arrow', icon: ShapeArrow, action: shape('arrow') },
+  { label: 'Curved arrow', icon: ShapeCurvedArrow, action: shape('curved-arrow') },
+  { label: 'Cross', icon: ShapeCross, action: shape('cross') },
+  { label: 'Checkmark', icon: ShapeCheck, action: shape('check') },
+  { label: 'Star', icon: ShapeStar, action: shape('star') }
+]
 
 /** Chart entries for the insert menus, grouped by what you want to show. */
 export const CHART_GROUPS: { title: string; items: ChartItem[] }[] = [
