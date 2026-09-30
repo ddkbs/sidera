@@ -51,7 +51,7 @@ export interface SelectionActions {
   stepTextSize: (dir: 1 | -1) => void
 }
 
-const textKindOf = (n: ObjectNode): TextObjectKind | null => (n.type === 'text' ? 'heading' : n.type === 'card' && n.data.card?.kind === 'block' ? 'block' : null)
+const textKindOf = (n: ObjectNode): TextObjectKind | null => (n.type === 'text' ? 'heading' : n.type === 'card' ? 'block' : null)
 
 const TIDY: { mode: ArrangeMode; label: string; icon: AppIcon }[] = [
   { mode: 'left', label: 'Align left', icon: AlignLeft },

@@ -465,7 +465,7 @@ function Canvas({ detail }: { detail: WhiteboardDetail }) {
   )
 
   /** 'text' (heading) or text-block 'card', or null for anything else. */
-  const textKindOf = useCallback((n: ObjectNode): TextObjectKind | null => (n.type === 'text' ? 'heading' : n.type === 'card' && n.data.card?.kind === 'block' ? 'block' : null), [])
+  const textKindOf = useCallback((n: ObjectNode): TextObjectKind | null => (n.type === 'text' ? 'heading' : n.type === 'card' ? 'block' : null), [])
 
   const currentTextSize = useCallback(
     (n: ObjectNode, kind: TextObjectKind): number => {
@@ -496,9 +496,16 @@ function Canvas({ detail }: { detail: WhiteboardDetail }) {
           const nextHeight = Math.max(30, Math.round(h * (next / current)))
           before.push({ id: n.id, data: o.data, height: h })
           after.push({ id: n.id, data: { ...o.data, size: next }, height: nextHeight })
-        } else {
+        } else if (n.data.card?.kind === 'block') {
           before.push({ id: n.id, data: o.data })
           after.push({ id: n.id, data: { ...o.data, fontSize: next } })
+        } else {
+          // regular card: its content is zoomed (CardNode), so the box scales along — "smaller text = smaller card"
+          const w = n.width ?? o.width
+          const h = n.height ?? o.height
+          const r = next / current
+          before.push({ id: n.id, data: o.data, width: w, height: h })
+          after.push({ id: n.id, data: { ...o.data, fontSize: next }, width: Math.max(120, Math.round(w * r)), height: Math.max(60, Math.round(h * r)) })
         }
       }
       if (!before.length) return

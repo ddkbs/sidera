@@ -12,6 +12,7 @@ import { CardEditor } from '@/features/card/CardEditor'
 import { TagBadge } from '@/features/card/TagBadge'
 import { persist, type ObjectNode } from '../types'
 import { Handles, Resizer } from './NodeChrome'
+import { BLOCK_DEFAULT_SIZE } from '../textSize'
 
 const MIN_H = 90
 const MAX_H = 520
@@ -30,6 +31,8 @@ export const CardNode = memo(function CardNode({ id, data, selected }: NodeProps
   // Cards grow with their content until the user resizes one by hand (that pins the height).
   const content = useRef<HTMLDivElement>(null)
   const autoSize = data.object.data?.autoSize !== false
+  // text size (same presets as text blocks): scales the whole card content, so a smaller size also makes the card smaller
+  const zoom = (Number(data.object.data?.fontSize) || BLOCK_DEFAULT_SIZE) / BLOCK_DEFAULT_SIZE
   useEffect(() => {
     const el = content.current
     if (!autoSize || editing || !el) return
@@ -89,7 +92,7 @@ export const CardNode = memo(function CardNode({ id, data, selected }: NodeProps
           selected && 'ring-2 ring-brand/70',
           (isOpen || editing) && 'ring-2 ring-brand'
         )}
-        style={tint ? { background: `linear-gradient(${tint.bg}, ${tint.bg}), var(--card)`, borderColor: tint.border } : undefined}
+        style={{ ...(tint ? { background: `linear-gradient(${tint.bg}, ${tint.bg}), var(--card)`, borderColor: tint.border } : {}), ...(zoom !== 1 ? { zoom } : {}) }}
       >
         {card && (
           <button

@@ -39,7 +39,7 @@ export function NodeMenu({ menu, onClose, onAction }: Props) {
   const block = node?.type === 'card' && node.data.card?.kind === 'block'
   const framed = block && node.data.object.data.style === 'framed'
   const linkedChart = node?.type === 'chart' && !!(node.data.object.data.source as { tableId?: string } | undefined)?.tableId
-  const isText = node?.type === 'text' || block
+  const isText = node?.type === 'text' || node?.type === 'card'
   return (
     <DropdownMenu open={!!menu} onOpenChange={(o) => !o && onClose()} modal={false}>
       <DropdownMenuTrigger asChild>
