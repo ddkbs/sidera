@@ -6,14 +6,14 @@
  */
 
 export type TextObjectKind = 'heading' | 'block'
-export type TextSizePreset = 'S' | 'M' | 'L' | 'XL' | 'XXL'
+export type TextSizePreset = 'XXS' | 'XS' | 'S' | 'M' | 'L' | 'XL' | 'XXL' | '3XL' | '4XL' | '5XL'
 
-export const TEXT_SIZE_PRESETS: readonly TextSizePreset[] = ['S', 'M', 'L', 'XL', 'XXL']
+export const TEXT_SIZE_PRESETS: readonly TextSizePreset[] = ['XXS', 'XS', 'S', 'M', 'L', 'XL', 'XXL', '3XL', '4XL', '5XL']
 
 /** Font size (px) for each preset, per object kind. M is each kind's long-standing default. */
 export const TEXT_SIZE_PX: Record<TextObjectKind, Record<TextSizePreset, number>> = {
-  heading: { S: 16, M: 20, L: 28, XL: 40, XXL: 56 },
-  block: { S: 12.5, M: 14.5, L: 17, XL: 20, XXL: 24 }
+  heading: { XXS: 10, XS: 13, S: 16, M: 20, L: 28, XL: 40, XXL: 56, '3XL': 72, '4XL': 96, '5XL': 128 },
+  block: { XXS: 9, XS: 11, S: 12.5, M: 14.5, L: 17, XL: 20, XXL: 24, '3XL': 30, '4XL': 38, '5XL': 48 }
 }
 
 export const HEADING_DEFAULT_SIZE = TEXT_SIZE_PX.heading.M

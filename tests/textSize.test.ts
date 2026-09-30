@@ -20,19 +20,19 @@ describe('textSize', () => {
     expect(nearestPreset('heading', 21)).toBe('M')
     expect(nearestPreset('heading', 27)).toBe('L')
     expect(nearestPreset('block', 14.5)).toBe('M')
-    expect(nearestPreset('block', 100)).toBe('XXL')
+    expect(nearestPreset('block', 100)).toBe('5XL')
   })
 
   it('steps within bounds without wrapping', () => {
     expect(stepPreset('M', 1)).toBe('L')
     expect(stepPreset('M', -1)).toBe('S')
-    expect(stepPreset('S', -1)).toBe('S')
-    expect(stepPreset('XXL', 1)).toBe('XXL')
+    expect(stepPreset('XXS', -1)).toBe('XXS')
+    expect(stepPreset('5XL', 1)).toBe('5XL')
   })
 
   it('steppedSize snaps to the nearest preset then steps', () => {
     expect(steppedSize('heading', 20, 1)).toBe(TEXT_SIZE_PX.heading.L)
-    expect(steppedSize('heading', 56, 1)).toBe(TEXT_SIZE_PX.heading.XXL)
+    expect(steppedSize('heading', 56, 1)).toBe(TEXT_SIZE_PX.heading['3XL'])
     expect(steppedSize('block', 14.5, -1)).toBe(TEXT_SIZE_PX.block.S)
     // an odd stored size (e.g. legacy data) snaps to its nearest preset first
     expect(steppedSize('heading', 22, 1)).toBe(TEXT_SIZE_PX.heading.L)
