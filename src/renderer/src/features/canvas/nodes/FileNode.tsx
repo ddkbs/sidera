@@ -5,6 +5,7 @@ import { Document, Page, pdfjs } from 'react-pdf'
 import { cn } from '@/lib/utils'
 import { persist, type ObjectNode } from '../types'
 import { Handles, Resizer } from './NodeChrome'
+import { Rotatable } from './Rotatable'
 
 pdfjs.GlobalWorkerOptions.workerSrc = new URL('pdfjs-dist/build/pdf.worker.min.mjs', import.meta.url).toString()
 
@@ -13,6 +14,8 @@ export const FileNode = memo(function FileNode({ id, data, selected, width }: No
   const rf = useReactFlow()
   const name = String(data.object.data.name ?? 'File')
   const mime = String(data.object.data.mime ?? '')
+  const isImage = mime.startsWith('image/')
+  const rotation = Number(data.object.data.rotation) || 0
   useEffect(() => {
     if (data.object.refId) void window.api.getFileUrl(data.object.refId).then(setUrl)
   }, [data.object.refId])
@@ -30,25 +33,33 @@ export const FileNode = memo(function FileNode({ id, data, selected, width }: No
     persist([{ id, height: next }])
   }
 
+  const visual = bare ? (
+    <div className={cn('flex h-full w-full justify-center overflow-hidden', mime === 'application/pdf' ? 'items-start' : 'items-center', selected && 'ring-2 ring-brand/70')}>
+      {url && isImage && <img src={url} alt={name} draggable={false} onLoad={fitImage} className="h-full w-full object-contain" />}
+      {url && mime === 'application/pdf' && (
+        <Document file={url} loading={<FileText className="size-8 text-muted-foreground" />} error={<FileText className="size-8 text-muted-foreground" />}>
+          <Page pageNumber={1} width={Math.max(100, width ?? 320)} renderTextLayer={false} renderAnnotationLayer={false} />
+        </Document>
+      )}
+    </div>
+  ) : (
+    <div className={cn('flex h-full w-full flex-col overflow-hidden rounded-xl border bg-card shadow-sm', selected && 'ring-2 ring-brand/70')}>
+      <div className="flex min-h-0 flex-1 items-center justify-center overflow-hidden">
+        <FileText className="size-8 text-muted-foreground" />
+      </div>
+      <div className="truncate border-t px-3 py-2 text-xs font-medium">{name}</div>
+    </div>
+  )
+
   return (
     <>
       <Resizer selected={selected} minWidth={140} minHeight={100} />
-      {bare ? (
-        <div className={cn('flex h-full w-full justify-center overflow-hidden', mime === 'application/pdf' ? 'items-start' : 'items-center', selected && 'ring-2 ring-brand/70')}>
-          {url && mime.startsWith('image/') && <img src={url} alt={name} draggable={false} onLoad={fitImage} className="h-full w-full object-contain" />}
-          {url && mime === 'application/pdf' && (
-            <Document file={url} loading={<FileText className="size-8 text-muted-foreground" />} error={<FileText className="size-8 text-muted-foreground" />}>
-              <Page pageNumber={1} width={Math.max(100, width ?? 320)} renderTextLayer={false} renderAnnotationLayer={false} />
-            </Document>
-          )}
-        </div>
+      {isImage ? (
+        <Rotatable id={id} rotation={rotation} selected={!!selected}>
+          {visual}
+        </Rotatable>
       ) : (
-        <div className={cn('flex h-full w-full flex-col overflow-hidden rounded-xl border bg-card shadow-sm', selected && 'ring-2 ring-brand/70')}>
-          <div className="flex min-h-0 flex-1 items-center justify-center overflow-hidden">
-            <FileText className="size-8 text-muted-foreground" />
-          </div>
-          <div className="truncate border-t px-3 py-2 text-xs font-medium">{name}</div>
-        </div>
+        visual
       )}
       <Handles />
     </>

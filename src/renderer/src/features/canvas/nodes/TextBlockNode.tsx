@@ -14,6 +14,7 @@ import { BLOCK_DEFAULT_SIZE } from '../textSize'
 import { Handles } from './NodeChrome'
 import { useAutoHeight, WidthResizer } from './autoHeight'
 import { useEditMode } from './useEditMode'
+import { Rotatable } from './Rotatable'
 
 export const blockStyle = (data: Record<string, unknown> | undefined): TextBlockStyle => (data?.style === 'framed' ? 'framed' : 'plain')
 
@@ -35,6 +36,7 @@ export const TextBlockNode = memo(function TextBlockNode({ id, data, selected, h
   const [update] = useUpdateCardMutation()
   const style = blockStyle(data.object.data)
   const fontSize = blockFontSize(data.object.data)
+  const rotation = Number(data.object.data.rotation) || 0
   const tint = summary.color ? paletteColor(summary.color) : null
   const latest = useRef<DocJSON | null>(null)
   // what was just typed, shown until the refetched card catches up (avoids flashing the old text)
@@ -65,59 +67,61 @@ export const TextBlockNode = memo(function TextBlockNode({ id, data, selected, h
   return (
     <>
       <WidthResizer selected={selected && !editing} minWidth={140} />
-      <div
-        ref={root}
-        onClick={() => {
-          if (!selected || editing) return
-          clearTimeout(editTimer.current)
-          editTimer.current = setTimeout(() => setEditing(true), 200)
-        }}
-        onDoubleClick={() => {
-          clearTimeout(editTimer.current)
-          setEditing(true)
-        }}
-        className={cn(
-          'group relative h-full w-full rounded-lg text-foreground transition-[box-shadow,background-color]',
-          style === 'framed' ? 'border bg-card shadow-[0_1px_2px_rgba(0,0,0,0.04)]' : 'bg-canvas hover:ring-1 hover:ring-border',
-          selected && !editing && 'ring-2 ring-brand/60 hover:ring-brand/60',
-          editing && 'ring-2 ring-brand/80 hover:ring-brand/80',
-          editing ? 'nodrag nopan nowheel cursor-text' : 'cursor-default'
-        )}
-        style={tint ? { background: `linear-gradient(${tint.bg}, ${tint.bg}), var(${style === 'framed' ? '--card' : '--canvas'})`, borderColor: tint.border } : undefined}
-      >
-        <button
-          onClick={(e) => {
-            e.stopPropagation()
-            dispatch(openCard(summary.id))
-          }}
-          className="nodrag absolute top-1 -right-8 z-10 grid size-6 place-items-center rounded-md border bg-popover text-muted-foreground opacity-0 shadow-sm transition group-hover:opacity-100 hover:text-foreground"
-          aria-label="Open as card"
-          title="Open as card"
-        >
-          <Expand className="size-3.5" />
-        </button>
+      <Rotatable id={id} rotation={editing ? 0 : rotation} selected={!!selected && !editing}>
         <div
-          ref={content}
-          style={{ '--block-font-size': `${fontSize}px` } as React.CSSProperties}
-          className={cn('text-block', style === 'framed' ? 'px-4 py-3' : 'px-2 py-1.5', !editing && 'pointer-events-none')}
-        >
-          {card && (
-            <CardEditor
-              key={editing ? 'edit' : `view-${card.updatedAt}-${local ? 'local' : 'stored'}`}
-              content={(!editing && local) || card.content}
-              editable={editing}
-              autofocus={editing}
-              placeholder="Type, or '/' for headings, lists, tables…"
-              className="min-h-0"
-              onChange={(doc) => {
-                latest.current = doc
-                setLocal(doc)
-                void update({ id: summary.id, content: doc })
-              }}
-            />
+          ref={root}
+          onClick={() => {
+            if (!selected || editing) return
+            clearTimeout(editTimer.current)
+            editTimer.current = setTimeout(() => setEditing(true), 200)
+          }}
+          onDoubleClick={() => {
+            clearTimeout(editTimer.current)
+            setEditing(true)
+          }}
+          className={cn(
+            'group relative h-full w-full rounded-lg text-foreground transition-[box-shadow,background-color]',
+            style === 'framed' ? 'border bg-card shadow-[0_1px_2px_rgba(0,0,0,0.04)]' : 'bg-canvas hover:ring-1 hover:ring-border',
+            selected && !editing && 'ring-2 ring-brand/60 hover:ring-brand/60',
+            editing && 'ring-2 ring-brand/80 hover:ring-brand/80',
+            editing ? 'nodrag nopan nowheel cursor-text' : 'cursor-default'
           )}
+          style={tint ? { background: `linear-gradient(${tint.bg}, ${tint.bg}), var(${style === 'framed' ? '--card' : '--canvas'})`, borderColor: tint.border } : undefined}
+        >
+          <button
+            onClick={(e) => {
+              e.stopPropagation()
+              dispatch(openCard(summary.id))
+            }}
+            className="nodrag absolute top-1 -right-8 z-10 grid size-6 place-items-center rounded-md border bg-popover text-muted-foreground opacity-0 shadow-sm transition group-hover:opacity-100 hover:text-foreground"
+            aria-label="Open as card"
+            title="Open as card"
+          >
+            <Expand className="size-3.5" />
+          </button>
+          <div
+            ref={content}
+            style={{ '--block-font-size': `${fontSize}px` } as React.CSSProperties}
+            className={cn('text-block', style === 'framed' ? 'px-4 py-3' : 'px-2 py-1.5', !editing && 'pointer-events-none')}
+          >
+            {card && (
+              <CardEditor
+                key={editing ? 'edit' : `view-${card.updatedAt}-${local ? 'local' : 'stored'}`}
+                content={(!editing && local) || card.content}
+                editable={editing}
+                autofocus={editing}
+                placeholder="Type, or '/' for headings, lists, tables…"
+                className="min-h-0"
+                onChange={(doc) => {
+                  latest.current = doc
+                  setLocal(doc)
+                  void update({ id: summary.id, content: doc })
+                }}
+              />
+            )}
+          </div>
         </div>
-      </div>
+      </Rotatable>
       <Handles />
     </>
   )
