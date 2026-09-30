@@ -7,6 +7,7 @@ import {
   AlignRight,
   AlignTop,
   BoxSelect,
+  Check,
   Copy,
   DistributeH,
   DistributeV,
@@ -17,6 +18,8 @@ import {
   GridLayout,
   Layers,
   LayoutDashboard,
+  Minus,
+  Plus,
   TidyUp,
   Trash2,
   Unlink,
@@ -28,6 +31,7 @@ import { Kbd } from '@/components/ui/kbd'
 import { PALETTE } from '@/lib/colors'
 import { cn } from '@/lib/utils'
 import { bounds, type ArrangeMode } from './arrange'
+import { BLOCK_DEFAULT_SIZE, HEADING_DEFAULT_SIZE, TEXT_SIZE_PRESETS, nearestPreset, type TextObjectKind, type TextSizePreset } from './textSize'
 import type { ObjectNode } from './types'
 import type { TextBlockStyle } from '@shared/types'
 
@@ -43,7 +47,11 @@ export interface SelectionActions {
   blockStyle: (node: ObjectNode, style: TextBlockStyle) => void
   chartFromTable: (node: ObjectNode) => void
   unlinkChart: (node: ObjectNode) => void
+  textSizePreset: (preset: TextSizePreset) => void
+  stepTextSize: (dir: 1 | -1) => void
 }
+
+const textKindOf = (n: ObjectNode): TextObjectKind | null => (n.type === 'text' ? 'heading' : n.type === 'card' && n.data.card?.kind === 'block' ? 'block' : null)
 
 const TIDY: { mode: ArrangeMode; label: string; icon: AppIcon }[] = [
   { mode: 'left', label: 'Align left', icon: AlignLeft },
@@ -75,6 +83,17 @@ export function SelectionToolbar({ selected, actions }: { selected: ObjectNode[]
   const block = single?.type === 'card' && single.data.card?.kind === 'block' ? single : null
   const framed = block?.data.object.data.style === 'framed'
   const linkedChart = single?.type === 'chart' && (single.data.object.data.source as { tableId?: string } | undefined)?.tableId ? single : null
+  const textKinds = selected.map(textKindOf)
+  const allText = textKinds.every((k): k is TextObjectKind => !!k)
+  // shown preset: the nearest one to the (single) node's size, else 'M' as a neutral middle ground for a mixed selection
+  const textPreset: TextSizePreset | null = allText
+    ? (() => {
+        if (!single) return 'M'
+        const kind = textKinds[0]!
+        const size = Number(single.data.object.data[kind === 'heading' ? 'size' : 'fontSize']) || (kind === 'heading' ? HEADING_DEFAULT_SIZE : BLOCK_DEFAULT_SIZE)
+        return nearestPreset(kind, size)
+      })()
+    : null
 
   return (
     <div
@@ -128,6 +147,32 @@ export function SelectionToolbar({ selected, actions }: { selected: ObjectNode[]
           </DropdownMenu>
         )}
         {many && <Action icon={BoxSelect} label="Create section" kbd="Mod+G" onClick={actions.group} />}
+        {allText && textPreset && (
+          <>
+            <Action icon={Minus} label="Smaller text" kbd="Mod+Shift+," onClick={() => actions.stepTextSize(-1)} />
+            <DropdownMenu>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <DropdownMenuTrigger
+                    aria-label="Text size"
+                    className="grid h-7 min-w-7 place-items-center rounded-lg px-1.5 text-xs font-semibold text-muted-foreground transition hover:bg-accent hover:text-foreground data-[state=open]:bg-accent data-[state=open]:text-foreground"
+                  >
+                    Aa
+                  </DropdownMenuTrigger>
+                </TooltipTrigger>
+                <TooltipContent>Text size ({textPreset})</TooltipContent>
+              </Tooltip>
+              <DropdownMenuContent align="center" className="w-28" onCloseAutoFocus={(e) => e.preventDefault()}>
+                {TEXT_SIZE_PRESETS.map((p) => (
+                  <DropdownMenuItem key={p} onClick={() => actions.textSizePreset(p)}>
+                    <Check className={p === textPreset ? '' : 'opacity-0'} /> {p}
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
+            <Action icon={Plus} label="Bigger text" kbd="Mod+Shift+." onClick={() => actions.stepTextSize(1)} />
+          </>
+        )}
         {block && (
           <Action
             icon={Frame}

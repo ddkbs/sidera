@@ -516,3 +516,26 @@ export const TidyUp = glyph('TidyUp', () => (
     <rect x="4.5" y="9.5" width="6" height="3.5" rx="1.2" fill="currentColor" opacity=".55" />
   </>
 ))
+
+// Shapes insert menu (16px, matches what gets inserted on the board)
+export const ShapeRectangle = glyph('ShapeRectangle', () => <rect x="2" y="4" width="12" height="8" rx="1" {...stroke} />)
+export const ShapeEllipse = glyph('ShapeEllipse', () => <ellipse cx="8" cy="8" rx="6" ry="4.5" {...stroke} />)
+export const ShapeDiamond = glyph('ShapeDiamond', () => <path d="M8 2 14 8 8 14 2 8Z" {...stroke} />)
+export const ShapeLine = glyph('ShapeLine', () => <path d="M2.5 12 13.5 4" {...stroke} />)
+export const ShapeArrow = glyph('ShapeArrow', () => <path d="M2.5 12 13 4.2M8 3.6l5-.2.4 4.8" {...stroke} />)
+export const ShapeCurvedArrow = glyph('ShapeCurvedArrow', () => <path d="M2.5 12C4 5 10 3 13.5 5M9.6 3.1l4 1.7-1.1 4" {...stroke} />)
+export const ShapeCross = glyph('ShapeCross', () => <path d="M3 3l10 10M13 3 3 13" {...stroke} />)
+export const ShapeCheck = glyph('ShapeCheck', () => <path d="M2.5 8.5 6 12l7.5-8" {...stroke} strokeWidth={1.8} />)
+export const ShapesMenu = glyph('ShapesMenu', () => (
+  <>
+    <rect x="1.5" y="8.5" width="6" height="6" rx="1" {...stroke} />
+    <circle cx="11" cy="5" r="3.5" {...stroke} />
+  </>
+))
+export const ShapeStar = glyph('ShapeStar', () => (
+  <path
+    d="M8 1.5 9.8 5.9 14.5 6.3 10.9 9.3 12 13.9 8 11.4 4 13.9 5.1 9.3 1.5 6.3 6.2 5.9Z"
+    {...stroke}
+    strokeLinejoin="round"
+  />
+))
