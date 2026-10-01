@@ -7,12 +7,15 @@ import { useAppDispatch } from '@/store'
 import { openSettings, pushActivity, setFullscreen } from '@/store/ui'
 import { settingsLoaded } from '@/store/settings'
 import { useAppearance } from '@/lib/appearance'
+import { useLang } from '@/lib/i18n'
 
 export { FONT_STACKS } from '@/lib/appearance'
 
 export function App() {
   const dispatch = useAppDispatch()
   const theme = useAppearance()
+  // re-render the whole tree when the UI language changes (`t()` reads the current language)
+  useLang()
 
   useEffect(() => window.app.onSettingsChanged((s) => dispatch(settingsLoaded(s))), [dispatch])
 

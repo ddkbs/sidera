@@ -2,7 +2,7 @@ import { mkdirSync } from 'node:fs'
 import type { Server } from 'node:http'
 import { copyFile, mkdir, readFile, stat, writeFile } from 'node:fs/promises'
 import { basename, dirname, extname, isAbsolute, join, relative } from 'node:path'
-import { dialog, shell, type BrowserWindow } from 'electron'
+import { app, dialog, shell, type BrowserWindow } from 'electron'
 import { nanoid } from 'nanoid'
 import { DB_CHANGED, MCP_ACTIVITY, type CanvasApi, type DbChangeScope } from '@shared/api'
 import type { AiProviderId } from '@shared/ai'
@@ -10,6 +10,7 @@ import type { SessionKind } from '@shared/auth'
 import { APP_NAME } from '@shared/brand'
 import { fileUrl } from '@shared/fileProtocol'
 import { withSourceHeader } from '@shared/html'
+import { resolveLang, type Lang } from '@shared/i18n'
 import { SETTINGS_CHANGED } from '@shared/settings'
 import { ChatAgent } from './ai/chat'
 import { companionHtml } from './draw/companion'
@@ -20,7 +21,7 @@ import { stdioLaunchSpec } from './integrations'
 import { startHttpMcp } from './mcp/server'
 import { createServices, type Services } from './services'
 import { exportCards, importCards } from './services/markdown'
-import { seedWelcome } from './services/seed'
+import { relocalizeWelcome, seedWelcome } from './services/seed'
 import { SettingsStore } from './settings'
 import { downloadImage, fetchLinkPreview, fetchPageForClip } from './web'
 
@@ -77,6 +78,8 @@ export class Session {
   readonly draw: DrawController
   /** whiteboard seeded on first open — the window opens it once */
   welcomeBoardId: string | null = null
+  /** the welcome board seeded in this run (relocalized when the language is picked during onboarding) */
+  private seededWelcome: { id: string; lang: Lang } | null = null
   mcpUrl: string | null = null
 
   private mcpServer: Server | null = null
@@ -117,8 +120,30 @@ export class Session {
           this.emit('all')
         }
       }, 1500)
-      if (seedWelcome(this.services)) this.welcomeBoardId = this.services.listWhiteboards()[0]?.id ?? null
+      const lang = this.uiLang()
+      const id = seedWelcome(this.services, lang)
+      if (id) {
+        this.welcomeBoardId = id
+        this.seededWelcome = { id, lang }
+      }
     }
+  }
+
+  /** UI language: the account setting, else the system language. */
+  uiLang(): Lang {
+    return resolveLang(this.settings.get().language, app.getPreferredSystemLanguages())
+  }
+
+  /**
+   * The language was changed during onboarding: rebuild the freshly seeded welcome board in it, as long as
+   * the welcome slides are still open (nothing on the board was touched yet).
+   */
+  onLanguageChanged(): void {
+    const seeded = this.seededWelcome
+    const lang = this.uiLang()
+    if (!seeded || seeded.lang === lang || this.settings.get().onboarding.welcomeSeen) return
+    if (relocalizeWelcome(this.services, seeded.id, lang)) this.seededWelcome = { id: seeded.id, lang }
+    else this.seededWelcome = null
   }
 
   send(channel: string, payload: unknown): void {

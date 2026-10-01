@@ -1,13 +1,17 @@
 import { useEffect, useRef } from 'react'
 import { useAppSelector } from '@/store'
+import { t, type MessageKey } from './i18n'
 import { eventToBindings, normalize } from './keys'
 
 export { eventToBinding, eventToBindings, formatBinding, normalize } from './keys'
 
+export type CommandGroup = 'General' | 'Navigation' | 'Whiteboard tools' | 'Whiteboard editing' | 'Tasks' | 'Onboarding'
+
 export interface CommandDef {
   id: string
-  label: string
-  group: 'General' | 'Navigation' | 'Whiteboard tools' | 'Whiteboard editing' | 'Tasks' | 'Onboarding'
+  /** dictionary key of the label (see `commandLabel`) */
+  label: MessageKey
+  group: CommandGroup
   binding: string
   /** only active inside this view; commands of different scopes may share a binding */
   scope?: 'whiteboard' | 'tasks' | 'onboarding'
@@ -17,52 +21,65 @@ export interface CommandDef {
 
 /** Every rebindable command. Bindings use "Mod" for ⌘, plus Shift / Alt / Ctrl, then the key. */
 export const COMMANDS: CommandDef[] = [
-  { id: 'palette.open', label: 'Search & commands', group: 'General', binding: 'Mod+K', global: true },
-  { id: 'settings.open', label: 'Open settings', group: 'General', binding: 'Mod+,', global: true },
-  { id: 'shortcuts.open', label: 'Keyboard shortcuts', group: 'General', binding: 'Mod+/', global: true },
-  { id: 'chat.toggle', label: 'Toggle AI assistant', group: 'General', binding: 'Mod+J', global: true },
-  { id: 'sidebar.toggle', label: 'Toggle sidebar', group: 'General', binding: 'Mod+\\', global: true },
-  { id: 'capture.open', label: 'Quick capture', group: 'General', binding: 'Mod+Shift+N', global: true },
-  { id: 'edit.undo', label: 'Undo', group: 'General', binding: 'Mod+Z' },
-  { id: 'edit.redo', label: 'Redo', group: 'General', binding: 'Mod+Shift+Z' },
-  { id: 'nav.back', label: 'Go back', group: 'Navigation', binding: 'Mod+[', global: true },
-  { id: 'nav.forward', label: 'Go forward', group: 'Navigation', binding: 'Mod+]', global: true },
-  { id: 'tab.new', label: 'New tab', group: 'Navigation', binding: 'Mod+T', global: true },
-  { id: 'tab.close', label: 'Close tab', group: 'Navigation', binding: 'Mod+W', global: true },
-  { id: 'tab.next', label: 'Next tab', group: 'Navigation', binding: 'Ctrl+Tab', global: true },
-  { id: 'tab.prev', label: 'Previous tab', group: 'Navigation', binding: 'Ctrl+Shift+Tab', global: true },
-  { id: 'nav.tasks', label: 'Open tasks', group: 'Navigation', binding: 'Mod+Shift+T', global: true },
-  { id: 'tool.select', scope: 'whiteboard', label: 'Select tool', group: 'Whiteboard tools', binding: 'V' },
-  { id: 'tool.text', scope: 'whiteboard', label: 'Text tool', group: 'Whiteboard tools', binding: 'T' },
-  { id: 'tool.card', scope: 'whiteboard', label: 'Card tool', group: 'Whiteboard tools', binding: 'C' },
-  { id: 'tool.import', scope: 'whiteboard', label: 'Import file', group: 'Whiteboard tools', binding: 'U' },
-  { id: 'tool.connector', scope: 'whiteboard', label: 'Connector tool', group: 'Whiteboard tools', binding: 'A' },
-  { id: 'tool.section', scope: 'whiteboard', label: 'Section tool', group: 'Whiteboard tools', binding: 'S' },
-  { id: 'tool.search', scope: 'whiteboard', label: 'Add existing card', group: 'Whiteboard tools', binding: 'F' },
-  { id: 'tool.pen', scope: 'whiteboard', label: 'Pen (draw on the whiteboard)', group: 'Whiteboard tools', binding: 'P' },
-  { id: 'canvas.newTextBlock', scope: 'whiteboard', label: 'New text box', group: 'Whiteboard editing', binding: 'Mod+N' },
-  { id: 'canvas.fit', scope: 'whiteboard', label: 'Fit to screen', group: 'Whiteboard editing', binding: 'Shift+1' },
-  { id: 'canvas.find', scope: 'whiteboard', label: 'Find on whiteboard', group: 'Whiteboard editing', binding: 'Mod+F', global: true },
-  { id: 'canvas.copy', scope: 'whiteboard', label: 'Copy objects', group: 'Whiteboard editing', binding: 'Mod+C' },
-  { id: 'canvas.paste', scope: 'whiteboard', label: 'Paste objects', group: 'Whiteboard editing', binding: 'Mod+V' },
-  { id: 'canvas.duplicate', scope: 'whiteboard', label: 'Duplicate selection', group: 'Whiteboard editing', binding: 'Mod+D' },
-  { id: 'canvas.selectAll', scope: 'whiteboard', label: 'Select all', group: 'Whiteboard editing', binding: 'Mod+A' },
-  { id: 'canvas.group', scope: 'whiteboard', label: 'Create section from selection', group: 'Whiteboard editing', binding: 'Mod+G' },
-  { id: 'canvas.textBigger', scope: 'whiteboard', label: 'Bigger text', group: 'Whiteboard editing', binding: 'Mod+Shift+.' },
-  { id: 'canvas.textSmaller', scope: 'whiteboard', label: 'Smaller text', group: 'Whiteboard editing', binding: 'Mod+Shift+,' },
-  { id: 'canvas.drawOnIpad', scope: 'whiteboard', label: 'Draw on iPad', group: 'Whiteboard editing', binding: 'Mod+Shift+D' },
-  { id: 'tasks.new', scope: 'tasks', label: 'New task', group: 'Tasks', binding: 'C' },
-  { id: 'tasks.next', scope: 'tasks', label: 'Next task', group: 'Tasks', binding: 'Down' },
-  { id: 'tasks.prev', scope: 'tasks', label: 'Previous task', group: 'Tasks', binding: 'Up' },
-  { id: 'tasks.open', scope: 'tasks', label: 'Open selected task', group: 'Tasks', binding: 'Enter' },
-  { id: 'tasks.close', scope: 'tasks', label: 'Close task details', group: 'Tasks', binding: 'Esc' },
-  { id: 'onboarding.next', scope: 'onboarding', label: 'Next step', group: 'Onboarding', binding: 'Right', global: true },
-  { id: 'onboarding.confirm', scope: 'onboarding', label: 'Continue', group: 'Onboarding', binding: 'Enter' },
-  { id: 'onboarding.back', scope: 'onboarding', label: 'Previous step', group: 'Onboarding', binding: 'Left', global: true },
-  { id: 'onboarding.skip', scope: 'onboarding', label: 'Skip / close', group: 'Onboarding', binding: 'Esc', global: true }
+  { id: 'palette.open', label: 'cmd.palette.open', group: 'General', binding: 'Mod+K', global: true },
+  { id: 'settings.open', label: 'cmd.settings.open', group: 'General', binding: 'Mod+,', global: true },
+  { id: 'shortcuts.open', label: 'cmd.shortcuts.open', group: 'General', binding: 'Mod+/', global: true },
+  { id: 'chat.toggle', label: 'cmd.chat.toggle', group: 'General', binding: 'Mod+J', global: true },
+  { id: 'sidebar.toggle', label: 'cmd.sidebar.toggle', group: 'General', binding: 'Mod+\\', global: true },
+  { id: 'capture.open', label: 'cmd.capture.open', group: 'General', binding: 'Mod+Shift+N', global: true },
+  { id: 'edit.undo', label: 'cmd.edit.undo', group: 'General', binding: 'Mod+Z' },
+  { id: 'edit.redo', label: 'cmd.edit.redo', group: 'General', binding: 'Mod+Shift+Z' },
+  { id: 'nav.back', label: 'cmd.nav.back', group: 'Navigation', binding: 'Mod+[', global: true },
+  { id: 'nav.forward', label: 'cmd.nav.forward', group: 'Navigation', binding: 'Mod+]', global: true },
+  { id: 'tab.new', label: 'cmd.tab.new', group: 'Navigation', binding: 'Mod+T', global: true },
+  { id: 'tab.close', label: 'cmd.tab.close', group: 'Navigation', binding: 'Mod+W', global: true },
+  { id: 'tab.next', label: 'cmd.tab.next', group: 'Navigation', binding: 'Ctrl+Tab', global: true },
+  { id: 'tab.prev', label: 'cmd.tab.prev', group: 'Navigation', binding: 'Ctrl+Shift+Tab', global: true },
+  { id: 'nav.tasks', label: 'cmd.nav.tasks', group: 'Navigation', binding: 'Mod+Shift+T', global: true },
+  { id: 'tool.select', scope: 'whiteboard', label: 'cmd.tool.select', group: 'Whiteboard tools', binding: 'V' },
+  { id: 'tool.text', scope: 'whiteboard', label: 'cmd.tool.text', group: 'Whiteboard tools', binding: 'T' },
+  { id: 'tool.card', scope: 'whiteboard', label: 'cmd.tool.card', group: 'Whiteboard tools', binding: 'C' },
+  { id: 'tool.import', scope: 'whiteboard', label: 'cmd.tool.import', group: 'Whiteboard tools', binding: 'U' },
+  { id: 'tool.connector', scope: 'whiteboard', label: 'cmd.tool.connector', group: 'Whiteboard tools', binding: 'A' },
+  { id: 'tool.section', scope: 'whiteboard', label: 'cmd.tool.section', group: 'Whiteboard tools', binding: 'S' },
+  { id: 'tool.search', scope: 'whiteboard', label: 'cmd.tool.search', group: 'Whiteboard tools', binding: 'F' },
+  { id: 'tool.pen', scope: 'whiteboard', label: 'cmd.tool.pen', group: 'Whiteboard tools', binding: 'P' },
+  { id: 'canvas.newTextBlock', scope: 'whiteboard', label: 'cmd.canvas.newTextBlock', group: 'Whiteboard editing', binding: 'Mod+N' },
+  { id: 'canvas.fit', scope: 'whiteboard', label: 'cmd.canvas.fit', group: 'Whiteboard editing', binding: 'Shift+1' },
+  { id: 'canvas.find', scope: 'whiteboard', label: 'cmd.canvas.find', group: 'Whiteboard editing', binding: 'Mod+F', global: true },
+  { id: 'canvas.copy', scope: 'whiteboard', label: 'cmd.canvas.copy', group: 'Whiteboard editing', binding: 'Mod+C' },
+  { id: 'canvas.paste', scope: 'whiteboard', label: 'cmd.canvas.paste', group: 'Whiteboard editing', binding: 'Mod+V' },
+  { id: 'canvas.duplicate', scope: 'whiteboard', label: 'cmd.canvas.duplicate', group: 'Whiteboard editing', binding: 'Mod+D' },
+  { id: 'canvas.selectAll', scope: 'whiteboard', label: 'cmd.canvas.selectAll', group: 'Whiteboard editing', binding: 'Mod+A' },
+  { id: 'canvas.group', scope: 'whiteboard', label: 'cmd.canvas.group', group: 'Whiteboard editing', binding: 'Mod+G' },
+  { id: 'canvas.textBigger', scope: 'whiteboard', label: 'cmd.canvas.textBigger', group: 'Whiteboard editing', binding: 'Mod+Shift+.' },
+  { id: 'canvas.textSmaller', scope: 'whiteboard', label: 'cmd.canvas.textSmaller', group: 'Whiteboard editing', binding: 'Mod+Shift+,' },
+  { id: 'canvas.drawOnIpad', scope: 'whiteboard', label: 'cmd.canvas.drawOnIpad', group: 'Whiteboard editing', binding: 'Mod+Shift+D' },
+  { id: 'tasks.new', scope: 'tasks', label: 'cmd.tasks.new', group: 'Tasks', binding: 'C' },
+  { id: 'tasks.next', scope: 'tasks', label: 'cmd.tasks.next', group: 'Tasks', binding: 'Down' },
+  { id: 'tasks.prev', scope: 'tasks', label: 'cmd.tasks.prev', group: 'Tasks', binding: 'Up' },
+  { id: 'tasks.open', scope: 'tasks', label: 'cmd.tasks.open', group: 'Tasks', binding: 'Enter' },
+  { id: 'tasks.close', scope: 'tasks', label: 'cmd.tasks.close', group: 'Tasks', binding: 'Esc' },
+  { id: 'onboarding.next', scope: 'onboarding', label: 'cmd.onboarding.next', group: 'Onboarding', binding: 'Right', global: true },
+  { id: 'onboarding.confirm', scope: 'onboarding', label: 'cmd.onboarding.confirm', group: 'Onboarding', binding: 'Enter' },
+  { id: 'onboarding.back', scope: 'onboarding', label: 'cmd.onboarding.back', group: 'Onboarding', binding: 'Left', global: true },
+  { id: 'onboarding.skip', scope: 'onboarding', label: 'cmd.onboarding.skip', group: 'Onboarding', binding: 'Esc', global: true }
 ]
 
 for (const c of COMMANDS) c.binding = normalize(c.binding)
+
+const GROUP_LABELS: Record<CommandGroup, MessageKey> = {
+  General: 'cmdGroup.general',
+  Navigation: 'cmdGroup.navigation',
+  'Whiteboard tools': 'cmdGroup.whiteboardTools',
+  'Whiteboard editing': 'cmdGroup.whiteboardEditing',
+  Tasks: 'cmdGroup.tasks',
+  Onboarding: 'cmdGroup.onboarding'
+}
+
+/** Command label in the UI language. */
+export const commandLabel = (c: CommandDef | undefined): string => (c ? t(c.label) : '')
+export const commandGroupLabel = (g: CommandGroup): string => t(GROUP_LABELS[g])
 
 export const COMMAND_BY_ID = Object.fromEntries(COMMANDS.map((c) => [c.id, c]))
 

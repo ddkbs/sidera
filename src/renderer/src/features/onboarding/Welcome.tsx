@@ -2,12 +2,15 @@ import { AnimatePresence, motion } from 'motion/react'
 import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { APP_NAME } from '@shared/brand'
+import { LANG_NAMES, LANGS } from '@shared/i18n'
 import appIcon from '@/assets/onboarding/app-icon.png'
-import { ArrowLeft, ArrowRight, Sparkles } from '@/components/icons'
+import { ArrowLeft, ArrowRight, Check, Sparkles } from '@/components/icons'
 import { Button } from '@/components/ui/button'
+import { t, useLang } from '@/lib/i18n'
 import { useCommands } from '@/lib/shortcuts'
 import { cn } from '@/lib/utils'
-import { useAppSelector } from '@/store'
+import { useAppDispatch, useAppSelector } from '@/store'
+import { updateSettings } from '@/store/settings'
 import { WELCOME_SLIDES } from './slides'
 
 const EASE = [0.22, 1, 0.36, 1] as const
@@ -52,7 +55,7 @@ export function Welcome({ onDone }: { onDone: (next: 'tour' | 'explore') => void
       tabIndex={-1}
       role="dialog"
       aria-modal
-      aria-label={`Welcome to ${APP_NAME}`}
+      aria-label={t('welcome.label', { app: APP_NAME })}
       className="fixed inset-0 z-[200] flex flex-col overflow-hidden bg-background text-foreground outline-none"
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
@@ -68,7 +71,7 @@ export function Welcome({ onDone }: { onDone: (next: 'tour' | 'explore') => void
             onClick={() => onDone('explore')}
             className="no-drag rounded-md px-2.5 py-1 text-[13px] text-muted-foreground transition hover:bg-accent hover:text-foreground"
           >
-            Skip intro
+            {t('welcome.skipIntro')}
           </button>
         )}
       </div>
@@ -100,10 +103,11 @@ export function Welcome({ onDone }: { onDone: (next: 'tour' | 'explore') => void
                   <span className="size-1.5 rounded-full bg-gradient-to-br from-violet-500 to-sky-500" />
                   <span className="tabular-nums">{String(index + 1).padStart(2, '0')}</span>
                   <span className="text-muted-foreground/50">·</span>
-                  {slide.eyebrow}
+                  {t(slide.eyebrow)}
                 </div>
-                <h1 className="mt-4 text-[38px] leading-[1.08] font-semibold tracking-[-0.025em] text-balance">{slide.title}</h1>
-                <p className="mt-4 text-[15px] leading-relaxed text-pretty text-muted-foreground">{slide.body}</p>
+                <h1 className="mt-4 text-[38px] leading-[1.08] font-semibold tracking-[-0.025em] text-balance">{t(slide.title, { app: APP_NAME })}</h1>
+                <p className="mt-4 text-[15px] leading-relaxed text-pretty text-muted-foreground">{t(slide.body, { app: APP_NAME })}</p>
+                {slide.id === 'language' && <LanguagePicker />}
                 <ul className="mt-7 flex flex-col gap-3">
                   {slide.points.map(({ icon: Icon, text }, i) => (
                     <motion.li
@@ -116,7 +120,7 @@ export function Welcome({ onDone }: { onDone: (next: 'tour' | 'explore') => void
                       <span className="grid size-8 shrink-0 place-items-center rounded-lg border bg-card text-foreground/80 shadow-xs">
                         <Icon className="size-4" />
                       </span>
-                      {text}
+                      {t(text)}
                     </motion.li>
                   ))}
                 </ul>
@@ -126,13 +130,13 @@ export function Welcome({ onDone }: { onDone: (next: 'tour' | 'explore') => void
 
           {/* navigation */}
           <div className="mt-8 flex items-center justify-between gap-6">
-            <div className="flex items-center gap-1.5" role="tablist" aria-label="Slides">
+            <div className="flex items-center gap-1.5" role="tablist" aria-label={t('welcome.slides')}>
               {WELCOME_SLIDES.map((s, i) => (
                 <button
                   key={s.id}
                   role="tab"
                   aria-selected={i === index}
-                  aria-label={`Slide ${i + 1}: ${s.eyebrow}`}
+                  aria-label={t('welcome.slideN', { n: i + 1, name: t(s.eyebrow) })}
                   onClick={() => go(i)}
                   className="group grid h-4 place-items-center"
                 >
@@ -151,12 +155,12 @@ export function Welcome({ onDone }: { onDone: (next: 'tour' | 'explore') => void
               {index > 0 && (
                 <Button variant="ghost" className="h-9 gap-1.5 px-3 text-muted-foreground" onClick={() => go(index - 1)}>
                   <ArrowLeft className="size-4" />
-                  Back
+                  {t('common.back')}
                 </Button>
               )}
               {!last && (
                 <Button className="h-9 gap-1.5 px-4" onClick={next}>
-                  {index === 0 ? 'Get started' : 'Next'}
+                  {index === 0 ? t('welcome.getStarted') : t('common.next')}
                   <ArrowRight className="size-4" />
                 </Button>
               )}
@@ -175,10 +179,10 @@ export function Welcome({ onDone }: { onDone: (next: 'tour' | 'explore') => void
                 >
                   <Button className="h-10 flex-1 gap-2 px-4" onClick={() => onDone('tour')}>
                     <Sparkles className="size-4" />
-                    Take the 1-minute tour
+                    {t('welcome.takeTour')}
                   </Button>
                   <Button variant="outline" className="h-10 flex-1 px-4" onClick={() => onDone('explore')}>
-                    Explore on my own
+                    {t('welcome.exploreOwn')}
                   </Button>
                 </motion.div>
               )}
@@ -205,7 +209,7 @@ export function Welcome({ onDone }: { onDone: (next: 'tour' | 'explore') => void
                 exit="exit"
                 transition={{ duration: 0.45, ease: EASE }}
               >
-                <img src={slide.image[theme]} alt={slide.image.alt} className="size-full object-cover object-left-top" draggable={false} />
+                <img src={slide.image[theme]} alt={t(slide.image.alt)} className="size-full object-cover object-left-top" draggable={false} />
               </motion.div>
             </AnimatePresence>
             <AnimatePresence>
@@ -220,7 +224,7 @@ export function Welcome({ onDone }: { onDone: (next: 'tour' | 'explore') => void
                 >
                   <div className="flex items-center gap-2 text-[11px] font-medium text-muted-foreground">
                     <span className="size-1.5 rounded-full bg-emerald-500 shadow-[0_0_0_3px] shadow-emerald-500/20" />
-                    MCP server · 127.0.0.1:{port}
+                    {t('welcome.mcpServer')} · 127.0.0.1:{port}
                   </div>
                   <code className="mt-1.5 block truncate font-mono text-[11px] text-foreground/90">
                     <span className="text-muted-foreground">$ </span>claude mcp add --transport http {slug} http://127.0.0.1:{port}/mcp
@@ -233,6 +237,31 @@ export function Welcome({ onDone }: { onDone: (next: 'tour' | 'explore') => void
       </div>
     </motion.div>,
     document.body
+  )
+}
+
+/** First step: Deutsch / English. Switches the whole UI immediately (stored per account). */
+function LanguagePicker() {
+  const dispatch = useAppDispatch()
+  const lang = useLang()
+  return (
+    <div className="mt-7 grid grid-cols-2 gap-3" role="radiogroup" aria-label={t('lang.label')}>
+      {LANGS.map((l) => (
+        <button
+          key={l}
+          role="radio"
+          aria-checked={lang === l}
+          onClick={() => void dispatch(updateSettings({ language: l }))}
+          className={cn(
+            'flex h-12 items-center justify-between rounded-xl border bg-card px-4 text-left text-[14px] font-medium shadow-xs transition hover:bg-accent',
+            lang === l && 'border-foreground/50 ring-1 ring-foreground/15'
+          )}
+        >
+          {LANG_NAMES[l]}
+          {lang === l && <Check className="size-4" />}
+        </button>
+      ))}
+    </div>
   )
 }
 

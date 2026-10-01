@@ -1,16 +1,17 @@
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Kbd } from '@/components/ui/kbd'
-import { COMMANDS, formatBinding, useBindings, useCommands } from '@/lib/shortcuts'
+import { t, type MessageKey } from '@/lib/i18n'
+import { COMMANDS, commandGroupLabel, commandLabel, formatBinding, useBindings, useCommands } from '@/lib/shortcuts'
 import { useAppDispatch, useAppSelector } from '@/store'
 import { openSettings, setShortcutsOpen } from '@/store/ui'
 
-const FIXED: [string, string][] = [
-  ['/', 'Block commands (editor)'],
-  ['@', 'Link a card (editor)'],
-  ['Double-click', 'New card / edit object'],
-  ['⌘-click', 'Open in new tab'],
-  ['⌫', 'Remove from whiteboard']
+const FIXED: [string | MessageKey, MessageKey][] = [
+  ['/', 'help.fixed.slash'],
+  ['@', 'help.fixed.mention'],
+  ['help.key.doubleClick', 'help.fixed.doubleClick'],
+  ['help.key.cmdClick', 'help.fixed.cmdClick'],
+  ['⌫', 'help.fixed.remove']
 ]
 
 export function ShortcutsDialog() {
@@ -25,7 +26,7 @@ export function ShortcutsDialog() {
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogContent className="max-h-[86vh] overflow-y-auto sm:max-w-3xl">
         <DialogHeader className="flex-row items-center justify-between">
-          <DialogTitle>Keyboard shortcuts</DialogTitle>
+          <DialogTitle>{t('cmd.shortcuts.open')}</DialogTitle>
           <Button
             variant="outline"
             size="sm"
@@ -35,17 +36,17 @@ export function ShortcutsDialog() {
               dispatch(openSettings('shortcuts'))
             }}
           >
-            Customize…
+            {t('help.customize')}
           </Button>
         </DialogHeader>
         <div className="grid grid-cols-2 gap-x-10 gap-y-6">
           {groups.map((g) => (
             <section key={g}>
-              <h3 className="mb-2 text-xs font-medium text-muted-foreground">{g}</h3>
+              <h3 className="mb-2 text-xs font-medium text-muted-foreground">{commandGroupLabel(g)}</h3>
               <div className="space-y-1.5">
                 {COMMANDS.filter((c) => c.group === g && bindings[c.id]).map((c) => (
                   <div key={c.id} className="flex items-center justify-between gap-3 text-sm">
-                    <span>{c.label}</span>
+                    <span>{commandLabel(c)}</span>
                     <Kbd>{formatBinding(bindings[c.id])}</Kbd>
                   </div>
                 ))}
@@ -53,12 +54,12 @@ export function ShortcutsDialog() {
             </section>
           ))}
           <section>
-            <h3 className="mb-2 text-xs font-medium text-muted-foreground">Mouse & editor</h3>
+            <h3 className="mb-2 text-xs font-medium text-muted-foreground">{t('help.mouseEditor')}</h3>
             <div className="space-y-1.5">
               {FIXED.map(([k, label]) => (
                 <div key={label} className="flex items-center justify-between gap-3 text-sm">
-                  <span>{label}</span>
-                  <Kbd>{k}</Kbd>
+                  <span>{t(label)}</span>
+                  <Kbd>{k.startsWith('help.') ? t(k as MessageKey) : k}</Kbd>
                 </div>
               ))}
             </div>

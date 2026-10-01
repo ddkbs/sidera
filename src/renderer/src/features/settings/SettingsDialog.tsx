@@ -3,6 +3,7 @@ import { toast } from 'sonner'
 import type { DataInfo, McpConnections, ProviderStatus } from '@shared/api'
 import { APP_NAME } from '@shared/brand'
 import { AI_PROVIDERS, getProviderMeta, type AiProviderId } from '@shared/ai'
+import { LANG_NAMES, LANGS, type Lang } from '@shared/i18n'
 import type { FontPref, ThemePref } from '@shared/settings'
 import { AskAI, ArrowUpRight, Check, CircleCheck, Command, Download, File, Home, KeyRound, Palette, Pencil, RotateCcw, Server, Settings, Upload, User, UserCircle, UserPlus } from '@/components/icons'
 import { AccountSettings } from '@/features/auth/AccountSettings'
@@ -16,6 +17,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Slider } from '@/components/ui/slider'
 import { Switch } from '@/components/ui/switch'
 import { FONT_STACKS } from '@/App'
+import { locale, t, useLang, type MessageKey } from '@/lib/i18n'
 import { eventToBinding, formatBinding, shortcutRecording } from '@/lib/shortcuts'
 import { cn } from '@/lib/utils'
 import { useAppDispatch, useAppSelector } from '@/store'
@@ -26,18 +28,18 @@ import { ProfileAvatar } from '@/features/profile/ProfileAvatar'
 import { ShortcutsSettings } from './ShortcutsSettings'
 import { onboarding } from '@/features/onboarding/controller'
 
-const SECTIONS = [
-  { id: 'general', label: 'General', Icon: Settings },
-  { id: 'account', label: 'Account', Icon: UserCircle },
-  { id: 'profile', label: 'Profile', Icon: User },
-  { id: 'appearance', label: 'Appearance', Icon: Palette },
-  { id: 'editor', label: 'Editor & canvas', Icon: Pencil },
-  { id: 'shortcuts', label: 'Shortcuts', Icon: Command },
-  { id: 'mcp', label: 'MCP & Claude', Icon: Server },
-  { id: 'ai', label: 'AI assistant', Icon: AskAI },
-  { id: 'data', label: 'Data & storage', Icon: File },
-  { id: 'about', label: 'About', Icon: Home }
-] as const
+const SECTIONS: readonly { id: string; label: MessageKey; Icon: typeof Settings }[] = [
+  { id: 'general', label: 'settings.section.general', Icon: Settings },
+  { id: 'account', label: 'settings.section.account', Icon: UserCircle },
+  { id: 'profile', label: 'settings.section.profile', Icon: User },
+  { id: 'appearance', label: 'settings.section.appearance', Icon: Palette },
+  { id: 'editor', label: 'settings.section.editor', Icon: Pencil },
+  { id: 'shortcuts', label: 'settings.section.shortcuts', Icon: Command },
+  { id: 'mcp', label: 'settings.section.mcp', Icon: Server },
+  { id: 'ai', label: 'settings.section.ai', Icon: AskAI },
+  { id: 'data', label: 'settings.section.data', Icon: File },
+  { id: 'about', label: 'settings.section.about', Icon: Home }
+]
 
 export function SettingsDialog() {
   const dispatch = useAppDispatch()
@@ -48,7 +50,7 @@ export function SettingsDialog() {
     <Dialog open={settingsOpen} onOpenChange={(o) => dispatch(setSettingsOpen(o))}>
       <DialogContent className="flex h-[min(680px,86vh)] gap-0 overflow-hidden p-0 sm:max-w-4xl">
         <aside className="flex w-56 shrink-0 flex-col gap-0.5 border-r bg-sidebar p-2">
-          <DialogTitle className="px-2 pt-2 pb-3 text-sm">Settings</DialogTitle>
+          <DialogTitle className="px-2 pt-2 pb-3 text-sm">{t('settings.title')}</DialogTitle>
           {SECTIONS.map(({ id, label, Icon }) => (
             <button
               key={id}
@@ -59,12 +61,12 @@ export function SettingsDialog() {
               )}
             >
               <Icon className="size-4 text-muted-foreground" />
-              {label}
+              {t(label)}
             </button>
           ))}
         </aside>
         <div className="min-w-0 flex-1 overflow-y-auto px-8 py-7">
-          <h2 className="mb-6 text-lg font-semibold">{current.label}</h2>
+          <h2 className="mb-6 text-lg font-semibold">{t(current.label)}</h2>
           {current.id === 'general' && <General />}
           {current.id === 'account' && <AccountSettings />}
           {current.id === 'profile' && <ProfileSettings />}
@@ -121,22 +123,22 @@ function ProfileSettings() {
           <ProfileAvatar profile={active} size="lg" />
           <div className="min-w-0 flex-1">
             <div className="truncate font-medium">{active.name}</div>
-            <div className="truncate text-sm text-muted-foreground">{active.email ?? 'No email · local profile'}</div>
+            <div className="truncate text-sm text-muted-foreground">{active.email ?? t('settings.profile.noEmail')}</div>
           </div>
           <Button variant="outline" onClick={() => dispatch(openProfileDialog({ id: active.id }))}>
             <Pencil />
-            Edit profile
+            {t('settings.profile.edit')}
           </Button>
         </div>
       )}
       <div className="mb-2 flex items-center justify-between">
         <div>
-          <div className="text-sm font-medium">Profiles</div>
-          <div className="text-sm text-muted-foreground">The active profile signs new task comments, including ones added over MCP.</div>
+          <div className="text-sm font-medium">{t('settings.profile.profiles')}</div>
+          <div className="text-sm text-muted-foreground">{t('settings.profile.profilesHint')}</div>
         </div>
         <Button variant="outline" size="sm" onClick={() => dispatch(openProfileDialog({ id: null }))}>
           <UserPlus />
-          New profile
+          {t('settings.profile.new')}
         </Button>
       </div>
       <div className="divide-y rounded-xl border">
@@ -149,15 +151,15 @@ function ProfileSettings() {
             </div>
             {p.id === active?.id ? (
               <span className="flex items-center gap-1 text-xs text-muted-foreground">
-                <CircleCheck className="size-3.5 text-emerald-500" /> Active
+                <CircleCheck className="size-3.5 text-emerald-500" /> {t('settings.active')}
               </span>
             ) : (
               <Button variant="ghost" size="sm" onClick={() => void setActive(p.id)}>
-                Switch
+                {t('settings.profile.switch')}
               </Button>
             )}
             <Button variant="ghost" size="sm" onClick={() => dispatch(openProfileDialog({ id: p.id }))}>
-              Edit
+              {t('common.edit')}
             </Button>
           </div>
         ))}
@@ -169,24 +171,28 @@ function ProfileSettings() {
 function General() {
   const dispatch = useAppDispatch()
   const s = useAppSelector((st) => st.settings)
+  const lang = useLang()
   return (
     <div>
-      <Row title="Theme" description="Follow macOS or pick a fixed appearance.">
+      <Row title={t('lang.label')} description={t('settings.general.languageHint')}>
+        <Segmented<Lang> value={lang} onChange={(language) => dispatch(updateSettings({ language }))} options={LANGS.map((l) => ({ value: l, label: LANG_NAMES[l] }))} />
+      </Row>
+      <Row title={t('settings.general.theme')} description={t('settings.general.themeHint')}>
         <Segmented<ThemePref>
           value={s.theme}
           onChange={(theme) => dispatch(updateSettings({ theme }))}
           options={[
-            { value: 'system', label: 'System' },
-            { value: 'light', label: 'Light' },
-            { value: 'dark', label: 'Dark' }
+            { value: 'system', label: t('settings.general.themeSystem') },
+            { value: 'light', label: t('settings.general.themeLight') },
+            { value: 'dark', label: t('settings.general.themeDark') }
           ]}
         />
       </Row>
-      <Row title="Restore tabs on launch" description="Reopen the tabs and views you had open last time.">
+      <Row title={t('settings.general.restoreTabs')} description={t('settings.general.restoreTabsHint')}>
         <Switch checked={s.restoreLastView} onCheckedChange={(v) => dispatch(updateSettings({ restoreLastView: v }))} />
       </Row>
       <QuickCaptureRow />
-      <Row title="Onboarding" description="Replay the welcome screens or the guided tour of the sidebar, canvas and AI features.">
+      <Row title={t('cmdGroup.onboarding')} description={t('settings.general.onboardingHint')}>
         <div className="flex gap-2">
           <Button
             variant="ghost"
@@ -195,7 +201,7 @@ function General() {
               onboarding.showWelcome()
             }}
           >
-            Welcome
+            {t('settings.general.welcome')}
           </Button>
           <Button
             variant="outline"
@@ -204,7 +210,7 @@ function General() {
               onboarding.startTour()
             }}
           >
-            Take the tour
+            {t('settings.general.takeTour')}
           </Button>
         </div>
       </Row>
@@ -247,13 +253,13 @@ function QuickCaptureRow() {
   }
 
   return (
-    <Row title="Quick capture" description={`Global shortcut opens a small capture window from anywhere, even while ${APP_NAME} is in the background.`}>
+    <Row title={t('cmd.capture.open')} description={t('settings.general.quickCaptureHint', { app: APP_NAME })}>
       <div className="flex items-center gap-2">
         <button
           onClick={() => setRecording((r) => !r)}
           className={cn('h-7 min-w-28 rounded-md border px-2 text-xs tracking-wider transition hover:bg-accent', recording && 'border-brand bg-brand/10 text-brand')}
         >
-          {recording ? 'Press keys…' : formatBinding(s.accelerator)}
+          {recording ? t('shortcuts.pressKeys') : formatBinding(s.accelerator)}
         </button>
         <Switch checked={s.enabled} onCheckedChange={(v) => void save({ enabled: v })} />
       </div>
@@ -261,11 +267,10 @@ function QuickCaptureRow() {
   )
 }
 
-const FONTS: { value: FontPref; label: string; note: string }[] = [
-  { value: 'geist', label: 'Geist', note: 'Neutral grotesque, bundled with the app' },
-  { value: 'system', label: 'SF Pro', note: "macOS system font — matches your Mac's UI" }
+const FONTS: { value: FontPref; label: string; note: MessageKey }[] = [
+  { value: 'geist', label: 'Geist', note: 'settings.appearance.geistNote' },
+  { value: 'system', label: 'SF Pro', note: 'settings.appearance.systemNote' }
 ]
-const SAMPLE = 'The quick brown fox — Ideas connect on the canvas.'
 
 function FontOption({ font, selected, onSelect }: { font: (typeof FONTS)[number]; selected: boolean; onSelect: () => void }) {
   return (
@@ -289,10 +294,10 @@ function FontOption({ font, selected, onSelect }: { font: (typeof FONTS)[number]
       <div className="text-4xl leading-none">Aa</div>
       <div>
         <div className="text-sm font-medium">{font.label}</div>
-        <div className="text-xs text-muted-foreground">{font.note}</div>
+        <div className="text-xs text-muted-foreground">{t(font.note)}</div>
       </div>
-      <div className="border-t pt-3 text-sm text-foreground/80">{SAMPLE}</div>
-      <div className="text-lg font-medium">{SAMPLE}</div>
+      <div className="border-t pt-3 text-sm text-foreground/80">{t('settings.appearance.sample')}</div>
+      <div className="text-lg font-medium">{t('settings.appearance.sample')}</div>
     </button>
   )
 }
@@ -302,10 +307,10 @@ function Appearance() {
   const s = useAppSelector((st) => st.settings)
   return (
     <div>
-      <div className="mb-2 text-sm font-medium">Font</div>
+      <div className="mb-2 text-sm font-medium">{t('settings.appearance.font')}</div>
       <div
         role="radiogroup"
-        aria-label="Font"
+        aria-label={t('settings.appearance.font')}
         className="mb-6 grid grid-cols-2 gap-3"
         onKeyDown={(e) => {
           if (!['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(e.key)) return
@@ -321,7 +326,7 @@ function Appearance() {
           <FontOption key={f.value} font={f} selected={s.font === f.value} onSelect={() => dispatch(updateSettings({ font: f.value }))} />
         ))}
       </div>
-      <Row title="Text size" description={`${s.fontSize}px`}>
+      <Row title={t('settings.appearance.textSize')} description={`${s.fontSize}px`}>
         <Slider className="w-48" min={13} max={18} step={1} value={[s.fontSize]} onValueChange={([v]) => dispatch(updateSettings({ fontSize: v }))} />
       </Row>
     </div>
@@ -333,13 +338,13 @@ function EditorCanvas() {
   const s = useAppSelector((st) => st.settings)
   return (
     <div>
-      <Row title="Spell check" description="Underline misspelled words in cards.">
+      <Row title={t('settings.editor.spellcheck')} description={t('settings.editor.spellcheckHint')}>
         <Switch checked={s.editor.spellcheck} onCheckedChange={(v) => dispatch(updateSettings({ editor: { spellcheck: v } }))} />
       </Row>
-      <Row title="Show minimap" description="Show the minimap on whiteboards by default.">
+      <Row title={t('settings.editor.minimap')} description={t('settings.editor.minimapHint')}>
         <Switch checked={s.canvas.showMinimap} onCheckedChange={(v) => dispatch(updateSettings({ canvas: { showMinimap: v } }))} />
       </Row>
-      <Row title="Snap to grid" description="Align objects to the dot grid while moving them.">
+      <Row title={t('settings.editor.snap')} description={t('settings.editor.snapHint')}>
         <Switch checked={s.canvas.snapToGrid} onCheckedChange={(v) => dispatch(updateSettings({ canvas: { snapToGrid: v } }))} />
       </Row>
     </div>
@@ -369,8 +374,8 @@ function McpSettings() {
 
   const connect = async (targets: ('desktop' | 'code')[]) => {
     setBusy(true)
-    for (const t of targets) {
-      const r = await window.app.connectClaude(t)
+    for (const target of targets) {
+      const r = await window.app.connectClaude(target)
       if (r.ok) toast.success(r.message)
       else toast.error(r.message)
     }
@@ -393,13 +398,11 @@ function McpSettings() {
         <div className="flex items-start gap-4">
           <Orb online={!!info?.running} active={busy} className="mt-1 size-8 [&>span]:size-6" />
           <div className="min-w-0 flex-1">
-            <div className="font-medium">Connect Claude to your knowledge base</div>
-            <p className="mt-0.5 text-sm text-muted-foreground">
-              Adds all {TOOL_NAMES.length} {APP_NAME} tools to Claude Desktop and Claude Code in one step. Your data never leaves this Mac.
-            </p>
+            <div className="font-medium">{t('settings.mcp.connectTitle')}</div>
+            <p className="mt-0.5 text-sm text-muted-foreground">{t('settings.mcp.connectBody', { count: TOOL_NAMES.length, app: APP_NAME })}</p>
             <div className="mt-4 flex flex-wrap items-center gap-2">
               <Button disabled={busy} onClick={() => void connect(['desktop', 'code'])}>
-                Connect everything
+                {t('settings.mcp.connectAll')}
               </Button>
               <Status label="Claude Desktop" ok={conn?.desktop} onClick={() => void connect(['desktop'])} />
               <Status label="Claude Code" ok={conn?.code} missing={conn?.code === null} onClick={() => void connect(['code'])} />
@@ -409,10 +412,10 @@ function McpSettings() {
       </section>
 
       <section>
-        <Row title="Local HTTP server" description={info?.running ? <code className="font-mono text-xs">{info.url}</code> : 'Off — only stdio clients (Claude Desktop) can connect.'}>
+        <Row title={t('settings.mcp.http')} description={info?.running ? <code className="font-mono text-xs">{info.url}</code> : t('settings.mcp.httpOff')}>
           <Switch checked={s.httpEnabled} onCheckedChange={(v) => void applyServer({ httpEnabled: v })} />
         </Row>
-        <Row title="Port" description="Used by Claude Code and other HTTP clients. Bound to 127.0.0.1 only.">
+        <Row title={t('settings.mcp.port')} description={t('settings.mcp.portHint')}>
           <Input
             className="w-24 text-right"
             value={port}
@@ -427,31 +430,31 @@ function McpSettings() {
       </section>
 
       <section className="space-y-3">
-        <h3 className="text-sm font-medium">Manual setup</h3>
+        <h3 className="text-sm font-medium">{t('settings.mcp.manual')}</h3>
         <Snippet label="Claude Code" text={codeCmd} />
-        <Snippet label="Claude Desktop — claude_desktop_config.json" text={desktopJson || 'Loading…'} />
+        <Snippet label="Claude Desktop — claude_desktop_config.json" text={desktopJson || t('common.loading')} />
       </section>
 
       <section>
-        <h3 className="mb-2 text-sm font-medium">Tools</h3>
+        <h3 className="mb-2 text-sm font-medium">{t('settings.mcp.tools')}</h3>
         <div className="flex flex-wrap gap-1">
-          {TOOL_NAMES.map((t) => (
-            <code key={t} className="rounded bg-muted px-1.5 py-0.5 font-mono text-[11px]">
-              {t}
+          {TOOL_NAMES.map((name) => (
+            <code key={name} className="rounded bg-muted px-1.5 py-0.5 font-mono text-[11px]">
+              {name}
             </code>
           ))}
         </div>
       </section>
 
       <section>
-        <h3 className="mb-2 text-sm font-medium">Recent agent activity</h3>
+        <h3 className="mb-2 text-sm font-medium">{t('settings.mcp.activity')}</h3>
         {activity.length === 0 ? (
-          <p className="text-sm text-muted-foreground">No tool calls yet in this session.</p>
+          <p className="text-sm text-muted-foreground">{t('settings.mcp.noActivity')}</p>
         ) : (
           <div className="space-y-1">
             {activity.map((a, i) => (
               <div key={a.at + ':' + i} className="flex items-baseline gap-2 text-xs">
-                <span className="shrink-0 text-muted-foreground tabular-nums">{new Date(a.at).toLocaleTimeString()}</span>
+                <span className="shrink-0 text-muted-foreground tabular-nums">{new Date(a.at).toLocaleTimeString(locale())}</span>
                 <code className="shrink-0 font-mono font-medium">{a.tool}</code>
                 <span className="truncate font-mono text-muted-foreground">{a.args}</span>
               </div>
@@ -468,12 +471,12 @@ function Status({ label, ok, missing, onClick }: { label: string; ok?: boolean |
     <button
       onClick={onClick}
       disabled={missing}
-      title={missing ? 'CLI not installed' : ok ? 'Connected — click to update' : 'Click to connect'}
+      title={missing ? t('settings.mcp.cliMissing') : ok ? t('settings.mcp.connectedUpdate') : t('settings.mcp.clickConnect')}
       className="flex h-9 items-center gap-2 rounded-md border px-3 text-sm transition hover:bg-accent disabled:opacity-50"
     >
       <span className={cn('size-2 rounded-full', ok ? 'bg-emerald-500' : missing ? 'bg-muted-foreground/30' : 'bg-amber-500')} />
       {label}
-      <span className="text-xs text-muted-foreground">{missing ? 'not installed' : ok ? 'connected' : 'not connected'}</span>
+      <span className="text-xs text-muted-foreground">{missing ? t('settings.mcp.notInstalled') : ok ? t('settings.mcp.connected') : t('settings.mcp.notConnected')}</span>
     </button>
   )
 }
@@ -490,10 +493,10 @@ function Snippet({ label, text }: { label: string; text: string }) {
           className="absolute top-2 right-2 h-7"
           onClick={() => {
             void navigator.clipboard.writeText(text)
-            toast.success('Copied')
+            toast.success(t('common.copied'))
           }}
         >
-          Copy
+          {t('common.copy')}
         </Button>
       </div>
     </div>
@@ -569,23 +572,23 @@ export function AiSettings() {
       <div className="min-w-0 flex-1 space-y-4">
         <div className="flex items-center gap-2">
           <h3 className="font-medium">{meta.label}</h3>
-          {isActive && <span className="rounded-full bg-primary/10 px-2 py-0.5 text-xs text-primary">Active</span>}
+          {isActive && <span className="rounded-full bg-primary/10 px-2 py-0.5 text-xs text-primary">{t('settings.active')}</span>}
         </div>
 
         {meta.needsKey && (
           <div>
             <div className="mb-1.5 flex items-center justify-between text-sm font-medium">
-              <span>API key</span>
+              <span>{t('settings.ai.apiKey')}</span>
               {meta.keyDocsUrl && (
                 <a href={meta.keyDocsUrl} target="_blank" rel="noreferrer" className="inline-flex items-center gap-0.5 text-xs font-normal text-muted-foreground hover:text-foreground">
-                  Get a key <ArrowUpRight className="size-3" />
+                  {t('settings.ai.getKey')} <ArrowUpRight className="size-3" />
                 </a>
               )}
             </div>
             {connected ? (
               <div className="flex items-center gap-2">
                 <span className="inline-flex items-center gap-1.5 rounded-md bg-emerald-500/10 px-2 py-1 text-xs text-emerald-600 dark:text-emerald-400">
-                  <CircleCheck className="size-3.5" /> Connected
+                  <CircleCheck className="size-3.5" /> {t('settings.ai.connected')}
                 </span>
                 <Button
                   variant="outline"
@@ -593,17 +596,17 @@ export function AiSettings() {
                   onClick={async () => {
                     await window.chat.setProviderKey(selected, null)
                     refreshStatus()
-                    toast('API key removed')
+                    toast(t('settings.ai.keyRemoved'))
                   }}
                 >
-                  Remove
+                  {t('common.remove')}
                 </Button>
               </div>
             ) : (
               <>
                 {selectedStatus?.keyReadError && (
                   <p className="mb-1.5 text-xs text-amber-600 dark:text-amber-400">
-                    Your saved key couldn't be read after the app update — please re-enter your API key.
+                    {t('settings.ai.keyReadError')}
                   </p>
                 )}
                 <form
@@ -614,7 +617,7 @@ export function AiSettings() {
                       await window.chat.setProviderKey(selected, key)
                       setKey('')
                       refreshStatus()
-                      toast.success('API key saved')
+                      toast.success(t('settings.ai.keySaved'))
                     } catch (err) {
                       toast.error(String(err))
                     }
@@ -622,7 +625,7 @@ export function AiSettings() {
                 >
                   <Input type="password" placeholder={meta.keyPlaceholder} value={key} onChange={(e) => setKey(e.target.value)} className="w-64" />
                   <Button type="submit" disabled={!key.trim()}>
-                    <KeyRound /> Save
+                    <KeyRound /> {t('common.save')}
                   </Button>
                 </form>
               </>
@@ -632,17 +635,17 @@ export function AiSettings() {
 
         {meta.editableBaseUrl && (
           <div>
-            <div className="mb-1.5 text-sm font-medium">Base URL</div>
+            <div className="mb-1.5 text-sm font-medium">{t('settings.ai.baseUrl')}</div>
             <Input placeholder={meta.id === 'ollama' ? 'http://127.0.0.1:11434/v1' : 'https://your-endpoint/v1'} value={baseUrl} onChange={(e) => setBaseUrl(e.target.value)} className="w-80" />
           </div>
         )}
 
         <div>
-          <div className="mb-1.5 text-sm font-medium">Model</div>
+          <div className="mb-1.5 text-sm font-medium">{t('settings.ai.model')}</div>
           <div className="flex items-center gap-2">
             <Select value={model} onValueChange={setModel}>
               <SelectTrigger className="w-64">
-                <SelectValue placeholder="Pick or type a model" />
+                <SelectValue placeholder={t('settings.ai.pickModel')} />
               </SelectTrigger>
               <SelectContent>
                 {[...new Set([...meta.defaultModels, ...models])].map((m) => (
@@ -653,10 +656,10 @@ export function AiSettings() {
               </SelectContent>
             </Select>
             <Button type="button" variant="outline" size="sm" onClick={() => void loadModels()} disabled={loadingModels}>
-              <RotateCcw className={cn('size-3.5', loadingModels && 'animate-spin')} /> Load models
+              <RotateCcw className={cn('size-3.5', loadingModels && 'animate-spin')} /> {t('settings.ai.loadModels')}
             </Button>
           </div>
-          <Input value={model} onChange={(e) => setModel(e.target.value)} placeholder="Or type a model id" className="mt-2 w-64" />
+          <Input value={model} onChange={(e) => setModel(e.target.value)} placeholder={t('settings.ai.typeModel')} className="mt-2 w-64" />
         </div>
 
         <Button
@@ -665,7 +668,7 @@ export function AiSettings() {
           }
           disabled={isActive && s.ai.model === model.trim() && (s.ai.baseUrl ?? '') === baseUrl.trim() || !model.trim()}
         >
-          Use this provider
+          {t('settings.ai.useProvider')}
         </Button>
       </div>
     </div>
@@ -681,46 +684,46 @@ function DataSettings() {
   return (
     <div>
       <div className="mb-6 rounded-xl border bg-card p-4">
-        <div className="text-sm font-medium">Everything is stored locally in one folder</div>
+        <div className="text-sm font-medium">{t('settings.data.title')}</div>
         <code className="mt-2 block rounded bg-muted px-2 py-1.5 font-mono text-xs break-all">{info?.dataDir ?? '…'}</code>
         <ul className="mt-3 space-y-1 text-sm text-muted-foreground">
           <li>
-            <code className="font-mono text-xs text-foreground">sidera.db</code> — cards, whiteboards, tags (SQLite){info && ` · ${bytes(info.dbBytes)}`}
+            <code className="font-mono text-xs text-foreground">sidera.db</code> — {t('settings.data.db')}{info && ` · ${bytes(info.dbBytes)}`}
           </li>
           <li>
-            <code className="font-mono text-xs text-foreground">files/</code> — imported PDFs and images{info && ` · ${info.fileCount} files`}
+            <code className="font-mono text-xs text-foreground">files/</code> — {t('settings.data.files')}{info && ` · ${t('settings.data.fileCount', { count: info.fileCount })}`}
           </li>
           <li>
-            <code className="font-mono text-xs text-foreground">settings.json</code> — these settings
+            <code className="font-mono text-xs text-foreground">settings.json</code> — {t('settings.data.settings')}
           </li>
         </ul>
         <Button className="mt-4" variant="outline" onClick={() => void window.app.revealDataDir()}>
-          Show in Finder
+          {t('common.showInFinder')}
         </Button>
       </div>
-      <Row title="Export as Markdown" description="One .md file per card with tags in front matter.">
+      <Row title={t('settings.data.export')} description={t('settings.data.exportHint')}>
         <Button
           variant="outline"
           onClick={async () => {
             const r = await window.api.exportMarkdown()
-            if (r) toast.success(`Exported ${r.count} files`, { description: r.dir })
+            if (r) toast.success(t('settings.data.exported', { count: r.count }), { description: r.dir })
           }}
         >
-          <Download /> Export
+          <Download /> {t('settings.data.exportButton')}
         </Button>
       </Row>
-      <Row title="Import Markdown" description="Create cards from .md files (front matter title/tags supported).">
+      <Row title={t('settings.data.import')} description={t('settings.data.importHint')}>
         <Button
           variant="outline"
           onClick={async () => {
             const r = await window.api.importMarkdown()
             if (r.count) {
               dispatch(api.util.invalidateTags(['CardList', 'Tag']))
-              toast.success(`Imported ${r.count} cards`)
+              toast.success(t('settings.data.imported', { count: r.count }))
             }
           }}
         >
-          <Upload /> Import
+          <Upload /> {t('settings.data.importButton')}
         </Button>
       </Row>
     </div>
@@ -736,12 +739,14 @@ function About() {
         <LogoTile />
         <div>
           <div className="text-base font-semibold">{APP_NAME}</div>
-          <div className="text-muted-foreground">Version {version}</div>
+          <div className="text-muted-foreground">{t('settings.about.version', { version })}</div>
         </div>
       </div>
-      <p className="text-muted-foreground">Free, open-source, local-first visual knowledge base with first-class MCP support. MIT licensed.</p>
+      <p className="text-muted-foreground">{t('settings.about.body')}</p>
       <p className="text-muted-foreground">
-        Press <Kbd>⌘/</Kbd> anytime to see keyboard shortcuts.
+        {t('settings.about.shortcutsBefore')}
+        <Kbd>⌘/</Kbd>
+        {t('settings.about.shortcutsAfter')}
       </p>
     </div>
   )

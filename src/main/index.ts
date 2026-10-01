@@ -382,6 +382,7 @@ async function bootstrap(): Promise<void> {
       }
     }
     if (before.mcp.httpEnabled !== next.mcp.httpEnabled || before.mcp.port !== next.mcp.port) await s.restartMcp()
+    if (before.language !== next.language) s.onLanguageChanged()
     s.send(SETTINGS_CHANGED, next)
     return next
   })

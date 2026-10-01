@@ -1,10 +1,12 @@
 import { AnimatePresence, motion } from 'motion/react'
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
+import { APP_NAME } from '@shared/brand'
 import { ArrowLeft, ArrowRight, Check, X } from '@/components/icons'
 import { Button } from '@/components/ui/button'
 import { Kbd } from '@/components/ui/kbd'
-import { COMMAND_BY_ID, formatBinding, useBindings, useCommands } from '@/lib/shortcuts'
+import { t } from '@/lib/i18n'
+import { COMMAND_BY_ID, commandLabel, formatBinding, useBindings, useCommands } from '@/lib/shortcuts'
 import { cn } from '@/lib/utils'
 import { store, useAppDispatch } from '@/store'
 import { useListWhiteboardsQuery } from '@/store/api'
@@ -106,7 +108,7 @@ export function Tour({ onClose }: { onClose: (completed: boolean) => void }) {
   const radius = hole ? Math.min(12, hole.height / 2) : 0
 
   const hints = [
-    ...(step.shortcuts ?? []).map((id) => ({ label: COMMAND_BY_ID[id]?.label ?? '', keys: bindings[id] ? formatBinding(bindings[id]) : '' })),
+    ...(step.shortcuts ?? []).map((id) => ({ label: commandLabel(COMMAND_BY_ID[id]), keys: bindings[id] ? formatBinding(bindings[id]) : '' })),
     ...(step.keys ?? [])
   ].filter((h) => h.keys)
 
@@ -166,7 +168,7 @@ export function Tour({ onClose }: { onClose: (completed: boolean) => void }) {
           <button
             onClick={() => onClose(false)}
             className="absolute top-3 right-3 grid size-7 place-items-center rounded-md text-muted-foreground transition hover:bg-accent hover:text-foreground"
-            aria-label="Close tour"
+            aria-label={t('tour.close')}
           >
             <X className="size-3.5" />
           </button>
@@ -180,9 +182,9 @@ export function Tour({ onClose }: { onClose: (completed: boolean) => void }) {
             >
               <h3 id="tour-title" className="pr-6 text-[15px] leading-snug font-semibold tracking-tight">
                 {last && <Check className="mr-1.5 inline size-4 -translate-y-px text-emerald-500" />}
-                {step.title}
+                {t(step.title)}
               </h3>
-              <p className="mt-1.5 text-[13px] leading-relaxed text-muted-foreground">{missing && step.fallbackBody ? step.fallbackBody : step.body}</p>
+              <p className="mt-1.5 text-[13px] leading-relaxed text-muted-foreground">{t(missing && step.fallbackBody ? step.fallbackBody : step.body, { app: APP_NAME })}</p>
               {hints.length > 0 && (
                 <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1.5">
                   {hints.map((h, i) => (
@@ -215,17 +217,17 @@ export function Tour({ onClose }: { onClose: (completed: boolean) => void }) {
             <div className="flex items-center gap-1.5">
               {!last && (
                 <Button variant="ghost" size="sm" className="h-8 px-2.5 text-muted-foreground" onClick={() => onClose(false)}>
-                  Skip
+                  {t('common.skip')}
                 </Button>
               )}
               {index > 0 && (
-                <Button variant="outline" size="sm" className="h-8 gap-1 px-2.5" onClick={back} aria-label="Previous step">
+                <Button variant="outline" size="sm" className="h-8 gap-1 px-2.5" onClick={back} aria-label={t('cmd.onboarding.back')}>
                   <ArrowLeft className="size-3.5" />
-                  Back
+                  {t('common.back')}
                 </Button>
               )}
               <Button size="sm" className="h-8 gap-1 px-3" onClick={next}>
-                {last ? 'Start exploring' : 'Next'}
+                {last ? t('tour.startExploring') : t('common.next')}
                 {!last && <ArrowRight className="size-3.5" />}
               </Button>
             </div>

@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react'
 import { RotateCcw } from '@/components/icons'
 import { Button } from '@/components/ui/button'
-import { COMMAND_BY_ID, COMMANDS, eventToBinding, scopesOverlap, formatBinding, shortcutRecording, useBindings } from '@/lib/shortcuts'
+import { t } from '@/lib/i18n'
+import { COMMAND_BY_ID, COMMANDS, commandGroupLabel, commandLabel, eventToBinding, scopesOverlap, formatBinding, shortcutRecording, useBindings } from '@/lib/shortcuts'
 import { cn } from '@/lib/utils'
 import { useAppDispatch, useAppSelector } from '@/store'
 import { updateSettings } from '@/store/settings'
@@ -46,17 +47,17 @@ export function ShortcutsSettings() {
   return (
     <div>
       <div className="mb-5 flex items-center justify-between gap-4">
-        <p className="text-sm text-muted-foreground">Click a shortcut and press the new key combination. Backspace removes it, Esc cancels.</p>
+        <p className="text-sm text-muted-foreground">{t('shortcuts.hint')}</p>
         <Button variant="outline" size="sm" disabled={!Object.keys(overrides).length} onClick={() => dispatch(updateSettings({ shortcuts: {} }))}>
-          <RotateCcw /> Reset all
+          <RotateCcw /> {t('shortcuts.resetAll')}
         </Button>
       </div>
       {GROUPS.map((group) => (
         <section key={group} className="mb-6">
-          <h3 className="mb-1 text-xs font-medium text-muted-foreground">{group}</h3>
+          <h3 className="mb-1 text-xs font-medium text-muted-foreground">{commandGroupLabel(group)}</h3>
           {COMMANDS.filter((c) => c.group === group).map((c) => (
             <div key={c.id} className="group flex h-10 items-center justify-between border-b last:border-b-0">
-              <span className="text-sm">{c.label}</span>
+              <span className="text-sm">{commandLabel(c)}</span>
               <div className="flex items-center gap-1.5">
                 {overrides[c.id] !== undefined && (
                   <button
@@ -67,7 +68,7 @@ export function ShortcutsSettings() {
                     }}
                     className="text-xs text-muted-foreground opacity-0 transition group-hover:opacity-100 hover:text-foreground"
                   >
-                    Reset
+                    {t('shortcuts.reset')}
                   </button>
                 )}
                 <button
@@ -77,9 +78,9 @@ export function ShortcutsSettings() {
                     recording === c.id && 'border-brand bg-brand/10 text-brand',
                     conflicts(c.id) && recording !== c.id && 'border-destructive/60 text-destructive'
                   )}
-                  title={conflicts(c.id) ? 'Conflicts with another shortcut' : undefined}
+                  title={conflicts(c.id) ? t('shortcuts.conflict') : undefined}
                 >
-                  {recording === c.id ? 'Press keys…' : bindings[c.id] ? formatBinding(bindings[c.id]) : '—'}
+                  {recording === c.id ? t('shortcuts.pressKeys') : bindings[c.id] ? formatBinding(bindings[c.id]) : '—'}
                 </button>
               </div>
             </div>

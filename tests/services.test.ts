@@ -337,8 +337,8 @@ describe('markdown export/import', () => {
 describe('seed', () => {
   it('seeds a welcome board only into an empty database', async () => {
     const { seedWelcome } = await import('../src/main/services/seed')
-    expect(seedWelcome(api)).toBe(true)
-    expect(seedWelcome(api)).toBe(false)
+    expect(seedWelcome(api)).toBeTypeOf('string')
+    expect(seedWelcome(api)).toBeNull()
     const [board] = api.listWhiteboards()
     const detail = api.getWhiteboard(board.id)!
     expect(detail.objects.length).toBeGreaterThan(5)
@@ -357,6 +357,18 @@ describe('seed', () => {
     // the basics are text blocks (cards of kind 'block'), not library cards
     expect(api.listCards()).toHaveLength(0)
     expect(api.listCards({ kind: 'block' }).length).toBeGreaterThanOrEqual(4)
+  })
+
+  it('seeds in German and relocalizes the untouched welcome board in place', async () => {
+    const { relocalizeWelcome, seedWelcome } = await import('../src/main/services/seed')
+    const id = seedWelcome(api, 'de')!
+    expect(api.getWhiteboard(id)!.whiteboard.name).toMatch(/^Willkommen bei/)
+    const count = api.getWhiteboard(id)!.objects.length
+    expect(relocalizeWelcome(api, id, 'en')).toBe(true)
+    const detail = api.getWhiteboard(id)!
+    expect(detail.whiteboard.name).toMatch(/^Welcome to/)
+    expect(detail.objects).toHaveLength(count)
+    expect(api.listWhiteboards()).toHaveLength(1)
   })
 })
 

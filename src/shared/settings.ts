@@ -1,4 +1,5 @@
 import type { AiProviderId } from './ai'
+import { LANGS, type Lang } from './i18n'
 
 export type ThemePref = 'light' | 'dark' | 'system'
 export type FontPref = 'geist' | 'system'
@@ -12,6 +13,8 @@ export interface OnboardingSettings {
 }
 
 export interface AppSettings {
+  /** UI language; null = follow the system language (see `resolveLang`) */
+  language: Lang | null
   theme: ThemePref
   font: FontPref
   fontSize: number
@@ -32,6 +35,7 @@ export interface AppSettings {
 }
 
 export const DEFAULT_SETTINGS: AppSettings = {
+  language: null,
   theme: 'system',
   font: 'geist',
   fontSize: 15,
@@ -59,6 +63,7 @@ export function mergeSettings(base: AppSettings, patch: SettingsPatch | undefine
     // Drop legacy/unknown font values (e.g. removed 'jost'/'futura') so old settings.json files
     // fall back to the current default instead of pointing at a font that no longer exists.
     if (k === 'font' && !FONT_VALUES.includes(v as FontPref)) continue
+    if (k === 'language' && v !== null && !LANGS.includes(v as Lang)) continue
     const current = (base as unknown as Record<string, unknown>)[k]
     out[k] = v && typeof v === 'object' && !Array.isArray(v) && current && typeof current === 'object' && k !== 'shortcuts' ? { ...current, ...v } : v
   }

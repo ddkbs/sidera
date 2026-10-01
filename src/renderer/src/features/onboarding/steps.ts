@@ -1,12 +1,13 @@
-import { APP_NAME } from '@shared/brand'
+import type { MessageKey } from '@/lib/i18n'
 import type { Side } from './geometry'
 
+/** Texts are dictionary keys (`{app}` = app name), translated when shown. */
 export interface TourStep {
   id: string
-  title: string
-  body: string
+  title: MessageKey
+  body: MessageKey
   /** shown instead of `body` when the target can't be found (e.g. no whiteboard exists yet) */
-  fallbackBody?: string
+  fallbackBody?: MessageKey
   /** matches the element's `data-tour` attribute; omit for a centered step */
   target?: string
   /** preferred side for the popover (falls back to whatever fits) */
@@ -24,17 +25,17 @@ export interface TourStep {
 export const TOUR_STEPS: TourStep[] = [
   {
     id: 'home',
-    title: 'Home: your boards',
-    body: 'Recent boards with a live preview. Start a New board, or jot down a Quick note — every board also lives in the sidebar.',
+    title: 'tour.home.title',
+    body: 'tour.home.body',
     target: 'nav-home',
     needs: 'sidebar',
     padding: 4
   },
   {
     id: 'write',
-    title: 'Write anywhere',
-    body: 'Double-click empty space on a board and just type — a text box appears right there. Or pick the Text tool (T).',
-    fallbackBody: 'Create a board from Home or with ⌘K, then double-click anywhere on it and just type — a text box appears right there.',
+    title: 'tour.write.title',
+    body: 'tour.write.body',
+    fallbackBody: 'tour.write.fallback',
     target: 'tool-text',
     placement: 'right',
     needs: 'whiteboard',
@@ -42,9 +43,9 @@ export const TOUR_STEPS: TourStep[] = [
   },
   {
     id: 'pen',
-    title: 'Draw on the board',
-    body: 'Switch to the pen and underline, circle or sketch straight onto the board. Esc puts the pen away.',
-    fallbackBody: 'On a board, press P to draw straight onto it — underline, circle or sketch. Esc puts the pen away.',
+    title: 'tour.pen.title',
+    body: 'tour.pen.body',
+    fallbackBody: 'tour.pen.fallback',
     target: 'tool-pen',
     placement: 'right',
     needs: 'whiteboard',
@@ -52,16 +53,16 @@ export const TOUR_STEPS: TourStep[] = [
   },
   {
     id: 'insert',
-    title: 'Tables, charts & more',
-    body: 'Insert tables, charts, timelines, mindmaps and files from here. Select a table → Create chart, and the chart follows its numbers.',
+    title: 'tour.insert.title',
+    body: 'tour.insert.body',
     target: 'canvas-insert',
     placement: 'right',
     needs: 'whiteboard'
   },
   {
     id: 'ipad',
-    title: 'Draw on your iPad',
-    body: `“Draw on iPad…” in the same menu shows a QR code: scan it and sketch with Apple Pencil in ${APP_NAME} Draw. End-to-end encrypted, over your own Wi-Fi.`,
+    title: 'tour.ipad.title',
+    body: 'tour.ipad.body',
     target: 'canvas-insert',
     placement: 'right',
     needs: 'whiteboard',
@@ -69,31 +70,31 @@ export const TOUR_STEPS: TourStep[] = [
   },
   {
     id: 'search',
-    title: 'Find anything in a second',
-    body: 'Search every board and note, or run a command — new board, settings, draw on iPad. It’s the fastest way around.',
+    title: 'tour.search.title',
+    body: 'tour.search.body',
     target: 'sidebar-search',
     needs: 'sidebar',
     shortcuts: ['palette.open']
   },
   {
     id: 'ai',
-    title: 'Ask AI — or bring Claude',
-    body: `Chat with an assistant that can read and build your boards (bring your own API key). ${APP_NAME} also runs a local MCP server for Claude Desktop and Claude Code — connect under Settings → MCP & Claude.`,
+    title: 'tour.ai.title',
+    body: 'tour.ai.body',
     target: 'ask-ai',
     needs: 'sidebar',
     shortcuts: ['chat.toggle', 'settings.open']
   },
   {
     id: 'more',
-    title: 'More: cards & tasks',
-    body: 'Prefer structured notes? The Card Library (tags, backlinks, kanban) and Tasks live under More.',
+    title: 'tour.more.title',
+    body: 'tour.more.body',
     target: 'nav-library',
     needs: 'sidebar'
   },
   {
     id: 'done',
-    title: 'You’re all set',
-    body: 'Replay this tour any time from the account menu or the command palette. Every keyboard shortcut is one keystroke away.',
+    title: 'tour.done.title',
+    body: 'tour.done.body',
     shortcuts: ['shortcuts.open']
   }
 ]
