@@ -339,3 +339,16 @@ export const screenToBoard = (client: Point, origin: Point, vp: Viewport): Point
 })
 
 export const boardToScreen = (p: Point, origin: Point, vp: Viewport): Point => ({ x: p.x * vp.zoom + vp.x + origin.x, y: p.y * vp.zoom + vp.y + origin.y })
+
+/** Holding the pen still this long mid-stroke turns the stroke into a straight line (start → pen). */
+export const STRAIGHTEN_HOLD_MS = 450
+/** Screen px the pen may wobble while held. */
+export const STRAIGHTEN_SLOP_PX = 4
+/** Strokes shorter than this (screen px) are not straightened (dots, ticks). */
+export const STRAIGHTEN_MIN_PX = 24
+
+/** Points of a straight stroke from `a` to `b` (board units), evenly sampled so the outline stays smooth. */
+export function straightLine(a: [number, number, number], b: [number, number], pressure: number): [number, number, number][] {
+  const n = Math.max(2, Math.ceil(Math.hypot(b[0] - a[0], b[1] - a[1]) / 4))
+  return Array.from({ length: n + 1 }, (_, i) => [a[0] + ((b[0] - a[0]) * i) / n, a[1] + ((b[1] - a[1]) * i) / n, pressure] as [number, number, number])
+}

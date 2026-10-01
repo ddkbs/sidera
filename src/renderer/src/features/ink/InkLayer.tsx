@@ -14,6 +14,9 @@ import { isFrameless } from './frame'
 import {
   GROUP_GAP_PX,
   GROUP_PAUSE_MS,
+  STRAIGHTEN_HOLD_MS,
+  STRAIGHTEN_MIN_PX,
+  STRAIGHTEN_SLOP_PX,
   appendTarget,
   darkInk,
   freedrawOutline,
@@ -22,6 +25,7 @@ import {
   joinsGroup,
   outlinePath,
   screenToBoard,
+  straightLine,
   unionRects,
   type InkElement,
   type Point,
@@ -83,7 +87,18 @@ const strokeBounds = (s: Stroke): Rect | null => inkBounds([strokeElement(s)])
  * one go are committed as one frameless sketch object whose box equals the ink bounds (scale 1 → no jump).
  * `pencilOnly` (Sidera for iPad, any tool): only Apple Pencil input draws; fingers keep selecting, moving and panning.
  */
-export function InkLayer({ host, boardId, pencilOnly = false }: { host: RefObject<HTMLDivElement | null>; boardId: string; pencilOnly?: boolean }) {
+export function InkLayer({
+  host,
+  boardId,
+  pencilOnly = false,
+  palette = !pencilOnly
+}: {
+  host: RefObject<HTMLDivElement | null>
+  boardId: string
+  pencilOnly?: boolean
+  /** show the pen palette (colour / width / eraser) */
+  palette?: boolean
+}) {
   const rf = useReactFlow<ObjectNode>()
   const dispatch = useAppDispatch()
   const dark = useAppSelector((s) => s.ui.theme) === 'dark'
@@ -256,6 +271,29 @@ export function InkLayer({ host, boardId, pencilOnly = false }: { host: RefObjec
     let drawing: Stroke | null = null
     let erasing: { originals: Map<string, WhiteboardObject>; hit: Map<string, Set<string>> } | null = null
     let pointerId: number | null = null
+    // hold the pen still mid-stroke → the stroke snaps to a straight line, whose end then follows the pen
+    let hold: { x: number; y: number; timer: ReturnType<typeof setTimeout> } | null = null
+    let straight: { pressure: number } | null = null
+    const endHold = (): void => {
+      if (hold) clearTimeout(hold.timer)
+      hold = null
+    }
+    const straighten = (): void => {
+      hold = null
+      const s = drawing
+      if (!s || s.done || s.points.length < 2) return
+      const a = s.points[0]
+      const b = s.points[s.points.length - 1]
+      if (Math.hypot(b[0] - a[0], b[1] - a[1]) * rf.getViewport().zoom < STRAIGHTEN_MIN_PX) return
+      const ps = s.points.map((p) => p[2]).sort((x, y) => x - y)
+      straight = { pressure: ps[Math.floor(ps.length / 2)] }
+      s.points = straightLine(a, [b[0], b[1]], straight.pressure)
+      schedule()
+    }
+    const armHold = (e: PointerEvent): void => {
+      endHold()
+      hold = { x: e.clientX, y: e.clientY, timer: setTimeout(straighten, STRAIGHTEN_HOLD_MS) }
+    }
     // measured once per stroke: getBoundingClientRect on every (coalesced) move forces layout
     let originCache: Point | null = null
 
@@ -349,6 +387,8 @@ export function InkLayer({ host, boardId, pencilOnly = false }: { host: RefObjec
       drawing = { points: [[p.x, p.y, pressure(e)]], settings: s, realPressure: e.pointerType === 'pen', elementId: nanoid(), done: false }
       group.current!.strokes.push(drawing)
       strokes.current.push(drawing)
+      straight = null
+      armHold(e)
       schedule()
     }
 
@@ -364,11 +404,16 @@ export function InkLayer({ host, boardId, pencilOnly = false }: { host: RefObjec
           continue
         }
         if (!drawing) continue
+        if (straight) {
+          drawing.points = straightLine(drawing.points[0], [p.x, p.y], straight.pressure)
+          continue
+        }
         const zoom = vpZoom
         const last = drawing.points[drawing.points.length - 1]
         if (Math.hypot(p.x - last[0], p.y - last[1]) * zoom < 0.75) continue
         drawing.points.push([p.x, p.y, pressure(ev)])
       }
+      if (drawing && !straight && (!hold || Math.hypot(e.clientX - hold.x, e.clientY - hold.y) > STRAIGHTEN_SLOP_PX)) armHold(e)
       if (drawing) schedule()
     }
 
@@ -377,6 +422,8 @@ export function InkLayer({ host, boardId, pencilOnly = false }: { host: RefObjec
       e.stopPropagation()
       pointerId = null
       originCache = null
+      endHold()
+      straight = null
       lastPenUp.current = performance.now()
       try {
         if (el.hasPointerCapture(e.pointerId)) el.releasePointerCapture(e.pointerId)
@@ -432,6 +479,7 @@ export function InkLayer({ host, boardId, pencilOnly = false }: { host: RefObjec
       el.removeEventListener('pointercancel', onUp, true)
       el.removeEventListener('click', swallowClick, true)
       el.removeEventListener('dblclick', swallowClick, true)
+      endHold()
       if (erasing) void finishErase()
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -448,7 +496,7 @@ export function InkLayer({ host, boardId, pencilOnly = false }: { host: RefObjec
   return (
     <>
       <canvas ref={canvas} className="pointer-events-none absolute inset-0 z-[5] size-full" />
-      {!pencilOnly && <PenPalette settings={settings} onChange={setSettings} dark={dark} />}
+      {palette && <PenPalette settings={settings} onChange={setSettings} dark={dark} />}
     </>
   )
 }

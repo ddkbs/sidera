@@ -1169,8 +1169,9 @@ function Canvas({ detail }: { detail: WhiteboardDetail }) {
         connectionMode={ConnectionMode.Loose}
         snapToGrid={snapToGrid}
         snapGrid={[22, 22]}
-        nodesDraggable={tool !== 'connector' && tool !== 'pen'}
-        elementsSelectable={tool !== 'pen'}
+        // iPad: a finger always selects / moves (Apple Pencil draws in every tool)
+        nodesDraggable={tool !== 'connector' && (IS_IPAD || tool !== 'pen')}
+        elementsSelectable={IS_IPAD || tool !== 'pen'}
         panOnScroll
         zoomOnDoubleClick={false}
         // iPad: a finger pans / pinch-zooms (and drags objects); the Apple Pencil draws (InkLayer below)
@@ -1185,7 +1186,7 @@ function Canvas({ detail }: { detail: WhiteboardDetail }) {
       >
         <Background variant={BackgroundVariant.Dots} gap={22} size={1.4} color="var(--canvas-dot)" />
       </ReactFlow>
-      {(tool === 'pen' || IS_IPAD) && <InkLayer host={wrapper} boardId={boardId} pencilOnly={IS_IPAD && tool !== 'pen'} />}
+      {(tool === 'pen' || IS_IPAD) && <InkLayer host={wrapper} boardId={boardId} pencilOnly={IS_IPAD} palette={tool === 'pen'} />}
       <CanvasToolbar tool={tool} onTool={(t) => void changeTool(t)} onAction={(a) => void onAction(a)} />
       <ZoomControls />
       {/* the iPad sees only this board: no card library, no navigation */}
