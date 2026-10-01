@@ -1,18 +1,19 @@
 import { NodeResizeControl, ResizeControlVariant, useReactFlow } from '@xyflow/react'
-import { useEffect, useRef, type RefObject } from 'react'
+import { useCallback, useEffect, useRef, type RefObject } from 'react'
 import { persist } from '../types'
 
 /**
- * Keep a node exactly as tall as its content (text blocks, tables): the user sets the width,
+ * Keep a node exactly as tall as its content (text boxes, tables) — but never below `min`: the user sets the width,
  * the height follows. `height` is the node's current height (NodeProps) so a refetch that
  * resets it to a stale stored value is corrected right away.
  */
-export function useAutoHeight(id: string, content: RefObject<HTMLElement | null>, height: number | undefined, min = 32): void {
+export function useAutoHeight(id: string, content: RefObject<HTMLElement | null>, height: number | undefined, min = 32, paused = false): void {
   const rf = useReactFlow()
   const timer = useRef<ReturnType<typeof setTimeout>>(undefined)
   useEffect(() => {
     const el = content.current
-    if (!el) return
+    // paused while a corner drag sets the height by hand; re-fits right after
+    if (!el || paused) return
     const fit = (): void => {
       const next = Math.max(min, Math.ceil(el.offsetHeight))
       const current = rf.getNode(id)?.height
@@ -25,30 +26,32 @@ export function useAutoHeight(id: string, content: RefObject<HTMLElement | null>
     const ro = new ResizeObserver(fit)
     ro.observe(el)
     return () => ro.disconnect()
-  }, [id, content, height, min, rf])
+  }, [id, content, height, min, paused, rf])
   useEffect(() => () => clearTimeout(timer.current), [])
 }
 
 /**
- * Left/right edge handles that change only the width (the height follows the content). With `onScale`, corner
- * handles scale the whole thing instead: `onScale(ratio, done)` gets new width / start width while dragging.
+ * Left/right edge handles that change only the width (the height follows the content). With `onCorner`, corner
+ * handles also resize the box freely (width + height); `onCorner(true)` on start, `onCorner(false)` on release.
  */
-export function WidthResizer({ selected, minWidth = 120, onScale }: { selected?: boolean; minWidth?: number; onScale?: (ratio: number, done: boolean, width: number) => void }) {
-  const startW = useRef(0)
+export function WidthResizer({ selected, minWidth = 120, minHeight = 24, onCorner }: { selected?: boolean; minWidth?: number; minHeight?: number; onCorner?: (active: boolean) => void }) {
+  // stable callbacks: NodeResizeControl re-creates its drag handler when they change, which would end the drag
+  const ref = useRef(onCorner)
+  ref.current = onCorner
+  const start = useCallback(() => ref.current?.(true), [])
+  const end = useCallback(() => ref.current?.(false), [])
   if (!selected) return null
   return (
     <>
-      {onScale &&
+      {onCorner &&
         (['top-left', 'top-right', 'bottom-left', 'bottom-right'] as const).map((p) => (
           <NodeResizeControl
             key={p}
             position={p}
             minWidth={minWidth}
-            // ratio from the width only — the height follows the (scaled) content via useAutoHeight
-            shouldResize={(_, s) => s.direction[0] !== 0}
-            onResizeStart={(_, s) => (startW.current = s.width)}
-            onResize={(_, s) => startW.current && onScale(s.width / startW.current, false, s.width)}
-            onResizeEnd={(_, s) => startW.current && onScale(s.width / startW.current, true, s.width)}
+            minHeight={minHeight}
+            onResizeStart={start}
+            onResizeEnd={end}
             className="!size-2 !rounded-[2px] !border !border-brand !bg-background"
           />
         ))}

@@ -1,5 +1,4 @@
 import { useReactFlow } from '@xyflow/react'
-import { record } from '@/lib/undo'
 import type { NodeProps } from '@xyflow/react'
 import { memo, useEffect, useRef, useState } from 'react'
 import { docToText } from '@shared/doc'
@@ -27,9 +26,10 @@ export const blockFontSize = (data: Record<string, unknown> | undefined): number
 }
 
 /**
- * A text block: a card of kind 'block' shown as lightweight rich text directly on the board.
- * Click a selected block (or double-click) to type; the height follows the content, the width is resizable.
- * Leaving an empty block removes it again, so trying out a block leaves nothing behind.
+ * A text box — the one text element on whiteboards: a card of kind 'block' shown as rich text directly on the board,
+ * with or without a frame (`data.style`). Click a selected box (or double-click) to type. Corner handles size the box
+ * (the text reflows, the height never drops below the text); edge handles change only the width.
+ * Leaving an empty box removes it again, so trying one out leaves nothing behind.
  */
 export const TextBlockNode = memo(function TextBlockNode({ id, data, selected, height }: NodeProps<ObjectNode>) {
   const dispatch = useAppDispatch()
@@ -38,26 +38,10 @@ export const TextBlockNode = memo(function TextBlockNode({ id, data, selected, h
   const [update] = useUpdateCardMutation()
   const style = blockStyle(data.object.data)
   const rf = useReactFlow()
-  const storedFont = blockFontSize(data.object.data)
-  // corner drag scales the text with the box (Freeform-style); previewed live, stored on release
-  const [liveFont, setLiveFont] = useState<number | null>(null)
-  const fontSize = liveFont ?? storedFont
-  const scaleText = (ratio: number, done: boolean, width: number): void => {
-    const next = Math.round(Math.min(160, Math.max(6, storedFont * ratio)) * 2) / 2
-    if (!done) return setLiveFont(next)
-    setLiveFont(null)
-    if (next === storedFont) return
-    const prevWidth = Math.round(width / ratio)
-    const set = (size: number, w: number): void => {
-      const n = rf.getNode(id) as ObjectNode | undefined
-      if (!n) return
-      const d = { ...n.data.object.data, fontSize: size }
-      rf.updateNode(id, { width: w, data: { ...n.data, object: { ...n.data.object, width: w, data: d } } })
-      void window.api.updateObjects([{ id, width: w, data: d }])
-    }
-    set(next, Math.round(width))
-    record({ label: 'Scale text', undo: () => set(storedFont, prevWidth), redo: () => set(next, Math.round(width)) })
-  }
+  const fontSize = blockFontSize(data.object.data)
+  // corner handles size the box by hand (text reflows); the chosen height stays as a minimum (`data.minHeight`)
+  const minHeight = Math.max(36, Number(data.object.data.minHeight) || 0)
+  const [cornerDrag, setCornerDrag] = useState(false)
   const rotation = Number(data.object.data.rotation) || 0
   const tint = summary.color ? paletteColor(summary.color) : null
   const latest = useRef<DocJSON | null>(null)
@@ -87,11 +71,11 @@ export const TextBlockNode = memo(function TextBlockNode({ id, data, selected, h
   useEffect(() => rf.updateNodeData(id, { editing }), [rf, id, editing])
 
   const content = useRef<HTMLDivElement>(null)
-  useAutoHeight(id, content, height, 36)
+  useAutoHeight(id, content, height, minHeight, cornerDrag)
 
   return (
     <>
-      <WidthResizer selected={selected && !editing} minWidth={60} onScale={scaleText} />
+      <WidthResizer selected={selected && !editing} minWidth={60} minHeight={36} onCorner={setCornerDrag} />
       <Rotatable id={id} rotation={editing ? 0 : rotation} selected={!!selected && !editing}>
         <div
           ref={root}
