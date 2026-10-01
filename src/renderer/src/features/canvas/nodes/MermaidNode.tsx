@@ -15,7 +15,8 @@ import { t, useLang } from '@/lib/i18n'
 
 let initializedTheme: string | null = null
 let renderSeq = 0
-const DEFAULT = 'graph TD\n  A[Idea] --> B[Plan]\n  B --> C[Ship]'
+/** Starter flowchart for a new diagram, in the UI language. */
+const defaultSource = (): string => `graph TD\n  A[${t('mermaid.sample.idea')}] --> B[${t('mermaid.sample.plan')}]\n  B --> C[${t('mermaid.sample.ship')}]`
 
 /**
  * Mermaid diagram. Double-click a box to rename it in place (Enter saves, Tab adds a connected box),
@@ -23,7 +24,7 @@ const DEFAULT = 'graph TD\n  A[Idea] --> B[Plan]\n  B --> C[Ship]'
  */
 export const MermaidNode = memo(function MermaidNode({ id, data, selected }: NodeProps<ObjectNode>) {
   useLang()
-  const [source, setSource] = useState(String(data.object.data.source ?? DEFAULT))
+  const [source, setSource] = useState(String(data.object.data.source ?? defaultSource()))
   const [svg, setSvg] = useState('')
   const [error, setError] = useState<string | null>(null)
   const theme = useAppSelector((s) => s.ui.theme)
@@ -111,7 +112,7 @@ export const MermaidNode = memo(function MermaidNode({ id, data, selected }: Nod
     }
   }
 
-  const externalSource = String(data.object.data.source ?? DEFAULT)
+  const externalSource = String(data.object.data.source ?? defaultSource())
   const sessionStart = useRef(source)
   const { editing, setEditing, root } = useEditMode(selected, () => commit(sessionStart.current, latest.current, t('undo.editDiagram')), !!data.autoEdit)
   useEffect(() => {

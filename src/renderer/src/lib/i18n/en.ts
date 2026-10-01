@@ -1134,6 +1134,24 @@ export const en = {
 
   // text block
   'textBlock.placeholder': 'Type, or \'/\' for headings, lists, tables…',
+  // errors
+  'error.title': 'Something went wrong here.',
+  'error.retry': 'Try again',
+
+  // card node
+  'cardNode.missing': 'Missing card',
+
+  // whiteboard properties 2
+  'wbProps.author': 'Author',
+  'wbProps.published': 'Published on',
+  'wbProps.date': 'Date',
+
+  // home 2
+  'home.emptyBoard': 'Empty board',
+  // mermaid sample
+  'mermaid.sample.idea': 'Idea',
+  'mermaid.sample.plan': 'Plan',
+  'mermaid.sample.ship': 'Ship',
 } satisfies Record<string, Message>
 
 export type MessageKey = keyof typeof en

@@ -1,4 +1,5 @@
 import { Component, type ErrorInfo, type ReactNode } from 'react'
+import { t } from '@/lib/i18n'
 
 interface Props {
   children: ReactNode
@@ -26,10 +27,10 @@ export class ErrorBoundary extends Component<Props, { error: Error | null }> {
     return (
       <div className="grid h-full place-items-center p-6 text-center text-sm">
         <div>
-          <p className="font-medium">Something went wrong here.</p>
+          <p className="font-medium">{t('error.title')}</p>
           <p className="mt-1 max-w-sm text-muted-foreground">{error.message}</p>
           <button onClick={this.reset} className="mt-3 rounded-md border px-3 py-1.5 transition hover:bg-accent">
-            Try again
+            {t('error.retry')}
           </button>
         </div>
       </div>

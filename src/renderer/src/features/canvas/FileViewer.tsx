@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Document, Page } from 'react-pdf'
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog'
+import { t } from '@/lib/i18n'
 
 /** Full viewer for imported files (PDF pages / images). */
 export function FileViewer({
@@ -71,7 +72,7 @@ export function FileViewer({
                 setSelection(null)
               }}
             >
-              <Quote /> Create card
+              <Quote /> {t('pdf.createCard')}
             </Button>
           )}
           {url && file?.mime === 'application/pdf' && (

@@ -1126,4 +1126,22 @@ export const de: Dictionary = {
 
   // text block
   'textBlock.placeholder': 'Tippen oder „/“ für Überschriften, Listen, Tabellen …',
+  // errors
+  'error.title': 'Hier ist etwas schiefgelaufen.',
+  'error.retry': 'Erneut versuchen',
+
+  // card node
+  'cardNode.missing': 'Karte fehlt',
+
+  // whiteboard properties 2
+  'wbProps.author': 'Autor',
+  'wbProps.published': 'Veröffentlicht am',
+  'wbProps.date': 'Datum',
+
+  // home 2
+  'home.emptyBoard': 'Leeres Board',
+  // mermaid sample
+  'mermaid.sample.idea': 'Idee',
+  'mermaid.sample.plan': 'Plan',
+  'mermaid.sample.ship': 'Umsetzen',
 }

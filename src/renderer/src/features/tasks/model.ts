@@ -89,9 +89,10 @@ export function groupTasks(tasks: Task[], by: GroupBy, meId: string | null = nul
     )
   const map = new Map<string, TaskGroup>()
   const unassigned = () => t('task.unassigned')
+  const untitled = () => t('common.untitled')
   for (const t of sorted) {
     const [key, label, value] =
-      by === 'card' ? [t.cardId, t.cardTitle || 'Untitled', t.cardId] : t.assignee ? [t.assignee.id, t.assignee.name, t.assignee.id] : ['none', unassigned(), null]
+      by === 'card' ? [t.cardId, t.cardTitle || untitled(), t.cardId] : t.assignee ? [t.assignee.id, t.assignee.name, t.assignee.id] : ['none', unassigned(), null]
     let g = map.get(key)
     if (!g) map.set(key, (g = { key, label, kind: by, value, tasks: [] }))
     g.tasks.push(t)

@@ -60,6 +60,7 @@ import { EdgeMenu, type ConnectionPatch } from './EdgeMenu'
 import { SelectionToolbar } from './SelectionToolbar'
 import { arrange, bounds, type ArrangeMode } from './arrange'
 import { CANVAS_ACTION_EVENT, type CanvasAction } from './actions'
+import { localizeSample } from './sampleContent'
 import { edgeTypes } from './FloatingEdge'
 import { NodeMenu, type NodeMenuAction } from './NodeMenu'
 import { nodeTypes } from './nodes'
@@ -855,7 +856,7 @@ function Canvas({ detail }: { detail: WhiteboardDetail }) {
       if (a === 'select-all') return selectAll()
       if (a === 'text') return void newTextBlockAt(c)
       if (a === 'table') {
-        const o = await place('table', { x: c.x - 210, y: c.y - 80 }, { data: emptyTable() as unknown as Record<string, unknown>, width: 420 })
+        const o = await place('table', { x: c.x - 210, y: c.y - 80 }, { data: localizeSample(emptyTable()) as unknown as Record<string, unknown>, width: 420 })
         if (o) autoSelect.current = o.id
         return
       }
@@ -869,7 +870,7 @@ function Canvas({ detail }: { detail: WhiteboardDetail }) {
       if (a === 'import') return void importAt(c)
       if (a.startsWith('chart:')) {
         const type = a.slice(6) as ChartType
-        const o = await place('chart', { x: c.x - 220, y: c.y - 150 }, { data: defaultChart(type) as unknown as Record<string, unknown> })
+        const o = await place('chart', { x: c.x - 220, y: c.y - 150 }, { data: localizeSample(defaultChart(type)) as unknown as Record<string, unknown> })
         if (o) autoEdit.current = o.id
         return
       }

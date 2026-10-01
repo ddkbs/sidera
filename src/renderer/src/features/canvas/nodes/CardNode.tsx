@@ -107,7 +107,7 @@ export const CardNode = memo(function CardNode({ id, data, selected }: NodeProps
         )}
         {!card ? (
           <div className="flex flex-1 items-center justify-center gap-2 text-sm text-muted-foreground">
-            <FileText className="size-4" /> Missing card
+            <FileText className="size-4" /> {t('cardNode.missing')}
           </div>
         ) : editing ? (
           <InlineEditor cardId={card.id} />

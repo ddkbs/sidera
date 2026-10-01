@@ -9,7 +9,7 @@ import type { WhiteboardProperty } from '@shared/types'
 import { t } from '@/lib/i18n'
 
 /** Suggested keys shown as quick-add chips when they aren't already in use. */
-const SUGGESTED_KEYS = ['Autor', 'Published on', 'Datum', 'Topic']
+const suggestedKeys = (): string[] => [t('wbProps.author'), t('wbProps.published'), t('wbProps.date'), t('mindmap.topic')]
 
 interface Props {
   whiteboardId: string | null
@@ -42,7 +42,7 @@ export function WhiteboardPropertiesDialog({ whiteboardId, onClose }: Props) {
   const commit = () => save(rows)
 
   const usedKeys = new Set(rows.map((r) => r.key.trim().toLowerCase()))
-  const availableSuggestions = SUGGESTED_KEYS.filter((k) => !usedKeys.has(k.toLowerCase()))
+  const availableSuggestions = suggestedKeys().filter((k) => !usedKeys.has(k.toLowerCase()))
 
   return (
     <Dialog open={whiteboardId !== null} onOpenChange={(o) => !o && onClose()}>
@@ -79,7 +79,7 @@ export function WhiteboardPropertiesDialog({ whiteboardId, onClose }: Props) {
 
         <div className="mt-1 flex flex-wrap items-center gap-2">
           <Button variant="outline" size="sm" onClick={() => addRow()}>
-            <Plus /> Add property
+            <Plus /> {t('property.add')}
           </Button>
           {availableSuggestions.map((key) => (
             <Button key={key} variant="ghost" size="sm" className="text-muted-foreground" onClick={() => addRow(key)}>

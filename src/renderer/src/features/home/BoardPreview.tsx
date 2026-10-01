@@ -3,6 +3,7 @@ import type { BoardPreview as Preview, BoardPreviewItem } from '@shared/types'
 import { color as paletteColor } from '@/lib/colors'
 import { colorAt } from '../charts/palette'
 import { darkInk } from '../ink/geometry'
+import { t, useLang } from '@/lib/i18n'
 
 /** Smallest area (board units) a preview shows, so a board with one small block doesn't render it huge. */
 const MIN_VIEW = { width: 720, height: 300 }
@@ -12,8 +13,9 @@ const MIN_VIEW = { width: 720, height: 300 }
  * Blocks and cards show a few text lines, tables rows, charts a hint of their type, ink its simplified strokes.
  */
 export const BoardPreview = memo(function BoardPreview({ preview, dark }: { preview: Preview | undefined; dark: boolean }) {
+  useLang()
   if (!preview) return null
-  if (!preview.bounds) return <div className="grid size-full place-items-center text-xs text-muted-foreground/70">Empty board</div>
+  if (!preview.bounds) return <div className="grid size-full place-items-center text-xs text-muted-foreground/70">{t('home.emptyBoard')}</div>
   const b = preview.bounds
   const pad = Math.max(b.width, b.height) * 0.06 + 16
   const w = Math.max(MIN_VIEW.width, b.width + pad * 2)
