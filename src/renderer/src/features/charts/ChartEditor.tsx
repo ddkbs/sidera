@@ -1,9 +1,29 @@
 import { useRef } from 'react'
 import { Plus, X } from '@/components/icons'
 import { Switch } from '@/components/ui/switch'
+import { labelMap, t } from '@/lib/i18n'
 import { cn } from '@/lib/utils'
 import { CHART_DEFS, changeType, compatibleTypes, parseClipboardTable, seriesNames, vennRows, type ChartData, type ChartOptions, type ChartType } from '@shared/charts'
 import { SCHEMES, colorAt } from './palette'
+
+/** Short chart type names for the type switcher. */
+const TYPE_LABEL = labelMap<ChartType>({
+  column: 'chart.type.column',
+  bar: 'chart.type.bar',
+  line: 'chart.type.line',
+  area: 'chart.type.area',
+  combo: 'chart.type.combo',
+  radar: 'chart.type.radar',
+  heatmap: 'chart.type.heatmap',
+  pie: 'chart.type.pie',
+  donut: 'chart.type.donut',
+  scatter: 'chart.type.scatter',
+  bubble: 'chart.type.bubble',
+  sankey: 'chart.type.sankey',
+  timeline: 'chart.type.timeline',
+  matrix: 'chart.type.matrix',
+  venn: 'chart.type.venn'
+})
 
 interface Props {
   data: ChartData
@@ -26,7 +46,7 @@ export function ChartEditor({ data, onChange }: Props) {
 
   const addRow = () => set({ rows: [...data.rows, data.columns.map(() => '')] })
   const removeRow = (r: number) => data.rows.length > 1 && set({ rows: data.rows.filter((_, i) => i !== r) })
-  const addColumn = () => set({ columns: [...data.columns, `Series ${data.columns.length}`], rows: data.rows.map((row) => [...row, '']) })
+  const addColumn = () => set({ columns: [...data.columns, t('chart.series', { n: data.columns.length })], rows: data.rows.map((row) => [...row, '']) })
   const removeColumn = (c: number) =>
     data.columns.length > 2 &&
     onChange({
@@ -46,7 +66,7 @@ export function ChartEditor({ data, onChange }: Props) {
     let columns = [...data.columns]
     const rows = data.rows.map((row) => [...row])
     const width = Math.max(...cells.map((row) => row.length))
-    if (editableColumns) while (c + width > columns.length) columns = [...columns, `Series ${columns.length}`]
+    if (editableColumns) while (c + width > columns.length) columns = [...columns, t('chart.series', { n: columns.length })]
     cells.forEach((line, i) => {
       while (rows.length <= r + i) rows.push(columns.map(() => ''))
       line.forEach((v, j) => {
@@ -64,18 +84,18 @@ export function ChartEditor({ data, onChange }: Props) {
         <input
           value={data.title}
           onChange={(e) => set({ title: e.target.value })}
-          placeholder="Chart title"
+          placeholder={t('chart.title')}
           className="w-full bg-transparent text-sm font-semibold outline-none placeholder:text-muted-foreground"
         />
         {types.length > 1 && (
           <div className="flex flex-wrap gap-1">
-            {types.map((t) => (
+            {types.map((type) => (
               <button
-                key={t}
-                onClick={() => onChange(changeType(data, t))}
-                className={cn('h-6 rounded-md px-2 text-xs transition', t === data.chartType ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground hover:text-foreground')}
+                key={type}
+                onClick={() => onChange(changeType(data, type))}
+                className={cn('h-6 rounded-md px-2 text-xs transition', type === data.chartType ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground hover:text-foreground')}
               >
-                {CHART_DEFS[t].label.replace(/ (chart|plot|diagram)$/, '')}
+                {TYPE_LABEL[type]}
               </button>
             ))}
           </div>
@@ -97,7 +117,7 @@ export function ChartEditor({ data, onChange }: Props) {
                         className="h-7 w-full min-w-16 rounded-md bg-transparent px-1.5 font-medium text-muted-foreground outline-none hover:bg-accent focus:bg-accent focus:text-foreground"
                       />
                       {c > 0 && data.columns.length > 2 && (
-                        <button onClick={() => removeColumn(c)} className="ml-0.5 hidden size-5 shrink-0 place-items-center rounded text-muted-foreground group-hover:grid hover:bg-accent" aria-label="Remove column">
+                        <button onClick={() => removeColumn(c)} className="ml-0.5 hidden size-5 shrink-0 place-items-center rounded text-muted-foreground group-hover:grid hover:bg-accent" aria-label={t('table.colDelete')}>
                           <X className="size-3" />
                         </button>
                       )}
@@ -109,7 +129,7 @@ export function ChartEditor({ data, onChange }: Props) {
               ))}
               <th className="w-7 bg-popover">
                 {editableColumns && (
-                  <button onClick={addColumn} className="grid size-6 place-items-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground" title="Add series">
+                  <button onClick={addColumn} className="grid size-6 place-items-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground" title={t('chart.addSeries')}>
                     <Plus className="size-3.5" />
                   </button>
                 )}
@@ -129,7 +149,7 @@ export function ChartEditor({ data, onChange }: Props) {
                         value={row[c] ?? ''}
                         readOnly={readOnly}
                         inputMode={numeric ? 'decimal' : undefined}
-                        placeholder={data.chartType === 'timeline' && c === 0 ? 'YYYY-MM-DD' : ''}
+                        placeholder={data.chartType === 'timeline' && c === 0 ? t('chart.datePlaceholder') : ''}
                         onChange={(e) => setCell(r, c, e.target.value)}
                         onPaste={onPaste(r, c)}
                         onKeyDown={(e) => {
@@ -152,7 +172,7 @@ export function ChartEditor({ data, onChange }: Props) {
                 })}
                 <td className="w-7 p-0.5">
                   {data.chartType !== 'venn' && data.rows.length > 1 && (
-                    <button onClick={() => removeRow(r)} className="hidden size-6 place-items-center rounded-md text-muted-foreground group-hover:grid hover:bg-accent" aria-label="Remove row">
+                    <button onClick={() => removeRow(r)} className="hidden size-6 place-items-center rounded-md text-muted-foreground group-hover:grid hover:bg-accent" aria-label={t('table.rowDelete')}>
                       <X className="size-3" />
                     </button>
                   )}
@@ -163,34 +183,34 @@ export function ChartEditor({ data, onChange }: Props) {
         </table>
         {data.chartType !== 'venn' && (
           <button onClick={() => (addRow(), focusCell(data.rows.length, 0))} className="mt-1 flex h-7 items-center gap-1.5 rounded-md px-2 text-xs text-muted-foreground hover:bg-accent hover:text-foreground">
-            <Plus className="size-3.5" /> Add row
+            <Plus className="size-3.5" /> {t('chart.addRow')}
           </button>
         )}
       </div>
 
       <Options data={data} setOpt={setOpt} onChange={onChange} />
-      <div className="border-t px-3 py-1.5 text-[10px] text-muted-foreground">Tip: paste cells from Excel, Numbers or Google Sheets · esc to close</div>
+      <div className="border-t px-3 py-1.5 text-[10px] text-muted-foreground">{t('chart.tip')}</div>
     </div>
   )
 }
 
 function Options({ data, setOpt, onChange }: { data: ChartData; setOpt: (p: Partial<ChartOptions>) => void; onChange: (d: ChartData) => void }) {
-  const t: ChartType = data.chartType
+  const type: ChartType = data.chartType
   const o = data.options
   const toggles: { key: 'legend' | 'stacked' | 'smooth'; label: string }[] = []
-  if (['column', 'bar', 'line', 'area', 'combo', 'radar', 'pie', 'donut', 'scatter', 'bubble'].includes(t)) toggles.push({ key: 'legend', label: 'Legend' })
-  if (['column', 'bar', 'area', 'combo'].includes(t)) toggles.push({ key: 'stacked', label: 'Stacked' })
-  if (['line', 'area', 'combo'].includes(t)) toggles.push({ key: 'smooth', label: 'Smooth' })
+  if (['column', 'bar', 'line', 'area', 'combo', 'radar', 'pie', 'donut', 'scatter', 'bubble'].includes(type)) toggles.push({ key: 'legend', label: t('chart.legend') })
+  if (['column', 'bar', 'area', 'combo'].includes(type)) toggles.push({ key: 'stacked', label: t('chart.stacked') })
+  if (['line', 'area', 'combo'].includes(type)) toggles.push({ key: 'smooth', label: t('chart.smooth') })
 
   const input = 'h-7 w-full rounded-md bg-muted/50 px-2 text-xs outline-none focus:bg-background focus:ring-1 focus:ring-brand'
   const rows: React.ReactNode[] = []
 
-  if (t === 'combo') {
+  if (type === 'combo') {
     const names = seriesNames(data)
     const lines = new Set(o.lineSeries ?? [])
     rows.push(
       <div key="combo" className="flex flex-wrap items-center gap-1 text-xs">
-        <span className="mr-1 text-muted-foreground">Show as line:</span>
+        <span className="mr-1 text-muted-foreground">{t('chart.showAsLine')}</span>
         {names.map((n, i) => (
           <button
             key={i}
@@ -208,28 +228,28 @@ function Options({ data, setOpt, onChange }: { data: ChartData; setOpt: (p: Part
       </div>
     )
   }
-  if (t === 'matrix') {
+  if (type === 'matrix') {
     const x = o.xAxis ?? ['', '']
     const y = o.yAxis ?? ['', '']
     const q = o.quadrants ?? ['', '', '', '']
     rows.push(
       <div key="matrix" className="grid grid-cols-2 gap-1.5">
-        <input className={input} value={q[0]} placeholder="Top left" onChange={(e) => setOpt({ quadrants: [e.target.value, q[1], q[2], q[3]] })} />
-        <input className={input} value={q[1]} placeholder="Top right" onChange={(e) => setOpt({ quadrants: [q[0], e.target.value, q[2], q[3]] })} />
-        <input className={input} value={q[2]} placeholder="Bottom left" onChange={(e) => setOpt({ quadrants: [q[0], q[1], e.target.value, q[3]] })} />
-        <input className={input} value={q[3]} placeholder="Bottom right" onChange={(e) => setOpt({ quadrants: [q[0], q[1], q[2], e.target.value] })} />
-        <input className={input} value={x[0]} placeholder="X axis low" onChange={(e) => setOpt({ xAxis: [e.target.value, x[1]] })} />
-        <input className={input} value={x[1]} placeholder="X axis high" onChange={(e) => setOpt({ xAxis: [x[0], e.target.value] })} />
-        <input className={input} value={y[0]} placeholder="Y axis low" onChange={(e) => setOpt({ yAxis: [e.target.value, y[1]] })} />
-        <input className={input} value={y[1]} placeholder="Y axis high" onChange={(e) => setOpt({ yAxis: [y[0], e.target.value] })} />
-        <p className="col-span-2 text-[10px] text-muted-foreground">Drag items directly on the matrix to position them.</p>
+        <input className={input} value={q[0]} placeholder={t('chart.topLeft')} onChange={(e) => setOpt({ quadrants: [e.target.value, q[1], q[2], q[3]] })} />
+        <input className={input} value={q[1]} placeholder={t('chart.topRight')} onChange={(e) => setOpt({ quadrants: [q[0], e.target.value, q[2], q[3]] })} />
+        <input className={input} value={q[2]} placeholder={t('chart.bottomLeft')} onChange={(e) => setOpt({ quadrants: [q[0], q[1], e.target.value, q[3]] })} />
+        <input className={input} value={q[3]} placeholder={t('chart.bottomRight')} onChange={(e) => setOpt({ quadrants: [q[0], q[1], q[2], e.target.value] })} />
+        <input className={input} value={x[0]} placeholder={t('chart.xLow')} onChange={(e) => setOpt({ xAxis: [e.target.value, x[1]] })} />
+        <input className={input} value={x[1]} placeholder={t('chart.xHigh')} onChange={(e) => setOpt({ xAxis: [x[0], e.target.value] })} />
+        <input className={input} value={y[0]} placeholder={t('chart.yLow')} onChange={(e) => setOpt({ yAxis: [e.target.value, y[1]] })} />
+        <input className={input} value={y[1]} placeholder={t('chart.yHigh')} onChange={(e) => setOpt({ yAxis: [y[0], e.target.value] })} />
+        <p className="col-span-2 text-[10px] text-muted-foreground">{t('chart.matrixHint')}</p>
       </div>
     )
   }
-  if (t === 'venn') {
+  if (type === 'venn') {
     rows.push(
       <div key="venn" className="flex items-center gap-2 text-xs">
-        <span className="text-muted-foreground">Sets</span>
+        <span className="text-muted-foreground">{t('chart.sets')}</span>
         {([2, 3] as const).map((n) => (
           <button
             key={n}
@@ -239,14 +259,14 @@ function Options({ data, setOpt, onChange }: { data: ChartData; setOpt: (p: Part
             {n}
           </button>
         ))}
-        <span className="text-[10px] text-muted-foreground">A, B, C = set names · ∩ = overlaps</span>
+        <span className="text-[10px] text-muted-foreground">{t('chart.vennHint')}</span>
       </div>
     )
   }
-  if (t === 'heatmap') {
+  if (type === 'heatmap') {
     rows.push(
       <div key="heat" className="flex items-center gap-1.5 text-xs">
-        <span className="mr-1 text-muted-foreground">Colour</span>
+        <span className="mr-1 text-muted-foreground">{t('account.color')}</span>
         {(Object.keys(SCHEMES) as (keyof typeof SCHEMES)[]).map((s) => (
           <button
             key={s}

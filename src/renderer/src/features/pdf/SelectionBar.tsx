@@ -1,7 +1,8 @@
 import { motion } from 'motion/react'
 import { Copy, SquarePlus, Trash2 } from '@/components/icons'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
-import { color } from '@/lib/colors'
+import { color, colorName } from '@/lib/colors'
+import { t } from '@/lib/i18n'
 import { cn } from '@/lib/utils'
 import { HIGHLIGHT_COLORS, fillOf } from './highlight'
 
@@ -41,7 +42,7 @@ export function SelectionBar({
           <TooltipTrigger asChild>
             <button
               type="button"
-              aria-label={`Highlight ${c}`}
+              aria-label={t('pdf.highlightColor', { color: colorName(c) })}
               onClick={() => onColor(c)}
               className={cn(
                 'size-6 rounded-full border transition-transform hover:scale-110',
@@ -50,23 +51,23 @@ export function SelectionBar({
               style={{ background: fillOf(c), borderColor: color(c).border }}
             />
           </TooltipTrigger>
-          <TooltipContent className="capitalize">{c}</TooltipContent>
+          <TooltipContent>{colorName(c)}</TooltipContent>
         </Tooltip>
       ))}
       <div className="mx-1 h-6 w-px bg-border" />
       <Tooltip>
         <TooltipTrigger asChild>
-          <button type="button" aria-label="Copy text" onClick={onCopy} className="grid size-7 place-items-center rounded-full text-muted-foreground hover:bg-accent hover:text-foreground">
+          <button type="button" aria-label={t('pdf.copyText')} onClick={onCopy} className="grid size-7 place-items-center rounded-full text-muted-foreground hover:bg-accent hover:text-foreground">
             <Copy size={16} />
           </button>
         </TooltipTrigger>
-        <TooltipContent>Copy</TooltipContent>
+        <TooltipContent>{t('common.copy')}</TooltipContent>
       </Tooltip>
       <Tooltip>
         <TooltipTrigger asChild>
           <button
             type="button"
-            aria-label="Create card"
+            aria-label={t('pdf.createCard')}
             draggable
             onDragStart={onDragCard}
             onClick={onCreateCard}
@@ -75,16 +76,16 @@ export function SelectionBar({
             <SquarePlus size={16} />
           </button>
         </TooltipTrigger>
-        <TooltipContent>Create card — or drag onto the board</TooltipContent>
+        <TooltipContent>{t('pdf.createCardHint')}</TooltipContent>
       </Tooltip>
       {canRemove && (
         <Tooltip>
           <TooltipTrigger asChild>
-            <button type="button" aria-label="Remove highlight" onClick={onRemove} className="grid size-7 place-items-center rounded-full text-muted-foreground hover:bg-accent hover:text-destructive">
+            <button type="button" aria-label={t('pdf.removeHighlight')} onClick={onRemove} className="grid size-7 place-items-center rounded-full text-muted-foreground hover:bg-accent hover:text-destructive">
               <Trash2 size={16} />
             </button>
           </TooltipTrigger>
-          <TooltipContent>Remove highlight</TooltipContent>
+          <TooltipContent>{t('pdf.removeHighlight')}</TooltipContent>
         </Tooltip>
       )}
     </motion.div>

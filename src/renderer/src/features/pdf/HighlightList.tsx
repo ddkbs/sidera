@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import type { PdfHighlight } from '@shared/types'
 import { Highlighter, Trash2 } from '@/components/icons'
+import { t } from '@/lib/i18n'
 import { cn } from '@/lib/utils'
 import { fillOf, quoteOf } from './highlight'
 
@@ -26,12 +27,12 @@ export function HighlightList({
     <aside className="flex w-64 shrink-0 flex-col border-l bg-sidebar/60">
       <div className="flex items-center gap-2 border-b px-3 py-2 text-xs font-medium text-muted-foreground">
         <Highlighter size={14} />
-        Highlights
+        {t('pdf.highlights')}
         <span className="ml-auto tabular-nums">{highlights.length}</span>
       </div>
       <div className="min-h-0 flex-1 overflow-y-auto p-2">
         {highlights.length === 0 && (
-          <p className="px-2 py-6 text-center text-xs text-muted-foreground">Select text in the PDF to highlight it.</p>
+          <p className="px-2 py-6 text-center text-xs text-muted-foreground">{t('pdf.noHighlights')}</p>
         )}
         {highlights.map((h) => (
           <div
@@ -46,10 +47,10 @@ export function HighlightList({
           >
             <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
               <span className="size-2.5 rounded-full" style={{ background: fillOf(h.color) }} />
-              <span>Page {h.page}</span>
+              <span>{t('pdf.page', { n: h.page })}</span>
               <button
                 type="button"
-                aria-label="Remove highlight"
+                aria-label={t('pdf.removeHighlight')}
                 onClick={(e) => {
                   e.stopPropagation()
                   onRemove(h)
@@ -64,7 +65,7 @@ export function HighlightList({
               <input
                 autoFocus
                 defaultValue={h.note ?? ''}
-                placeholder="Note…"
+                placeholder={t('pdf.note')}
                 onClick={(e) => e.stopPropagation()}
                 onKeyDown={(e) => {
                   if (e.key === 'Enter') e.currentTarget.blur()
@@ -85,7 +86,7 @@ export function HighlightList({
                 }}
                 className={cn('mt-1.5 block w-full truncate text-left text-[11px] italic', h.note ? 'text-foreground/80' : 'text-muted-foreground opacity-0 group-hover:opacity-100')}
               >
-                {h.note || 'Add note…'}
+                {h.note || t('pdf.addNote')}
               </button>
             )}
           </div>

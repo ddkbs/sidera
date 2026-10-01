@@ -26,6 +26,7 @@ import {
   YAxis,
   ZAxis
 } from 'recharts'
+import { locale, t, useLang } from '@/lib/i18n'
 import { cn } from '@/lib/utils'
 import { CHART_DEFS, VENN_REGIONS, num, sankeyData, seriesNames, seriesRows, type ChartData } from '@shared/charts'
 import { SCHEMES, colorAt } from './palette'
@@ -49,6 +50,7 @@ interface Props {
 
 /** Renders any chart type into its parent (fills 100% × 100%). */
 export const ChartView = memo(function ChartView({ data, onMoveItem }: Props) {
+  useLang() // memoised: re-render on language change
   const { chartType: type, options } = data
   const shape = CHART_DEFS[type].shape
 
@@ -186,13 +188,13 @@ export const ChartView = memo(function ChartView({ data, onMoveItem }: Props) {
     if (shape === 'points' || shape === 'bubbles') {
       const bubble = shape === 'bubbles'
       const groupCol = bubble ? 4 : 3
-      const groups = [...new Set(data.rows.map((r) => r[groupCol]?.trim() || 'Data'))]
+      const groups = [...new Set(data.rows.map((r) => r[groupCol]?.trim() || t('chart.data')))]
       return (
         <ScatterChart margin={{ top: bubble ? 24 : 8, right: bubble ? 28 : 16, bottom: 0, left: -12 }}>
           <CartesianGrid stroke="var(--border)" strokeDasharray="3 3" />
           <XAxis type="number" dataKey="x" name="X" {...axis} />
           <YAxis type="number" dataKey="y" name="Y" {...axis} />
-          {bubble && <ZAxis type="number" dataKey="z" range={[60, 1400]} name="Size" />}
+          {bubble && <ZAxis type="number" dataKey="z" range={[60, 1400]} name={t('chart.size')} />}
           {tooltip}
           {options.legend !== false && groups.length > 1 && legend}
           {groups.map((g, gi) => (
@@ -202,7 +204,7 @@ export const ChartView = memo(function ChartView({ data, onMoveItem }: Props) {
               fill={colorAt(gi)}
               fillOpacity={bubble ? 0.55 : 0.9}
               data={data.rows
-                .filter((r) => (r[groupCol]?.trim() || 'Data') === g)
+                .filter((r) => (r[groupCol]?.trim() || t('chart.data')) === g)
                 .map((r) => ({ name: r[0], x: num(r[1]), y: num(r[2]), z: bubble ? num(r[3]) : 1 }))}
             />
           ))}
@@ -211,7 +213,7 @@ export const ChartView = memo(function ChartView({ data, onMoveItem }: Props) {
     }
     // flows → Sankey
     const s = sankeyData(data)
-    if (!s.links.length) return <div className="grid h-full place-items-center text-xs text-muted-foreground">Add flows (From, To, Value)</div>
+    if (!s.links.length) return <div className="grid h-full place-items-center text-xs text-muted-foreground">{t('chart.addFlows')}</div>
     return (
       <Sankey data={s} nodePadding={18} nodeWidth={10} margin={{ top: 8, right: 90, bottom: 8, left: 8 }} link={{ stroke: 'var(--muted-foreground)', strokeOpacity: 0.25 }} node={<SankeyNode />}>
         {tooltip}
@@ -241,7 +243,7 @@ function Timeline({ data }: Props) {
         .sort((a, b) => (Number.isNaN(a.t) || Number.isNaN(b.t) ? 0 : a.t - b.t)),
     [data.rows]
   )
-  const fmt = (e: { date: string; t: number }) => (Number.isNaN(e.t) ? e.date : new Date(e.t).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' }))
+  const fmt = (e: { date: string; t: number }) => (Number.isNaN(e.t) ? e.date : new Date(e.t).toLocaleDateString(locale(), { day: 'numeric', month: 'short', year: 'numeric' }))
   return (
     <div className="relative flex h-full w-full items-center px-2">
       <div className="absolute inset-x-4 top-1/2 h-0.5 -translate-y-1/2 rounded bg-border" />

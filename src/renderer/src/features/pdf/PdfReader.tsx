@@ -7,6 +7,7 @@ import { ChevronLeft, ChevronRight, PanelRight, Search, X, ZoomIn, ZoomOut } fro
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
+import { t } from '@/lib/i18n'
 import { cn } from '@/lib/utils'
 import { record } from '@/lib/undo'
 import { useAppDispatch, useAppSelector } from '@/store'
@@ -203,7 +204,7 @@ export function PdfReader() {
     if (!pending || !pdf) return null
     const res = await createHighlight({ fileId, page: pending.page, text: pending.text, rects: pending.rects, color })
     if (!('data' in res) || !res.data) {
-      toast.error('Could not save the highlight')
+      toast.error(t('pdf.saveFailed'))
       return null
     }
     setPending(null)
@@ -232,12 +233,12 @@ export function PdfReader() {
     })
     await window.api.updateCard({ id: card.id, color })
     record({
-      label: 'Card from highlight',
+      label: t('pdf.undoCard'),
       undo: () => window.api.deleteCard(card.id),
       redo: () => window.api.restoreCard(card.id)
     })
     dispatch(openCard(card.id))
-    toast.success('Card created from highlight')
+    toast.success(t('pdf.cardCreated'))
   }
 
   const runSearch = async () => {
@@ -299,48 +300,48 @@ export function PdfReader() {
         onDoubleClick={() => dispatch(setPdfWidth((PDF_MIN_WIDTH + PDF_MAX_WIDTH) / 3))}
         className="absolute inset-y-0 left-0 z-30 w-1.5 cursor-col-resize hover:bg-brand/40"
         role="separator"
-        aria-label="Resize PDF reader"
+        aria-label={t('pdf.resize')}
       />
       <header className="flex h-11 shrink-0 items-center gap-1 border-b pl-4 pr-2">
         <p className="mr-auto truncate text-sm font-medium">{pdf.name}</p>
         <div className="flex items-center gap-0.5 text-muted-foreground">
-          <Button variant="ghost" size="icon" className="size-7" aria-label="Previous page" disabled={page <= 1} onClick={() => scrollToPage(page - 1)}>
+          <Button variant="ghost" size="icon" className="size-7" aria-label={t('pdf.prevPage')} disabled={page <= 1} onClick={() => scrollToPage(page - 1)}>
             <ChevronLeft size={16} />
           </Button>
           <span className="min-w-14 text-center text-xs tabular-nums">
             {page} / {numPages || '–'}
           </span>
-          <Button variant="ghost" size="icon" className="size-7" aria-label="Next page" disabled={page >= numPages} onClick={() => scrollToPage(page + 1)}>
+          <Button variant="ghost" size="icon" className="size-7" aria-label={t('pdf.nextPage')} disabled={page >= numPages} onClick={() => scrollToPage(page + 1)}>
             <ChevronRight size={16} />
           </Button>
           <div className="mx-1 h-5 w-px bg-border" />
-          <Button variant="ghost" size="icon" className="size-7" aria-label="Zoom out" onClick={() => setZoom((z) => Math.max(0.5, +(z - 0.15).toFixed(2)))}>
+          <Button variant="ghost" size="icon" className="size-7" aria-label={t('zoom.out')} onClick={() => setZoom((z) => Math.max(0.5, +(z - 0.15).toFixed(2)))}>
             <ZoomOut size={16} />
           </Button>
-          <button type="button" onClick={() => setZoom(1)} className="min-w-10 text-center text-xs tabular-nums hover:text-foreground" aria-label="Reset zoom">
+          <button type="button" onClick={() => setZoom(1)} className="min-w-10 text-center text-xs tabular-nums hover:text-foreground" aria-label={t('zoom.reset')}>
             {Math.round(zoom * 100)}%
           </button>
-          <Button variant="ghost" size="icon" className="size-7" aria-label="Zoom in" onClick={() => setZoom((z) => Math.min(3, +(z + 0.15).toFixed(2)))}>
+          <Button variant="ghost" size="icon" className="size-7" aria-label={t('zoom.in')} onClick={() => setZoom((z) => Math.min(3, +(z + 0.15).toFixed(2)))}>
             <ZoomIn size={16} />
           </Button>
           <div className="mx-1 h-5 w-px bg-border" />
           <Tooltip>
             <TooltipTrigger asChild>
-              <Button variant="ghost" size="icon" className={cn('size-7', searchOpen && 'text-foreground')} aria-label="Search in document" onClick={() => setSearchOpen((o) => !o)}>
+              <Button variant="ghost" size="icon" className={cn('size-7', searchOpen && 'text-foreground')} aria-label={t('pdf.search')} onClick={() => setSearchOpen((o) => !o)}>
                 <Search size={16} />
               </Button>
             </TooltipTrigger>
-            <TooltipContent>Search in document</TooltipContent>
+            <TooltipContent>{t('pdf.search')}</TooltipContent>
           </Tooltip>
           <Tooltip>
             <TooltipTrigger asChild>
-              <Button variant="ghost" size="icon" className={cn('size-7', listOpen && 'text-foreground')} aria-label="Toggle highlight list" onClick={() => dispatch(setPdfListOpen(!listOpen))}>
+              <Button variant="ghost" size="icon" className={cn('size-7', listOpen && 'text-foreground')} aria-label={t('pdf.toggleList')} onClick={() => dispatch(setPdfListOpen(!listOpen))}>
                 <PanelRight size={16} />
               </Button>
             </TooltipTrigger>
-            <TooltipContent>Highlights</TooltipContent>
+            <TooltipContent>{t('pdf.highlights')}</TooltipContent>
           </Tooltip>
-          <Button variant="ghost" size="icon" className="size-7" aria-label="Close PDF" onClick={() => dispatch(closePdf())}>
+          <Button variant="ghost" size="icon" className="size-7" aria-label={t('pdf.close')} onClick={() => dispatch(closePdf())}>
             <X size={16} />
           </Button>
         </div>
@@ -351,7 +352,7 @@ export function PdfReader() {
           <Input
             autoFocus
             value={query}
-            placeholder="Search in document…"
+            placeholder={t('pdf.searchPlaceholder')}
             onChange={(e) => setQuery(e.target.value)}
             onKeyDown={(e) => {
               if (e.key === 'Enter') void runSearch()
@@ -361,7 +362,7 @@ export function PdfReader() {
           />
           {hits && (
             <div className="mt-2 max-h-40 overflow-y-auto">
-              {hits.length === 0 && <p className="px-1 py-2 text-xs text-muted-foreground">No matches.</p>}
+              {hits.length === 0 && <p className="px-1 py-2 text-xs text-muted-foreground">{t('pdf.noMatches')}</p>}
               {hits.map((h, i) => (
                 <button
                   key={i}
@@ -369,7 +370,7 @@ export function PdfReader() {
                   onClick={() => scrollToPage(h.page)}
                   className="block w-full rounded px-1.5 py-1 text-left text-xs hover:bg-accent"
                 >
-                  <span className="mr-2 text-muted-foreground tabular-nums">p.{h.page}</span>
+                  <span className="mr-2 text-muted-foreground tabular-nums">{t('pdf.pageShort', { n: h.page })}</span>
                   <span className="text-foreground/80">…{h.snippet}…</span>
                 </button>
               ))}
@@ -391,8 +392,8 @@ export function PdfReader() {
               <Document
                 file={url}
                 onLoadSuccess={(d) => void onLoad(d as unknown as { numPages: number; getPage: (n: number) => Promise<unknown> })}
-                loading={<p className="p-6 text-center text-xs text-muted-foreground">Loading…</p>}
-                error={<p className="p-6 text-center text-xs text-muted-foreground">This document could not be opened.</p>}
+                loading={<p className="p-6 text-center text-xs text-muted-foreground">{t('common.loading')}</p>}
+                error={<p className="p-6 text-center text-xs text-muted-foreground">{t('pdf.openFailed')}</p>}
               >
                 <div className="relative w-full" style={{ height: layout.total }}>
                   {visible.map((n) => (
@@ -438,7 +439,7 @@ export function PdfReader() {
                 onColor={(c) => void persist(c)}
                 onCopy={() => {
                   void navigator.clipboard.writeText(quoteOf(active?.text ?? pending?.text ?? ''))
-                  toast.success('Copied')
+                  toast.success(t('common.copied'))
                 }}
                 onCreateCard={() => {
                   void (async () => {

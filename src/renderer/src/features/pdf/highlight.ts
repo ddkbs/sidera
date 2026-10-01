@@ -1,4 +1,5 @@
 import type { DocJSON, HighlightRect } from '@shared/types'
+import { t } from '../../lib/i18n'
 
 /** Colours offered in the selection bar (keys of the shared palette in `lib/colors.ts`). */
 export const HIGHLIGHT_COLORS = ['yellow', 'green', 'blue', 'pink', 'purple', 'orange'] as const
@@ -90,7 +91,7 @@ export function highlightTitle(text: string, max = 60): string {
 }
 
 /** "paper.pdf · page 3" — the provenance line shown on cards and in the highlight list. */
-export const sourceLabel = (fileName: string, page: number): string => `${fileName} · page ${page}`
+export const sourceLabel = (fileName: string, page: number): string => `${fileName} · ${t('pdf.pageLower', { n: page })}`
 
 const quoteBlocks = (quote: string, source: string): DocJSON[] => [
   { type: 'blockquote', content: [{ type: 'paragraph', content: [{ type: 'text', text: quote }] }] },
