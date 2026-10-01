@@ -1192,6 +1192,7 @@ export const en = {
   'ipad.pairPrivacy': 'End-to-end encrypted on your local network. Revoke devices in Settings.',
   // ipad app
   'ipadApp.unknownDevice': 'This iPad is no longer paired with the account that is signed in on your Mac.',
+  'ipadApp.reAddHome': 'This home-screen icon still points to a used QR code. Delete it, scan a new QR code in Safari, wait until it says paired, then use Share → Add to Home Screen.',
   'ipadApp.qrExpired': 'That QR code has expired or was already used. Show a new one on your Mac.',
   'ipadApp.pairFailed': 'Pairing failed. Make sure the iPad is on the same Wi-Fi as your Mac and try again.',
   'ipadApp.pairing': 'Pairing with your Mac…',

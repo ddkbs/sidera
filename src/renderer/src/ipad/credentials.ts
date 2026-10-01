@@ -3,8 +3,8 @@ import { parseCredential, parsePairingFragment, type DeviceCredential } from '@s
 /**
  * Where the iPad keeps its device credential. localStorage of this origin (the Mac's Bonjour name + fixed port), and —
  * because iPadOS gives a home-screen web app its own storage, separate from Safari's — also the page URL's fragment
- * while the "Add to Home Screen" hint is shown: the home-screen app then starts with that URL (the manifest sets no
- * start_url), adopts the credential and strips it from the address. Fragments never reach the server.
+ * whenever Safari shows the page: the home-screen app then starts with that URL (deliberately no web-app manifest —
+ * it would pin the first-loaded one-time QR URL), adopts the credential and strips it. Fragments never reach the server.
  */
 
 const KEY = 'sidera.ipad.device'

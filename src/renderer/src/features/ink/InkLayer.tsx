@@ -402,6 +402,20 @@ export function InkLayer({ host, boardId, pencilOnly = false }: { host: RefObjec
       if (t.closest('.react-flow') && !t.closest('.react-flow__panel, [data-pen-ui]')) e.stopPropagation()
     }
 
+    // iPadOS also fires touch events for Apple Pencil (touchType 'stylus'); xyflow's d3-zoom pans on touch events,
+    // so pencil touches must never reach it — only fingers pan / pinch.
+    const swallowStylus = (e: TouchEvent): void => {
+      const stylus = Array.from(e.changedTouches).some((t) => (t as Touch & { touchType?: string }).touchType === 'stylus')
+      if (!stylus) return
+      const t = e.target as HTMLElement
+      if (!t.closest('.react-flow') || t.closest('.react-flow__panel, [data-pen-ui], [contenteditable="true"], input, textarea, select, button')) return
+      e.stopPropagation()
+      if (e.cancelable) e.preventDefault()
+    }
+
+    el.addEventListener('touchstart', swallowStylus, { capture: true, passive: false })
+    el.addEventListener('touchmove', swallowStylus, { capture: true, passive: false })
+    el.addEventListener('touchend', swallowStylus, true)
     el.addEventListener('pointerdown', onDown, true)
     el.addEventListener('pointermove', onMove, true)
     el.addEventListener('pointerup', onUp, true)
@@ -409,6 +423,9 @@ export function InkLayer({ host, boardId, pencilOnly = false }: { host: RefObjec
     el.addEventListener('click', swallowClick, true)
     el.addEventListener('dblclick', swallowClick, true)
     return () => {
+      el.removeEventListener('touchstart', swallowStylus, true)
+      el.removeEventListener('touchmove', swallowStylus, true)
+      el.removeEventListener('touchend', swallowStylus, true)
       el.removeEventListener('pointerdown', onDown, true)
       el.removeEventListener('pointermove', onMove, true)
       el.removeEventListener('pointerup', onUp, true)

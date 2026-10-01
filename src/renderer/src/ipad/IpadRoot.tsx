@@ -85,10 +85,20 @@ function IpadApp({ launch }: { launch: Launch }) {
         .catch((e: Error) =>
           setPhase({
             kind: 'unpaired',
-            message: e.message === 'pairing-expired' ? t('ipadApp.qrExpired') : t('ipadApp.pairFailed')
+            // a home-screen icon added before pairing finished would reopen the used QR link forever
+            message:
+              e.message === 'pairing-expired'
+                ? isStandalone()
+                  ? t('ipadApp.reAddHome')
+                  : t('ipadApp.qrExpired')
+                : t('ipadApp.pairFailed')
           })
         )
-    } else if (launch.credential) client.start()
+    } else if (launch.credential) {
+      // keep the credential in Safari's address so "Add to Home Screen" always bookmarks a working URL
+      if (!isStandalone()) history.replaceState(null, '', location.pathname + credentialFragment(launch.credential))
+      client.start()
+    }
     return () => offs.forEach((off) => off())
   }, [client, dispatch, launch])
 

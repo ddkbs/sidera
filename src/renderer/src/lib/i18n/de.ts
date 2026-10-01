@@ -1184,6 +1184,7 @@ export const de: Dictionary = {
   'ipad.pairPrivacy': 'Ende-zu-Ende-verschlüsselt in deinem lokalen Netzwerk. Geräte widerrufst du in den Einstellungen.',
   // ipad app
   'ipadApp.unknownDevice': 'Dieses iPad ist nicht mehr mit dem Konto gekoppelt, das auf deinem Mac angemeldet ist.',
+  'ipadApp.reAddHome': 'Dieses Home-Bildschirm-Symbol zeigt noch auf einen benutzten QR-Code. Lösch es, scanne in Safari einen neuen QR-Code, warte bis „Gekoppelt“ erscheint und tippe dann auf Teilen → Zum Home-Bildschirm.',
   'ipadApp.qrExpired': 'Dieser QR-Code ist abgelaufen oder wurde schon benutzt. Lass dir auf deinem Mac einen neuen zeigen.',
   'ipadApp.pairFailed': 'Kopplung fehlgeschlagen. Stell sicher, dass das iPad im selben WLAN wie dein Mac ist, und versuch es erneut.',
   'ipadApp.pairing': 'Kopplung mit deinem Mac …',
