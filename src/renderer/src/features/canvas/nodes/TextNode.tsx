@@ -1,6 +1,7 @@
 import { useReactFlow, type NodeProps } from '@xyflow/react'
 import { memo, useEffect, useRef, useState } from 'react'
 import { cn } from '@/lib/utils'
+import { color as paletteColor } from '@/lib/colors'
 import { persist, type ObjectNode } from '../types'
 import { Handles, Resizer } from './NodeChrome'
 import { HEADING_DEFAULT_SIZE } from '../textSize'
@@ -40,11 +41,11 @@ export const TextNode = memo(function TextNode({ id, data, selected }: NodeProps
               onBlur={commit}
               onKeyDown={(e) => e.key === 'Escape' && ref.current?.blur()}
               placeholder="Type something"
-              style={{ fontSize: size }}
+              style={{ fontSize: size, color: data.object.color ? paletteColor(data.object.color).fg : undefined }}
               className="nodrag nowheel h-full w-full resize-none bg-transparent p-1 leading-tight font-semibold tracking-tight outline-none"
             />
           ) : (
-            <div style={{ fontSize: size }} className="h-full w-full overflow-hidden p-1 leading-tight font-semibold tracking-tight whitespace-pre-wrap">
+            <div style={{ fontSize: size, color: data.object.color ? paletteColor(data.object.color).fg : undefined }} className="h-full w-full overflow-hidden p-1 leading-tight font-semibold tracking-tight whitespace-pre-wrap">
               {text}
             </div>
           )}

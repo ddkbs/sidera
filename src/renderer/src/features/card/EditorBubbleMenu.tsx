@@ -82,6 +82,17 @@ export function EditorBubbleMenu({ editor }: { editor: Editor }) {
       className="card-bubble-menu relative flex items-center gap-0.5 rounded-xl border bg-popover p-1 shadow-xl"
       onMouseLeave={() => setOpen(null)}
     >
+      {([0, 1, 2, 3, 4] as const).map((level) => (
+        <Btn
+          key={level}
+          label={level ? `Heading ${level}` : 'Text'}
+          active={level ? editor.isActive('heading', { level }) : editor.isActive('paragraph')}
+          onClick={run(() => (level ? editor.chain().focus().setHeading({ level }).run() : editor.chain().focus().setParagraph().run()))}
+        >
+          <span className="text-[12px] leading-none font-semibold">{level ? `H${level}` : 'T'}</span>
+        </Btn>
+      ))}
+      <Sep />
       <Btn label="Bold" active={editor.isActive('bold')} onClick={run(() => editor.chain().focus().toggleBold().run())}>
         <Bold className="size-4" />
       </Btn>

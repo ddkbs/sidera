@@ -86,7 +86,7 @@ export const TextBlockNode = memo(function TextBlockNode({ id, data, selected, h
             editing && 'ring-2 ring-brand/80 hover:ring-brand/80',
             editing ? 'nodrag nopan nowheel cursor-text' : 'cursor-default'
           )}
-          style={tint ? { background: `linear-gradient(${tint.bg}, ${tint.bg}), var(${style === 'framed' ? '--card' : '--canvas'})`, borderColor: tint.border } : undefined}
+          style={tint ? { color: tint.fg, ...(style === 'framed' ? { background: `linear-gradient(${tint.bg}, ${tint.bg}), var(--card)`, borderColor: tint.border } : {}) } : undefined}
         >
           <button
             onClick={(e) => {
