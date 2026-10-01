@@ -29,7 +29,7 @@ import { CommandDialog, CommandEmpty, CommandGroup, CommandInput, CommandItem, C
 import { useAppDispatch, useAppSelector } from '@/store'
 import { useClipUrlMutation, useCreateCardMutation, useCreateWhiteboardMutation, useGetWhiteboardQuery, useListTagsQuery, useSearchQuery } from '@/store/api'
 import { onboarding } from '@/features/onboarding/controller'
-import { SIDERA_DRAW_OPEN_EVENT } from '@/features/draw/DrawOnIpadDialog'
+import { IPAD_TOGGLE_EVENT } from '@/features/ipad/IpadButton'
 import { CANVAS_ACTION_EVENT, type CanvasAction } from '@/features/canvas/actions'
 import { navigate, openCard, openSettings, queueChatMessage, setPaletteOpen, toggleSidebar } from '@/store/ui'
 
@@ -141,8 +141,8 @@ export function CommandPalette() {
               <LayoutDashboard /> {text ? `New whiteboard “${text}”` : 'New whiteboard'}
             </CommandItem>
             {view.type === 'whiteboard' && (!text || /ipad|draw|pencil|sketch|tablet/i.test(text)) && (
-              <CommandItem value="draw-on-ipad" onSelect={run(() => window.dispatchEvent(new Event(SIDERA_DRAW_OPEN_EVENT)))}>
-                <Tablet /> Draw on iPad…
+              <CommandItem value="show-on-ipad" onSelect={run(() => window.dispatchEvent(new Event(IPAD_TOGGLE_EVENT)))}>
+                <Tablet /> Show on iPad (start / stop)
               </CommandItem>
             )}
             {!text && (

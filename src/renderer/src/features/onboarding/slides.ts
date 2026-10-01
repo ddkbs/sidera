@@ -55,7 +55,7 @@ export const WELCOME_SLIDES: WelcomeSlide[] = [
     image: { light: drawLight, dark: drawDark, alt: 'Pen mode on a board: a circled chart bar, an arrow and a sketched rocket booster' },
     points: [
       { icon: PenTool, text: 'Pen and highlighter on any board (P)' },
-      { icon: Tablet, text: 'Sidera Draw: your iPad as a sketchpad (⇧⌘D)' },
+      { icon: Tablet, text: 'Sidera for iPad: the board live on your iPad, Apple Pencil draws (⇧⌘D)' },
       { icon: Highlighter, text: 'End-to-end encrypted, over your own Wi-Fi' }
     ]
   },

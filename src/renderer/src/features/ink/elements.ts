@@ -1,5 +1,5 @@
-import type { DrawStroke } from '@shared/drawProtocol'
-import { strokeToSkeleton } from '../draw/sketch'
+import type { DrawStroke } from '@shared/inkStroke'
+import { strokeToSkeleton } from './strokeSkeleton'
 import { fitTransform, inkBounds, reboxed, type InkElement, type Rect } from './geometry'
 
 /**

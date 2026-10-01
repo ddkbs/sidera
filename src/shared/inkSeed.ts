@@ -1,7 +1,7 @@
 // Hand-drawn looking pen ink for seeded boards (first-run welcome board, demo seeds) — pure, no DOM.
 // Produces the same frameless-sketch data pen mode creates: Excalidraw `freedraw` elements in board coordinates
 // with simulated pressure, and a box equal to the ink bounds (scale 1), so the seeded ink behaves like real ink.
-import { FREEDRAW_DIAMETER_PER_STROKE_WIDTH } from './drawProtocol'
+import { FREEDRAW_DIAMETER_PER_STROKE_WIDTH } from './inkStroke'
 
 export type Pt = [number, number]
 
