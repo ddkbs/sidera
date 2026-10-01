@@ -136,7 +136,8 @@ export class Session {
 
   send(channel: string, payload: unknown): void {
     if (this.closed) return
-    if (channel === SETTINGS_CHANGED) this.ipad.pushSettings(mirroredSettings(payload as AppSettings))
+    // (ipad is created after the services, which may already announce a profile)
+    if (channel === SETTINGS_CHANGED) this.ipad?.pushSettings(mirroredSettings(payload as AppSettings))
     const w = this.opts.window()
     if (w && !w.isDestroyed()) w.webContents.send(channel, payload)
   }
