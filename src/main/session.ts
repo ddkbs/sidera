@@ -2,18 +2,19 @@ import { mkdirSync } from 'node:fs'
 import type { Server } from 'node:http'
 import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import { basename, dirname, extname, isAbsolute, join, relative } from 'node:path'
-import { dialog, shell, type BrowserWindow } from 'electron'
+import { dialog, safeStorage, shell, type BrowserWindow } from 'electron'
 import { nanoid } from 'nanoid'
-import { DB_CHANGED, MCP_ACTIVITY, type CanvasApi, type DbChangeScope } from '@shared/api'
+import { DB_CHANGED, MCP_ACTIVITY, type ApiMethod, type CanvasApi, type DbChangeScope } from '@shared/api'
 import type { AiProviderId } from '@shared/ai'
 import type { SessionKind } from '@shared/auth'
 import { APP_NAME } from '@shared/brand'
 import { fileUrl } from '@shared/fileProtocol'
 import { withSourceHeader } from '@shared/html'
-import { SETTINGS_CHANGED } from '@shared/settings'
+import { IPAD_STATUS_EVENT } from '@shared/ipad'
+import { SETTINGS_CHANGED, type AppSettings } from '@shared/settings'
+import { mirroredSettings, writeScopes } from '@shared/sync/protocol'
 import { ChatAgent } from './ai/chat'
-import { companionHtml } from './draw/companion'
-import { DrawController } from './draw/controller'
+import { IpadController } from './ipad/controller'
 import { KeyStore } from './ai/keys'
 import { DB_FILENAME, migrateDbFilename, openDatabase, type DB } from './db/client'
 import { stdioLaunchSpec } from './integrations'
@@ -54,8 +55,8 @@ export class Session {
   readonly services: Services
   readonly chat: ChatAgent
   readonly handlers: Handlers
-  /** Sidera Draw (iPad companion): a short-lived LAN server, separate from MCP */
-  readonly draw: DrawController
+  /** Sidera for iPad: paired devices + the LAN server while a board is shared (separate from MCP) */
+  readonly ipad: IpadController
   /** whiteboard seeded on first open — the window opens it once */
   welcomeBoardId: string | null = null
   mcpUrl: string | null = null
@@ -63,6 +64,9 @@ export class Session {
   private mcpServer: Server | null = null
   private changeTimer: NodeJS.Timeout | null = null
   private pending = new Set<DbChangeScope>()
+  /** desktop-renderer writes the services don't announce (e.g. drags): only the iPad needs to hear about them */
+  private ipadPending = new Set<DbChangeScope>()
+  private ipadTimer: NodeJS.Timeout | null = null
   private watcher: NodeJS.Timeout | null = null
   private closed = false
 
@@ -86,7 +90,16 @@ export class Session {
     this.keys = new KeyStore(this.dataDir)
     this.chat = new ChatAgent(this.services, opts.version, () => this.activeAiConfig(), (tool, args) => this.reportActivity(tool, args))
     this.handlers = this.buildHandlers()
-    this.draw = new DrawController(companionHtml, (channel, e) => this.send(channel, e))
+    this.ipad = new IpadController({
+      dataDir: this.dataDir,
+      services: this.services,
+      box: safeStorage.isEncryptionAvailable() ? { encrypt: (t) => safeStorage.encryptString(t), decrypt: (b) => safeStorage.decryptString(b) } : null,
+      call: async (method, args) => (this.handlers[method] as (...a: unknown[]) => unknown)(...args),
+      readFile: (id) => this.readFileForDevice(id),
+      settings: () => mirroredSettings(this.settings.get()),
+      onWrite: (scopes) => scopes.forEach((sc) => this.emit(sc)),
+      sendStatus: (st) => this.send(IPAD_STATUS_EVENT, st)
+    })
 
     if (opts.interactive !== false) {
       // Detect writes from other processes (e.g. `--mcp-stdio` instances) and refresh the UI
@@ -104,6 +117,8 @@ export class Session {
 
   send(channel: string, payload: unknown): void {
     if (this.closed) return
+    // (ipad is created after the services, which may already announce a profile)
+    if (channel === SETTINGS_CHANGED) this.ipad?.pushSettings(mirroredSettings(payload as AppSettings))
     const w = this.opts.window()
     if (w && !w.isDestroyed()) w.webContents.send(channel, payload)
   }
@@ -113,10 +128,35 @@ export class Session {
     this.pending.add(scope)
     if (this.changeTimer) return
     this.changeTimer = setTimeout(() => {
-      this.send(DB_CHANGED, [...this.pending])
+      const scopes = [...this.pending]
+      this.send(DB_CHANGED, scopes)
+      this.ipad.notifyChanged(scopes)
       this.pending.clear()
       this.changeTimer = null
     }, 30)
+  }
+
+  /** After every desktop-renderer API call (IPC): writes reach a connected iPad even when the services stay quiet. */
+  noteRendererCall(method: ApiMethod): void {
+    const scopes = this.closed ? null : writeScopes(method)
+    if (!scopes) return
+    scopes.forEach((sc) => this.ipadPending.add(sc))
+    if (this.ipadTimer) return
+    this.ipadTimer = setTimeout(() => {
+      this.ipadTimer = null
+      const list = [...this.ipadPending]
+      this.ipadPending.clear()
+      if (!this.closed) this.ipad.notifyChanged(list)
+    }, 30)
+  }
+
+  /** Bytes of an imported file for the iPad (looked up by id; must live in the files dir). */
+  private async readFileForDevice(id: string): Promise<{ mime: string; bytes: Buffer } | null> {
+    const file = this.services.getFile(id)
+    if (!file) return null
+    const rel = relative(this.filesDir, file.path)
+    if (!rel || rel.startsWith('..') || isAbsolute(rel)) return null
+    return { mime: file.mime, bytes: await readFile(file.path) }
   }
 
   reportActivity(tool: string, args: Record<string, unknown>): void {
@@ -182,9 +222,10 @@ export class Session {
     this.chat.stop()
     if (this.watcher) clearInterval(this.watcher)
     if (this.changeTimer) clearTimeout(this.changeTimer)
-    this.watcher = this.changeTimer = null
+    if (this.ipadTimer) clearTimeout(this.ipadTimer)
+    this.watcher = this.changeTimer = this.ipadTimer = null
     this.pending.clear()
-    const stopped = Promise.all([this.stopMcp(), this.draw.close('signed-out')]).then(() => undefined)
+    const stopped = Promise.all([this.stopMcp(), this.ipad.stop('signed-out')]).then(() => undefined)
     this.db.$client.close()
     return stopped
   }

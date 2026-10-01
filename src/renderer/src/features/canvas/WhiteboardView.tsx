@@ -64,12 +64,12 @@ import { NodeMenu, type NodeMenuAction } from './NodeMenu'
 import { nodeTypes } from './nodes'
 import { SAVE_LINK_DONE_EVENT, SAVE_LINK_EVENT } from './nodes/LinkNode'
 import { EDIT_SKETCH_EVENT } from './nodes/SketchNode'
-import { DrawOnIpadDialog, SIDERA_DRAW_OPEN_EVENT } from '@/features/draw/DrawOnIpadDialog'
+import { IpadButton } from '@/features/ipad/IpadButton'
+import { IS_IPAD } from '@/lib/platform'
 import { InkLayer } from '@/features/ink/InkLayer'
-import { framelessSize, isFrameless, toggledFrameBox } from '@/features/ink/frame'
+import { isFrameless, toggledFrameBox } from '@/features/ink/frame'
 import { fitTransform, inkBounds, reboxed } from '@/features/ink/geometry'
 import { buildShape, type ShapeKind } from '@/features/ink/shapes'
-import type { DrawSubmission } from '@shared/drawProtocol'
 
 const SketchEditor = lazy(() => import('./SketchEditor'))
 import { persist, type ConnectionEdge, type ObjectNode } from './types'
@@ -153,7 +153,7 @@ function Canvas({ detail }: { detail: WhiteboardDetail }) {
   const [edges, setEdges] = useState<ConnectionEdge[]>(() => toEdges(detail))
   const [searchOpen, setSearchOpen] = useState(false)
   const autoEdit = useRef<string | undefined>(undefined)
-  /** object to select as soon as it shows up in the board data (e.g. a drawing from the iPad) */
+  /** object to select as soon as it shows up in the board data (e.g. an inserted shape) */
   const autoSelect = useRef<string | undefined>(undefined)
   const connectFrom = useRef<string | null>(null)
   const sectionDrag = useRef<{ start: { x: number; y: number }; children: Map<string, { x: number; y: number }> } | null>(null)
@@ -210,18 +210,12 @@ function Canvas({ detail }: { detail: WhiteboardDetail }) {
   /** Right-button press, to tell a right-click apart from a right-drag pan. */
   const rightDown = useRef<{ x: number; y: number; pane: boolean } | null>(null)
   const [sketchId, setSketchId] = useState<string | null>(null)
-  const [drawOpen, setDrawOpen] = useState(false)
   const [linkDialog, setLinkDialog] = useState(false)
   const [linkUrl, setLinkUrl] = useState('')
   useEffect(() => {
     const onEdit = (e: Event) => setSketchId((e as CustomEvent<string>).detail)
-    const onDraw = () => setDrawOpen(true)
     window.addEventListener(EDIT_SKETCH_EVENT, onEdit)
-    window.addEventListener(SIDERA_DRAW_OPEN_EVENT, onDraw)
-    return () => {
-      window.removeEventListener(EDIT_SKETCH_EVENT, onEdit)
-      window.removeEventListener(SIDERA_DRAW_OPEN_EVENT, onDraw)
-    }
+    return () => window.removeEventListener(EDIT_SKETCH_EVENT, onEdit)
   }, [])
 
   /** PDFs dock in the split-screen reader; other files still open in the modal viewer. */
@@ -660,28 +654,6 @@ function Canvas({ detail }: { detail: WhiteboardDetail }) {
 
   const selectAll = useCallback(() => setNodes((ns) => ns.map((n) => ({ ...n, selected: true }))), [])
 
-  /** A drawing from the iPad companion: a native Excalidraw sketch at the viewport centre (undoable like any insert). */
-  const insertDrawing = useCallback(
-    async (drawing: DrawSubmission) => {
-      try {
-        const { buildSketchData } = await import('@/features/draw/toExcalidraw')
-        // iPad drawings land frameless: ink straight on the board
-        const data = { ...(await buildSketchData(drawing)), frameless: true }
-        const size = framelessSize(data.elements)
-        const c = center()
-        const o = await place('sketch', { x: c.x - size.width / 2, y: c.y - size.height / 2 }, { data, ...size })
-        if (!o) return
-        autoSelect.current = o.id
-        setNodes((ns) => (ns.some((n) => n.id === o.id) ? ns.map((n) => ({ ...n, selected: n.id === o.id })) : ns))
-        toast.success('Drawing added', { description: 'Double-click it to edit every stroke.' })
-      } catch (e) {
-        console.error('[sidera-draw] could not insert drawing', e)
-        toast.error('Could not add the drawing')
-      }
-    },
-    [center, place]
-  )
-
   useCommands({
     'canvas.copy': () => {
       const selected = selectedObjects()
@@ -699,7 +671,6 @@ function Canvas({ detail }: { detail: WhiteboardDetail }) {
       void groupSelection()
     },
     'canvas.fit': () => void rf.fitView({ duration: 300, padding: 0.15 }),
-    'canvas.drawOnIpad': () => setDrawOpen(true),
     'canvas.textBigger': () => {
       const sel = rf.getNodes().filter((n) => n.selected)
       if (!sel.length) return false
@@ -888,7 +859,6 @@ function Canvas({ detail }: { detail: WhiteboardDetail }) {
         if (o) setSketchId(o.id)
         return
       }
-      if (a === 'draw-ipad') return setDrawOpen(true)
       if (a === 'mindmap') {
         const o = await place('mindmap', { x: c.x - 240, y: c.y - 160 }, { data: {} })
         if (o) autoEdit.current = o.id
@@ -1198,8 +1168,9 @@ function Canvas({ detail }: { detail: WhiteboardDetail }) {
         elementsSelectable={tool !== 'pen'}
         panOnScroll
         zoomOnDoubleClick={false}
-        selectionOnDrag={tool === 'select'}
-        panOnDrag={tool === 'select' || tool === 'pen' ? [1, 2] : true}
+        // iPad: a finger pans / pinch-zooms (and drags objects); the Apple Pencil draws (InkLayer below)
+        selectionOnDrag={tool === 'select' && !IS_IPAD}
+        panOnDrag={IS_IPAD || !(tool === 'select' || tool === 'pen') ? true : [1, 2]}
         minZoom={0.05}
         maxZoom={4}
         deleteKeyCode={['Backspace', 'Delete']}
@@ -1209,11 +1180,13 @@ function Canvas({ detail }: { detail: WhiteboardDetail }) {
       >
         <Background variant={BackgroundVariant.Dots} gap={22} size={1.4} color="var(--canvas-dot)" />
       </ReactFlow>
-      {tool === 'pen' && <InkLayer host={wrapper} boardId={boardId} />}
+      {(tool === 'pen' || IS_IPAD) && <InkLayer host={wrapper} boardId={boardId} pencilOnly={IS_IPAD && tool !== 'pen'} />}
       <CanvasToolbar tool={tool} onTool={(t) => void changeTool(t)} onAction={(a) => void onAction(a)} />
       <ZoomControls />
-      <CardDrawer onBoard={cardIds} />
-      <BoardBreadcrumb id={boardId} />
+      {/* the iPad sees only this board: no card library, no navigation */}
+      {!IS_IPAD && <CardDrawer onBoard={cardIds} />}
+      {!IS_IPAD && <IpadButton boardId={boardId} />}
+      {!IS_IPAD && <BoardBreadcrumb id={boardId} />}
       {edgeMenu && edgeConnection && (
         <EdgeMenu
           connection={edgeConnection}
@@ -1280,7 +1253,6 @@ function Canvas({ detail }: { detail: WhiteboardDetail }) {
           />
         </Suspense>
       )}
-      <DrawOnIpadDialog open={drawOpen} whiteboardId={boardId} onOpenChange={setDrawOpen} onReceived={insertDrawing} />
       <FileViewer
         file={viewing}
         onClose={() => setViewing(null)}

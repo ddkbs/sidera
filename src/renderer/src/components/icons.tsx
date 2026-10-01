@@ -70,6 +70,7 @@ import {
   IconCommand,
   IconCopy,
   IconTablet,
+  IconQrCodeScan,
   IconWifi,
   IconWifiOff,
   IconCursor,
@@ -314,8 +315,9 @@ export const Lock = ObraLock
 export const LogOut = IconLogOut
 export const Bug = ObraBug
 
-// Sidera Draw (iPad companion)
+// Sidera for iPad
 export const Tablet = IconTablet
+export const QrCode = IconQrCodeScan
 export const Wifi = IconWifi
 export const WifiOff = IconWifiOff
 

@@ -1,7 +1,14 @@
 import { networkInterfaces, type NetworkInterfaceInfo } from 'node:os'
-import type { DrawInterface } from '@shared/draw'
+/** A LAN interface the iPad server can bind to. */
+export interface LanInterface {
+  /** macOS interface name, e.g. en0 */
+  name: string
+  address: string
+  /** friendly label ("Wi-Fi", "Ethernet", …) */
+  label: string
+}
 
-/** RFC 1918 private IPv4 ranges — the only addresses a draw session may bind to (never 0.0.0.0 / public). */
+/** RFC 1918 private IPv4 ranges — the only addresses the iPad server may bind to (never 0.0.0.0 / public). */
 export function isPrivateIPv4(ip: string): boolean {
   const m = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/.exec(ip)
   if (!m) return false
@@ -14,14 +21,14 @@ const label = (name: string): string =>
   name === 'en0' ? 'Wi-Fi' : /^en\d+$/.test(name) ? 'Ethernet / USB' : /^bridge\d+$/.test(name) ? 'Bridge' : /^utun\d+$/.test(name) ? 'VPN' : name
 
 /** Candidate LAN addresses, best first: en0 (Wi-Fi on most Macs), other en*, then anything else private. */
-export function lanInterfaces(source: NodeJS.Dict<NetworkInterfaceInfo[]> = networkInterfaces()): DrawInterface[] {
-  const found: DrawInterface[] = []
+export function lanInterfaces(source: NodeJS.Dict<NetworkInterfaceInfo[]> = networkInterfaces()): LanInterface[] {
+  const found: LanInterface[] = []
   for (const [name, infos] of Object.entries(source)) {
     for (const info of infos ?? []) {
       if (info.family !== 'IPv4' || info.internal || !isPrivateIPv4(info.address)) continue
       found.push({ name, address: info.address, label: label(name) })
     }
   }
-  const rank = (i: DrawInterface): number => (i.name === 'en0' ? 0 : /^en\d+$/.test(i.name) ? 1 : /^utun\d+$/.test(i.name) ? 3 : 2)
+  const rank = (i: LanInterface): number => (i.name === 'en0' ? 0 : /^en\d+$/.test(i.name) ? 1 : /^utun\d+$/.test(i.name) ? 3 : 2)
   return found.sort((a, b) => rank(a) - rank(b) || a.name.localeCompare(b.name, undefined, { numeric: true }))
 }

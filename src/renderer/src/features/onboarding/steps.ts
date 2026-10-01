@@ -60,17 +60,17 @@ export const TOUR_STEPS: TourStep[] = [
   },
   {
     id: 'ipad',
-    title: 'Draw on your iPad',
-    body: `“Draw on iPad…” in the same menu shows a QR code: scan it and sketch with Apple Pencil in ${APP_NAME} Draw. End-to-end encrypted, over your own Wi-Fi.`,
-    target: 'canvas-insert',
-    placement: 'right',
+    title: 'Your board on the iPad',
+    body: `The iPad button shows this board live on your iPad — pair once with a QR code, then edit together and draw with Apple Pencil in ${APP_NAME} for iPad. End-to-end encrypted, over your own Wi-Fi.`,
+    target: 'canvas-ipad',
+    placement: 'bottom',
     needs: 'whiteboard',
-    shortcuts: ['canvas.drawOnIpad']
+    shortcuts: ['canvas.ipad']
   },
   {
     id: 'search',
     title: 'Find anything in a second',
-    body: 'Search every board and note, or run a command — new board, settings, draw on iPad. It’s the fastest way around.',
+    body: 'Search every board and note, or run a command — new board, settings, show on iPad. It’s the fastest way around.',
     target: 'sidebar-search',
     needs: 'sidebar',
     shortcuts: ['palette.open']

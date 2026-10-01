@@ -4,7 +4,7 @@ import type { DataInfo, McpConnections, ProviderStatus } from '@shared/api'
 import { APP_NAME } from '@shared/brand'
 import { AI_PROVIDERS, getProviderMeta, type AiProviderId } from '@shared/ai'
 import type { FontPref, ThemePref } from '@shared/settings'
-import { AskAI, ArrowUpRight, Check, CircleCheck, Command, Download, File, Home, KeyRound, Palette, Pencil, RotateCcw, Server, Settings, Upload, User, UserCircle, UserPlus } from '@/components/icons'
+import { AskAI, ArrowUpRight, Check, CircleCheck, Command, Download, File, Home, KeyRound, Palette, Pencil, RotateCcw, Server, Settings, Tablet, Upload, User, UserCircle, UserPlus } from '@/components/icons'
 import { AccountSettings } from '@/features/auth/AccountSettings'
 import { LogoTile } from '@/components/Logo'
 import { Orb } from '@/components/Orb'
@@ -24,6 +24,7 @@ import { settingsLoaded, updateSettings } from '@/store/settings'
 import { openProfileDialog, setSettingsOpen, setSettingsSection } from '@/store/ui'
 import { ProfileAvatar } from '@/features/profile/ProfileAvatar'
 import { ShortcutsSettings } from './ShortcutsSettings'
+import { IpadSettings } from '@/features/ipad/IpadSettings'
 import { onboarding } from '@/features/onboarding/controller'
 
 const SECTIONS = [
@@ -35,6 +36,7 @@ const SECTIONS = [
   { id: 'shortcuts', label: 'Shortcuts', Icon: Command },
   { id: 'mcp', label: 'MCP & Claude', Icon: Server },
   { id: 'ai', label: 'AI assistant', Icon: AskAI },
+  { id: 'ipad', label: 'iPad', Icon: Tablet },
   { id: 'data', label: 'Data & storage', Icon: File },
   { id: 'about', label: 'About', Icon: Home }
 ] as const
@@ -73,6 +75,7 @@ export function SettingsDialog() {
           {current.id === 'shortcuts' && <ShortcutsSettings />}
           {current.id === 'mcp' && <McpSettings />}
           {current.id === 'ai' && <AiSettings />}
+          {current.id === 'ipad' && <IpadSettings />}
           {current.id === 'data' && <DataSettings />}
           {current.id === 'about' && <About />}
         </div>

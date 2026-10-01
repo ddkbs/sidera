@@ -50,7 +50,7 @@ export const COMMANDS: CommandDef[] = [
   { id: 'canvas.group', scope: 'whiteboard', label: 'Create section from selection', group: 'Whiteboard editing', binding: 'Mod+G' },
   { id: 'canvas.textBigger', scope: 'whiteboard', label: 'Bigger text', group: 'Whiteboard editing', binding: 'Mod+Shift+.' },
   { id: 'canvas.textSmaller', scope: 'whiteboard', label: 'Smaller text', group: 'Whiteboard editing', binding: 'Mod+Shift+,' },
-  { id: 'canvas.drawOnIpad', scope: 'whiteboard', label: 'Draw on iPad', group: 'Whiteboard editing', binding: 'Mod+Shift+D' },
+  { id: 'canvas.ipad', scope: 'whiteboard', label: 'Show on iPad (start / stop)', group: 'Whiteboard editing', binding: 'Mod+Shift+D' },
   { id: 'tasks.new', scope: 'tasks', label: 'New task', group: 'Tasks', binding: 'C' },
   { id: 'tasks.next', scope: 'tasks', label: 'Next task', group: 'Tasks', binding: 'Down' },
   { id: 'tasks.prev', scope: 'tasks', label: 'Previous task', group: 'Tasks', binding: 'Up' },

@@ -27,6 +27,7 @@ import {
   type Rect
 } from './geometry'
 import { PenPalette } from './PenPalette'
+import { IS_IPAD } from '@/lib/platform'
 
 /** Eraser radius in screen px. */
 export const ERASER_PX = 10
@@ -79,8 +80,9 @@ const strokeBounds = (s: Stroke): Rect | null => inkBounds([strokeElement(s)])
  * so xyflow never sees it (no selection / node drag); wheel and pinch still reach xyflow, so the board keeps panning
  * and zooming. Live strokes are painted on a canvas overlay with Excalidraw's own stroke outline; strokes drawn in
  * one go are committed as one frameless sketch object whose box equals the ink bounds (scale 1 → no jump).
+ * `pencilOnly` (Sidera for iPad, any tool): only Apple Pencil input draws; fingers keep selecting, moving and panning.
  */
-export function InkLayer({ host, boardId }: { host: RefObject<HTMLDivElement | null>; boardId: string }) {
+export function InkLayer({ host, boardId, pencilOnly = false }: { host: RefObject<HTMLDivElement | null>; boardId: string; pencilOnly?: boolean }) {
   const rf = useReactFlow<ObjectNode>()
   const dispatch = useAppDispatch()
   const dark = useAppSelector((s) => s.ui.theme) === 'dark'
@@ -95,7 +97,12 @@ export function InkLayer({ host, boardId }: { host: RefObject<HTMLDivElement | n
   const idle = useRef<ReturnType<typeof setTimeout>>(undefined)
   /** ink objects created in this pen session: new strokes near one are appended to it */
   const sessionObjects = useRef(new Set<string>())
-  const penSeen = useRef(false)
+  // on the iPad a finger never draws, even in pen mode: it pans the board
+  const penSeen = useRef(IS_IPAD)
+  const pencilOnlyRef = useRef(pencilOnly)
+  pencilOnlyRef.current = pencilOnly
+  /** end of the last pencil stroke: the click Safari synthesizes for it must not select what is underneath */
+  const lastPenUp = useRef(0)
   const darkRef = useRef(dark)
   darkRef.current = dark
   const frame = useRef(0)
@@ -307,6 +314,7 @@ export function InkLayer({ host, boardId }: { host: RefObject<HTMLDivElement | n
       if (e.button !== 0 || pointerId !== null) return
       const target = e.target as HTMLElement
       if (!target.closest('.react-flow') || target.closest('.react-flow__panel, [data-pen-ui]')) return
+      if (pencilOnlyRef.current && (e.pointerType !== 'pen' || target.closest('[contenteditable="true"], input, textarea, select, button'))) return
       if (e.pointerType === 'pen') penSeen.current = true
       if (e.pointerType === 'touch' && penSeen.current) return
       e.preventDefault()
@@ -368,6 +376,7 @@ export function InkLayer({ host, boardId }: { host: RefObject<HTMLDivElement | n
       e.stopPropagation()
       pointerId = null
       originCache = null
+      lastPenUp.current = performance.now()
       try {
         if (el.hasPointerCapture(e.pointerId)) el.releasePointerCapture(e.pointerId)
       } catch {
@@ -387,6 +396,7 @@ export function InkLayer({ host, boardId }: { host: RefObject<HTMLDivElement | n
 
     // a click must never reach xyflow in pen mode (it would select / deselect)
     const swallowClick = (e: MouseEvent): void => {
+      if (pencilOnlyRef.current && performance.now() - lastPenUp.current > 400) return
       const t = e.target as HTMLElement
       if (t.closest('.react-flow') && !t.closest('.react-flow__panel, [data-pen-ui]')) e.stopPropagation()
     }
@@ -412,15 +422,15 @@ export function InkLayer({ host, boardId }: { host: RefObject<HTMLDivElement | n
   // cursor (pen / eraser) on the whole board while in pen mode
   useEffect(() => {
     const el = host.current
-    if (!el) return
+    if (!el || pencilOnly) return
     el.dataset.pen = settings.tool === 'eraser' ? 'eraser' : 'pen'
     return () => void delete el.dataset.pen
-  }, [host, settings.tool])
+  }, [host, settings.tool, pencilOnly])
 
   return (
     <>
       <canvas ref={canvas} className="pointer-events-none absolute inset-0 z-[5] size-full" />
-      <PenPalette settings={settings} onChange={setSettings} dark={dark} />
+      {!pencilOnly && <PenPalette settings={settings} onChange={setSettings} dark={dark} />}
     </>
   )
 }

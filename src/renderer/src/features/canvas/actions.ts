@@ -33,7 +33,6 @@ import {
   ShapeStar,
   SquarePlus,
   Table2,
-  Tablet,
   Type,
   Upload,
   Workflow,
@@ -41,6 +40,7 @@ import {
 } from '@/components/icons'
 import type { ChartType } from '@shared/charts'
 import type { ShapeKind } from '@/features/ink/shapes'
+import { IS_IPAD } from '@/lib/platform'
 
 /** Everything the toolbar overflow and the canvas context menu can trigger. */
 export type CanvasAction =
@@ -51,7 +51,6 @@ export type CanvasAction =
   | 'section'
   | 'connector'
   | 'sketch'
-  | 'draw-ipad'
   | 'link'
   | 'mindmap'
   | 'mermaid'
@@ -66,22 +65,26 @@ export type CanvasAction =
   | `chart:${ChartType}`
   | `shape:${ShapeKind}`
 
+/** Not offered on Sidera for iPad: they reach outside the shared board (card library, nested boards). */
+const NOT_ON_IPAD = new Set<CanvasAction>(['existing-card', 'whiteboard'])
+
 /** Insert entries shared by the toolbar overflow and the right-click menu, in menu order. */
-export const INSERT_ITEMS: { action: CanvasAction; label: string; icon: AppIcon }[] = [
+export const INSERT_ITEMS: { action: CanvasAction; label: string; icon: AppIcon }[] = (
+  [
   { action: 'text', label: 'Text', icon: Type },
   { action: 'card', label: 'Card', icon: SquarePlus },
   { action: 'existing-card', label: 'Existing card…', icon: Search },
   { action: 'section', label: 'Section', icon: BoxSelect },
   { action: 'connector', label: 'Connector', icon: ArrowUpRight },
   { action: 'sketch', label: 'Sketch', icon: PenTool },
-  { action: 'draw-ipad', label: 'Draw on iPad…', icon: Tablet },
   { action: 'mindmap', label: 'Mindmap', icon: Network },
   { action: 'mermaid', label: 'Flowchart', icon: Workflow },
   { action: 'whiteboard', label: 'Nested whiteboard', icon: LayoutDashboard },
   { action: 'link', label: 'Link preview…', icon: Globe },
   { action: 'import', label: 'Import file…', icon: Upload },
   { action: 'table', label: 'Table', icon: Table2 }
-]
+  ] as { action: CanvasAction; label: string; icon: AppIcon }[]
+).filter((i) => !IS_IPAD || !NOT_ON_IPAD.has(i.action))
 
 /** Window event to trigger a canvas action from outside the board (command palette); detail = CanvasAction. */
 export const CANVAS_ACTION_EVENT = 'sidera:canvas-action'

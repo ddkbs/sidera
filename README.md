@@ -16,7 +16,7 @@
 </div>
 
 Sidera is a free, open-source, local-first app for fast, visual note-taking on whiteboards. Mix text blocks,
-tables, charts and hand drawings — including drawing straight from your iPad — on one infinite board, instead
+tables, charts and hand drawings — live on your iPad too — on one infinite board, instead
 of splitting the same idea across a dozen documents. Built **MCP-first**: every core action is exposed as an
 MCP tool, so Claude Desktop, Claude Code or any other MCP client can read and organize your boards alongside
 you.
@@ -33,8 +33,8 @@ you.
   and zoom.
 - **Charts** — drop revenue, timeline or comparison charts straight onto a board, linked to the data behind
   them.
-- **Pen mode & Sidera Draw** — sketch directly on a board, or draw on an iPad over the local Wi-Fi and have
-  the strokes arrive as an editable sketch — end-to-end encrypted (XChaCha20-Poly1305), no cloud in between.
+- **Pen mode & Sidera for iPad** — sketch directly on a board, or open the board live on your iPad (a web app over
+  the local Wi-Fi, no App Store): edit everything, draw with Apple Pencil — end-to-end encrypted, no cloud in between.
 - **Cards & backlinks** — rich text (Tiptap) with `/` commands and `@` mentions that create real backlinks;
   one card can live on any number of whiteboards.
 - **AI chat, bring your own key** — an in-app Claude assistant (⌘J) that uses the exact same tools as the MCP
@@ -141,9 +141,18 @@ claude mcp add --scope user --transport http sidera http://127.0.0.1:3845/mcp
 Headless (no UI) stdio mode is also available: `Sidera --mcp-stdio`. Your data never leaves the Mac — the
 server only binds to `127.0.0.1`.
 
-**Draw on iPad** (whiteboard menu or ⇧⌘D) shows a QR code that opens a small drawing page on your iPad over the local
-Wi-Fi. Strokes arrive as an editable sketch. That connection is end-to-end encrypted (XChaCha20-Poly1305, key only in
-the QR code), bound to your private LAN address and open only while the dialog waits for the drawing.
+**Sidera for iPad** — the iPad button in a board's top-right corner (or ⇧⌘D) shows that board live on your iPad, both
+ways: edit text, cards, tables, shapes, add photos; a finger pans and zooms, Apple Pencil draws ink. Pair once with a QR
+code (Share → Add to Home Screen for the full-screen app); afterwards the iPad reconnects by itself whenever you share
+a board, and follows the board where you pressed the button last. Paired devices are listed (and revocable) in
+Settings → iPad.
+
+How it works: the iPad app is a second build of the desktop renderer (`vite.ipad.config.ts`), served by the Mac on your
+private LAN address only while a board is shared. Every message is end-to-end encrypted (XChaCha20-Poly1305 under
+per-connection keys derived from a per-device key that was handed over once via the QR code fragment) with replay
+protection, and the Mac only answers a whitelist of calls scoped to the shared board (`src/main/ipad/policy.ts`).
+The protocol (`src/shared/sync`) is transport-agnostic: the LAN WebSocket can later be replaced by a cloud relay
+that only forwards ciphertext between device and Mac.
 
 ## Build from source
 
