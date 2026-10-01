@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { ArrowHeadBoth, ArrowHeadEnd, ArrowHeadNone, LineDotted, LineSolid, Trash2 } from '@/components/icons'
-import { PALETTE } from '@/lib/colors'
+import { colorName, PALETTE } from '@/lib/colors'
+import { t, type MessageKey } from '@/lib/i18n'
 import { cn } from '@/lib/utils'
 import type { ArrowEnds, Connection, LineStyle } from '@shared/types'
 
@@ -21,15 +22,15 @@ interface Props {
   onClose: () => void
 }
 
-const LINE_STYLES: { value: LineStyle; label: string; icon: typeof LineSolid }[] = [
-  { value: 'solid', label: 'Solid line', icon: LineSolid },
-  { value: 'dashed', label: 'Dashed line', icon: LineDotted }
+const LINE_STYLES: { value: LineStyle; label: MessageKey; icon: typeof LineSolid }[] = [
+  { value: 'solid', label: 'edge.solid', icon: LineSolid },
+  { value: 'dashed', label: 'edge.dashed', icon: LineDotted }
 ]
 
-const ARROWS: { value: ArrowEnds; label: string; icon: typeof LineSolid }[] = [
-  { value: 'none', label: 'No arrow', icon: ArrowHeadNone },
-  { value: 'end', label: 'Arrow at the end', icon: ArrowHeadEnd },
-  { value: 'both', label: 'Arrows at both ends', icon: ArrowHeadBoth }
+const ARROWS: { value: ArrowEnds; label: MessageKey; icon: typeof LineSolid }[] = [
+  { value: 'none', label: 'edge.noArrow', icon: ArrowHeadNone },
+  { value: 'end', label: 'edge.arrowEnd', icon: ArrowHeadEnd },
+  { value: 'both', label: 'edge.arrowBoth', icon: ArrowHeadBoth }
 ]
 
 /** Compact popover on a selected connection: label, colour, line style, arrow ends, delete. */
@@ -73,7 +74,7 @@ export function EdgeMenu({ connection, x, y, onChange, onDelete, onClose }: Prop
       <input
         autoFocus
         value={label}
-        placeholder="Label"
+        placeholder={t('edge.label')}
         onChange={(e) => setLabel(e.target.value)}
         onKeyDown={(e) => {
           if (e.key === 'Enter') {
@@ -85,16 +86,16 @@ export function EdgeMenu({ connection, x, y, onChange, onDelete, onClose }: Prop
       />
       <div className="flex flex-wrap items-center gap-1">
         <button
-          aria-label="Default colour"
-          title="Default"
+          aria-label={t('format.defaultColor')}
+          title={t('appearance.default')}
           onClick={() => onChange({ color: null })}
           className={cn('size-5 rounded-full border bg-muted', !connection.color && 'ring-2 ring-foreground/40')}
         />
         {Object.keys(PALETTE).filter((c) => c !== 'gray').map((name) => (
           <button
             key={name}
-            aria-label={name}
-            title={name}
+            aria-label={colorName(name)}
+            title={colorName(name)}
             onClick={() => onChange({ color: name })}
             className={cn('size-5 rounded-full border border-transparent', connection.color === name && 'ring-2 ring-foreground/40')}
             style={{ background: PALETTE[name].fg }}
@@ -104,21 +105,21 @@ export function EdgeMenu({ connection, x, y, onChange, onDelete, onClose }: Prop
       <div className="flex items-center gap-1">
         <Group>
           {LINE_STYLES.map((s) => (
-            <Choice key={s.value} label={s.label} active={connection.lineStyle === s.value} onClick={() => onChange({ lineStyle: s.value })}>
+            <Choice key={s.value} label={t(s.label)} active={connection.lineStyle === s.value} onClick={() => onChange({ lineStyle: s.value })}>
               <s.icon size={16} />
             </Choice>
           ))}
         </Group>
         <Group>
           {ARROWS.map((a) => (
-            <Choice key={a.value} label={a.label} active={connection.arrows === a.value} onClick={() => onChange({ arrows: a.value })}>
+            <Choice key={a.value} label={t(a.label)} active={connection.arrows === a.value} onClick={() => onChange({ arrows: a.value })}>
               <a.icon size={16} />
             </Choice>
           ))}
         </Group>
         <button
-          aria-label="Delete connection"
-          title="Delete connection"
+          aria-label={t('edge.delete')}
+          title={t('edge.delete')}
           onClick={onDelete}
           className="ml-auto grid size-7 place-items-center rounded-md text-muted-foreground transition hover:bg-destructive/10 hover:text-destructive"
         >

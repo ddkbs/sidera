@@ -18,6 +18,8 @@ import {
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { colorName } from '@/lib/colors'
+import { labelMap, t, type MessageKey } from '@/lib/i18n'
 import { cn } from '@/lib/utils'
 import {
   FLOW_COLORS,
@@ -72,13 +74,13 @@ export function FlowchartEditor({ source, error, onChange }: Props) {
       <Tabs value={chart ? tab : 'code'} onValueChange={(v) => setTab(v as Tab)} className="min-h-0 flex-1 gap-0">
         <div className="flex items-center justify-between border-b px-2 py-1.5">
           <TabsList className="h-7">
-            {(['nodes', 'connections', 'layout'] as const).map((t) => (
-              <TabsTrigger key={t} value={t} disabled={!chart} className="px-2.5 text-xs capitalize">
-                {t}
+            {(['nodes', 'connections', 'layout'] as const).map((tab) => (
+              <TabsTrigger key={tab} value={tab} disabled={!chart} className="px-2.5 text-xs">
+                {t(`flow.tab.${tab}`)}
               </TabsTrigger>
             ))}
             <TabsTrigger value="code" className="px-2.5 text-xs">
-              Code
+              {t('flow.tab.code')}
             </TabsTrigger>
           </TabsList>
           {!chart && <span className="pr-1 text-[10px] text-muted-foreground">Mermaid</span>}
@@ -106,7 +108,7 @@ export function FlowchartEditor({ source, error, onChange }: Props) {
 
       {error && <div className="border-t bg-destructive/10 px-3 py-1.5 text-xs text-destructive">{error.split('\n')[0]}</div>}
       <div className="border-t px-3 py-1.5 text-[10px] text-muted-foreground">
-        {chart ? 'Tip: double-click a box on the diagram to rename it · ⇥ adds a step · esc to close' : 'Not a flowchart — edit the Mermaid source · esc to close'}
+        {chart ? t('flow.tip') : t('flow.notFlowchart')}
       </div>
     </div>
   )
@@ -132,7 +134,7 @@ function NodesTab({ chart, apply, focus }: TabProps) {
             ) : (
               <Popover>
                 <PopoverTrigger asChild>
-                  <button aria-label="Node colour" className={iconBtn}>
+                  <button aria-label={t('flow.nodeColor')} className={iconBtn}>
                     <span
                       className={cn('size-3.5 rounded-full border', !fill && 'border-dashed border-muted-foreground/60')}
                       style={fill ? { background: fill.fill, borderColor: fill.stroke } : undefined}
@@ -141,14 +143,14 @@ function NodesTab({ chart, apply, focus }: TabProps) {
                 </PopoverTrigger>
                 <PopoverContent data-node-editor side="bottom" align="start" className="flex w-auto gap-1 p-1.5">
                   <button
-                    aria-label="No colour"
+                    aria-label={t('flow.noColor')}
                     onClick={() => apply(setNodeColor(chart, n.id, null))}
                     className={cn('size-5 rounded-full border border-dashed border-muted-foreground/60', !color && 'ring-2 ring-foreground/40')}
                   />
                   {FLOW_COLORS.map((c) => (
                     <button
                       key={c.name}
-                      aria-label={c.name}
+                      aria-label={colorName(c.name)}
                       onClick={() => apply(setNodeColor(chart, n.id, c.name))}
                       className={cn('size-5 rounded-full border-2', color === c.name && 'ring-2 ring-foreground/40')}
                       style={{ background: c.fill, borderColor: c.stroke }}
@@ -161,35 +163,35 @@ function NodesTab({ chart, apply, focus }: TabProps) {
               data-node-label={n.id}
               value={n.label}
               readOnly={n.external}
-              title={n.external ? 'Defined inside a subgraph — edit it in Code' : undefined}
+              title={n.external ? t('flow.external') : undefined}
               onChange={(e) => apply(updateNode(chart, n.id, { label: e.target.value }))}
               onKeyDown={(e) => {
                 if (e.key !== 'Enter') return
                 e.preventDefault()
-                const added = addNode(chart)
+                const added = addNode(chart, t('flow.newStep'))
                 apply(addEdge(added.chart, n.id, added.id))
                 focus(`[data-node-label="${added.id}"]`)
               }}
               className={cn(input, n.external && 'bg-transparent text-muted-foreground')}
             />
-            <span className="w-10 shrink-0 truncate font-mono text-[10px] text-muted-foreground" title="Node id">
+            <span className="w-10 shrink-0 truncate font-mono text-[10px] text-muted-foreground" title={t('flow.nodeId')}>
               {n.id}
             </span>
             <Select value={n.shape} disabled={n.external} onValueChange={(v) => apply(updateNode(chart, n.id, { shape: v as FlowShape }))}>
-              <SelectTrigger size="sm" aria-label="Shape" className="!h-7 w-[132px] shrink-0 gap-1 px-2 text-xs">
+              <SelectTrigger size="sm" aria-label={t('flow.shape')} className="!h-7 w-[132px] shrink-0 gap-1 px-2 text-xs">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent data-node-editor>
                 {shapeOptions(n.shape).map((s) => (
                   <SelectItem key={s} value={s} className="text-xs">
                     <ShapeIcon shape={s} />
-                    {FLOW_SHAPES[s].label}
+                    {SHAPE_LABEL[s] ?? FLOW_SHAPES[s].label}
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
             <button
-              aria-label="Delete node"
+              aria-label={t('flow.deleteNode')}
               disabled={n.external}
               onClick={() => apply(removeNode(chart, n.id))}
               className={cn(iconBtn, 'invisible group-hover:visible', n.external && 'hidden')}
@@ -201,13 +203,13 @@ function NodesTab({ chart, apply, focus }: TabProps) {
       })}
       <button
         onClick={() => {
-          const added = addNode(chart)
+          const added = addNode(chart, t('flow.newStep'))
           apply(added.chart)
           focus(`[data-node-label="${added.id}"]`)
         }}
         className="mt-1 flex h-7 items-center gap-1.5 rounded-md px-2 text-xs text-muted-foreground hover:bg-accent hover:text-foreground"
       >
-        <Plus className="size-3.5" /> Add node
+        <Plus className="size-3.5" /> {t('flow.addNode')}
       </button>
     </div>
   )
@@ -218,25 +220,42 @@ function ShapeIcon({ shape }: { shape: FlowShape }) {
   return Icon ? <Icon className="size-4 text-muted-foreground" /> : null
 }
 
-const LINE_STYLES: { value: EdgeStyle; label: string; icon: AppIcon }[] = [
-  { value: 'solid', label: 'Solid', icon: LineSolid },
-  { value: 'dotted', label: 'Dotted', icon: LineDotted },
-  { value: 'thick', label: 'Thick', icon: LineThick }
+const SHAPE_LABEL = labelMap<FlowShape>({
+  rect: 'shape.rectangle',
+  round: 'flow.shape.round',
+  stadium: 'flow.shape.stadium',
+  circle: 'flow.shape.circle',
+  diamond: 'flow.shape.decision',
+  hexagon: 'flow.shape.hexagon',
+  parallelogram: 'flow.shape.io',
+  database: 'flow.shape.database',
+  subroutine: 'flow.shape.subroutine',
+  'parallelogram-alt': 'flow.shape.parallelogramAlt',
+  trapezoid: 'flow.shape.trapezoid',
+  'trapezoid-alt': 'flow.shape.trapezoidAlt',
+  asymmetric: 'flow.shape.flag',
+  'double-circle': 'flow.shape.doubleCircle'
+})
+
+const LINE_STYLES: { value: EdgeStyle; label: MessageKey; icon: AppIcon }[] = [
+  { value: 'solid', label: 'flow.line.solid', icon: LineSolid },
+  { value: 'dotted', label: 'flow.line.dotted', icon: LineDotted },
+  { value: 'thick', label: 'flow.line.thick', icon: LineThick }
 ]
-const ARROWS: { value: EdgeArrow; label: string; icon: AppIcon }[] = [
-  { value: 'arrow', label: 'Arrow', icon: ArrowHeadEnd },
-  { value: 'none', label: 'No arrow', icon: ArrowHeadNone },
-  { value: 'both', label: 'Both ends', icon: ArrowHeadBoth }
+const ARROWS: { value: EdgeArrow; label: MessageKey; icon: AppIcon }[] = [
+  { value: 'arrow', label: 'shape.arrow', icon: ArrowHeadEnd },
+  { value: 'none', label: 'edge.noArrow', icon: ArrowHeadNone },
+  { value: 'both', label: 'flow.bothEnds', icon: ArrowHeadBoth }
 ]
 
-function Segmented<T extends string>({ value, options, onChange }: { value: T; options: { value: T; label: string; icon?: AppIcon }[]; onChange: (v: T) => void }) {
+function Segmented<T extends string>({ value, options, onChange }: { value: T; options: { value: T; label: MessageKey; icon?: AppIcon }[]; onChange: (v: T) => void }) {
   return (
     <div className="flex shrink-0 rounded-md bg-muted/60 p-0.5">
       {options.map((o) => (
         <button
           key={o.value}
-          title={o.label}
-          aria-label={o.label}
+          title={t(o.label)}
+          aria-label={t(o.label)}
           aria-pressed={o.value === value}
           onClick={() => onChange(o.value)}
           className={cn(
@@ -244,7 +263,7 @@ function Segmented<T extends string>({ value, options, onChange }: { value: T; o
             o.value === value && 'bg-background text-foreground shadow-sm'
           )}
         >
-          {o.icon ? <o.icon className="size-4" /> : o.label}
+          {o.icon ? <o.icon className="size-4" /> : t(o.label)}
         </button>
       ))}
     </div>
@@ -270,14 +289,14 @@ function ConnectionsTab({ chart, apply, focus }: TabProps) {
 
   return (
     <div className="space-y-1">
-      {chart.edges.length === 0 && <p className="px-2 py-1 text-xs text-muted-foreground">No connections yet.</p>}
+      {chart.edges.length === 0 && <p className="px-2 py-1 text-xs text-muted-foreground">{t('flow.noConnections')}</p>}
       {chart.edges.map((e, i) => (
         <div key={e.id} className="group space-y-1 rounded-lg border border-transparent p-1.5 hover:border-border">
           <div className="flex items-center gap-1.5">
-            {nodeSelect(e.from, (from) => apply(updateEdge(chart, e.id, { from })), 'From')}
+            {nodeSelect(e.from, (from) => apply(updateEdge(chart, e.id, { from })), t('flow.from'))}
             <ArrowRight className="size-3.5 shrink-0 text-muted-foreground" />
-            {nodeSelect(e.to, (to) => apply(updateEdge(chart, e.id, { to })), 'To')}
-            <button aria-label="Delete connection" onClick={() => apply(removeEdge(chart, e.id))} className={cn(iconBtn, 'invisible group-hover:visible')}>
+            {nodeSelect(e.to, (to) => apply(updateEdge(chart, e.id, { to })), t('flow.to'))}
+            <button aria-label={t('edge.delete')} onClick={() => apply(removeEdge(chart, e.id))} className={cn(iconBtn, 'invisible group-hover:visible')}>
               <X className="size-3" />
             </button>
           </div>
@@ -285,7 +304,7 @@ function ConnectionsTab({ chart, apply, focus }: TabProps) {
             <input
               data-edge-label={i}
               value={e.label ?? ''}
-              placeholder="Label"
+              placeholder={t('edge.label')}
               onChange={(ev) => apply(updateEdge(chart, e.id, { label: ev.target.value || undefined }))}
               className={input}
             />
@@ -305,23 +324,23 @@ function ConnectionsTab({ chart, apply, focus }: TabProps) {
         }}
         className="mt-1 flex h-7 items-center gap-1.5 rounded-md px-2 text-xs text-muted-foreground hover:bg-accent hover:text-foreground disabled:opacity-50"
       >
-        <Plus className="size-3.5" /> Add connection
+        <Plus className="size-3.5" /> {t('flow.addConnection')}
       </button>
     </div>
   )
 }
 
-const DIRECTIONS: { value: FlowDirection; label: string; icon: AppIcon }[] = [
-  { value: 'TD', label: 'Top to bottom', icon: ArrowDown },
-  { value: 'LR', label: 'Left to right', icon: ArrowRight },
-  { value: 'BT', label: 'Bottom to top', icon: ArrowUp },
-  { value: 'RL', label: 'Right to left', icon: ArrowLeft }
+const DIRECTIONS: { value: FlowDirection; label: MessageKey; icon: AppIcon }[] = [
+  { value: 'TD', label: 'flow.dir.td', icon: ArrowDown },
+  { value: 'LR', label: 'flow.dir.lr', icon: ArrowRight },
+  { value: 'BT', label: 'flow.dir.bt', icon: ArrowUp },
+  { value: 'RL', label: 'flow.dir.rl', icon: ArrowLeft }
 ]
-const CURVES: { value: FlowCurve | 'default'; label: string }[] = [
-  { value: 'default', label: 'Default' },
-  { value: 'basis', label: 'Curved' },
-  { value: 'linear', label: 'Straight' },
-  { value: 'step', label: 'Stepped' }
+const CURVES: { value: FlowCurve | 'default'; label: MessageKey }[] = [
+  { value: 'default', label: 'appearance.default' },
+  { value: 'basis', label: 'flow.curve.curved' },
+  { value: 'linear', label: 'flow.curve.straight' },
+  { value: 'step', label: 'flow.curve.stepped' }
 ]
 
 function LayoutTab({ chart, apply }: Omit<TabProps, 'focus'>) {
@@ -329,7 +348,7 @@ function LayoutTab({ chart, apply }: Omit<TabProps, 'focus'>) {
   return (
     <div className="space-y-3 text-xs">
       <div className="space-y-1.5">
-        <div className="text-muted-foreground">Direction</div>
+        <div className="text-muted-foreground">{t('flow.direction')}</div>
         <div className="grid grid-cols-4 gap-1">
           {DIRECTIONS.map((d) => (
             <button
@@ -342,13 +361,13 @@ function LayoutTab({ chart, apply }: Omit<TabProps, 'focus'>) {
               )}
             >
               <d.icon className="size-4" />
-              <span className="text-[11px]">{d.label}</span>
+              <span className="text-[11px]">{t(d.label)}</span>
             </button>
           ))}
         </div>
       </div>
       <div className="space-y-1.5">
-        <div className="text-muted-foreground">Lines</div>
+        <div className="text-muted-foreground">{t('flow.lines')}</div>
         <div className="flex gap-1">
           {CURVES.map((c) => {
             const active = (getCurve(chart) ?? 'default') === c.value
@@ -358,7 +377,7 @@ function LayoutTab({ chart, apply }: Omit<TabProps, 'focus'>) {
                 onClick={() => apply(setCurve(chart, c.value === 'default' ? null : c.value))}
                 className={cn('h-6 rounded-md px-2 transition', active ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground hover:text-foreground')}
               >
-                {c.label}
+                {t(c.label)}
               </button>
             )
           })}
@@ -389,7 +408,7 @@ function CodeTab({ source, onChange, autoFocus }: { source: string; onChange: (s
       />
       <div className="flex justify-end border-t px-3 py-1 text-[10px]">
         <a href="https://mermaid.js.org/syntax/flowchart.html" target="_blank" rel="noreferrer" className="text-muted-foreground hover:text-foreground">
-          Syntax reference ↗
+          {t('flow.syntax')}
         </a>
       </div>
     </>

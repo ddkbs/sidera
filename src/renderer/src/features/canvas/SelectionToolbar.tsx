@@ -28,7 +28,8 @@ import {
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { Kbd } from '@/components/ui/kbd'
-import { PALETTE } from '@/lib/colors'
+import { colorName, PALETTE } from '@/lib/colors'
+import { t, type MessageKey } from '@/lib/i18n'
 import { cn } from '@/lib/utils'
 import { bounds, type ArrangeMode } from './arrange'
 import { BLOCK_DEFAULT_SIZE, TEXT_SIZE_PRESETS, nearestPreset, type TextSizePreset } from './textSize'
@@ -51,16 +52,16 @@ export interface SelectionActions {
   stepTextSize: (dir: 1 | -1) => void
 }
 
-const TIDY: { mode: ArrangeMode; label: string; icon: AppIcon }[] = [
-  { mode: 'left', label: 'Align left', icon: AlignLeft },
-  { mode: 'center-h', label: 'Align centre', icon: AlignCenterH },
-  { mode: 'right', label: 'Align right', icon: AlignRight },
-  { mode: 'top', label: 'Align top', icon: AlignTop },
-  { mode: 'middle', label: 'Align middle', icon: AlignMiddleV },
-  { mode: 'bottom', label: 'Align bottom', icon: AlignBottom },
-  { mode: 'distribute-h', label: 'Distribute horizontally', icon: DistributeH },
-  { mode: 'distribute-v', label: 'Distribute vertically', icon: DistributeV },
-  { mode: 'grid', label: 'Arrange as grid', icon: GridLayout }
+const TIDY: { mode: ArrangeMode; label: MessageKey; icon: AppIcon }[] = [
+  { mode: 'left', label: 'tidy.left', icon: AlignLeft },
+  { mode: 'center-h', label: 'tidy.centerH', icon: AlignCenterH },
+  { mode: 'right', label: 'tidy.right', icon: AlignRight },
+  { mode: 'top', label: 'tidy.top', icon: AlignTop },
+  { mode: 'middle', label: 'tidy.middle', icon: AlignMiddleV },
+  { mode: 'bottom', label: 'tidy.bottom', icon: AlignBottom },
+  { mode: 'distribute-h', label: 'tidy.distributeH', icon: DistributeH },
+  { mode: 'distribute-v', label: 'tidy.distributeV', icon: DistributeV },
+  { mode: 'grid', label: 'tidy.grid', icon: GridLayout }
 ]
 
 const size = (n: ObjectNode, axis: 'width' | 'height'): number =>
@@ -93,8 +94,8 @@ export function SelectionToolbar({ selected, actions }: { selected: ObjectNode[]
     >
       <div className="pointer-events-auto flex -translate-x-1/2 -translate-y-full items-center gap-1 rounded-xl border bg-popover/95 p-1 shadow-[0_8px_30px_-6px_rgba(0,0,0,0.25)] backdrop-blur">
         <button
-          aria-label="Default colour"
-          title="Default colour"
+          aria-label={t('format.defaultColor')}
+          title={t('format.defaultColor')}
           onClick={() => actions.color(null)}
           className="size-5 rounded-full border bg-card transition hover:scale-110"
         />
@@ -103,8 +104,8 @@ export function SelectionToolbar({ selected, actions }: { selected: ObjectNode[]
           .map((c) => (
             <button
               key={c}
-              aria-label={c}
-              title={c}
+              aria-label={colorName(c)}
+              title={colorName(c)}
               onClick={() => actions.color(c)}
               className="size-5 rounded-full border border-transparent transition hover:scale-110"
               style={{ background: PALETTE[c].fg }}
@@ -116,41 +117,41 @@ export function SelectionToolbar({ selected, actions }: { selected: ObjectNode[]
             <Tooltip>
               <TooltipTrigger asChild>
                 <DropdownMenuTrigger
-                  aria-label="Tidy up"
+                  aria-label={t('tidy.title')}
                   className="grid size-7 place-items-center rounded-lg text-muted-foreground transition hover:bg-accent hover:text-foreground data-[state=open]:bg-accent data-[state=open]:text-foreground"
                 >
                   <TidyUp size={16} />
                 </DropdownMenuTrigger>
               </TooltipTrigger>
-              <TooltipContent>Tidy up</TooltipContent>
+              <TooltipContent>{t('tidy.title')}</TooltipContent>
             </Tooltip>
             <DropdownMenuContent align="start" className="w-52" onCloseAutoFocus={(e) => e.preventDefault()}>
-              {TIDY.map((t, i) => (
-                <div key={t.mode}>
+              {TIDY.map((item, i) => (
+                <div key={item.mode}>
                   {(i === 6 || i === 8) && <DropdownMenuSeparator />}
-                  <DropdownMenuItem onClick={() => actions.arrange(t.mode)}>
-                    <t.icon /> {t.label}
+                  <DropdownMenuItem onClick={() => actions.arrange(item.mode)}>
+                    <item.icon /> {t(item.label)}
                   </DropdownMenuItem>
                 </div>
               ))}
             </DropdownMenuContent>
           </DropdownMenu>
         )}
-        {many && <Action icon={BoxSelect} label="Create section" kbd="Mod+G" onClick={actions.group} />}
+        {many && <Action icon={BoxSelect} label={t('sel.createSection')} kbd="Mod+G" onClick={actions.group} />}
         {allText && textPreset && (
           <>
-            <Action icon={Minus} label="Smaller text" kbd="Mod+Shift+," onClick={() => actions.stepTextSize(-1)} />
+            <Action icon={Minus} label={t('cmd.canvas.textSmaller')} kbd="Mod+Shift+," onClick={() => actions.stepTextSize(-1)} />
             <DropdownMenu>
               <Tooltip>
                 <TooltipTrigger asChild>
                   <DropdownMenuTrigger
-                    aria-label="Text size"
+                    aria-label={t('settings.appearance.textSize')}
                     className="grid h-7 min-w-7 place-items-center rounded-lg px-1.5 text-xs font-semibold text-muted-foreground transition hover:bg-accent hover:text-foreground data-[state=open]:bg-accent data-[state=open]:text-foreground"
                   >
                     Aa
                   </DropdownMenuTrigger>
                 </TooltipTrigger>
-                <TooltipContent>Text size ({textPreset})</TooltipContent>
+                <TooltipContent>{t('sel.textSize', { size: textPreset })}</TooltipContent>
               </Tooltip>
               <DropdownMenuContent align="center" className="w-28" onCloseAutoFocus={(e) => e.preventDefault()}>
                 {TEXT_SIZE_PRESETS.map((p) => (
@@ -160,26 +161,26 @@ export function SelectionToolbar({ selected, actions }: { selected: ObjectNode[]
                 ))}
               </DropdownMenuContent>
             </DropdownMenu>
-            <Action icon={Plus} label="Bigger text" kbd="Mod+Shift+." onClick={() => actions.stepTextSize(1)} />
+            <Action icon={Plus} label={t('cmd.canvas.textBigger')} kbd="Mod+Shift+." onClick={() => actions.stepTextSize(1)} />
           </>
         )}
         {block && (
           <Action
             icon={Frame}
-            label={framed ? 'Remove frame' : 'Add frame'}
+            label={framed ? t('undo.removeFrame') : t('undo.addFrame')}
             active={framed}
             onClick={() => actions.blockStyle(block, framed ? 'plain' : 'framed')}
           />
         )}
-        {single?.type === 'card' && <Action icon={Expand} label={block ? 'Open as card' : 'Open card'} onClick={() => actions.open(single)} />}
-        {single?.type === 'table' && <Action icon={BarChart} label="Create chart from table" onClick={() => actions.chartFromTable(single)} />}
-        {linkedChart && <Action icon={Unlink} label="Unlink from table" onClick={() => actions.unlinkChart(linkedChart)} />}
-        {single?.type === 'whiteboard' && <Action icon={LayoutDashboard} label="Open whiteboard" onClick={() => actions.open(single)} />}
-        {single?.type === 'whiteboard' && <Action icon={ExternalLink} label="Open in new tab" onClick={() => actions.openInNewTab(single)} />}
+        {single?.type === 'card' && <Action icon={Expand} label={block ? t('sel.openAsCard') : t('task.openCard')} onClick={() => actions.open(single)} />}
+        {single?.type === 'table' && <Action icon={BarChart} label={t('sel.chartFromTable')} onClick={() => actions.chartFromTable(single)} />}
+        {linkedChart && <Action icon={Unlink} label={t('sel.unlinkTable')} onClick={() => actions.unlinkChart(linkedChart)} />}
+        {single?.type === 'whiteboard' && <Action icon={LayoutDashboard} label={t('sel.openBoard')} onClick={() => actions.open(single)} />}
+        {single?.type === 'whiteboard' && <Action icon={ExternalLink} label={t('help.fixed.cmdClick')} onClick={() => actions.openInNewTab(single)} />}
         <Divider />
-        <Action icon={Copy} label="Copy" kbd="Mod+C" onClick={actions.copy} />
-        <Action icon={Layers} label="Duplicate" kbd="Mod+D" onClick={actions.duplicate} />
-        <Action icon={Trash2} label="Remove from whiteboard" onClick={actions.remove} destructive />
+        <Action icon={Copy} label={t('common.copy')} kbd="Mod+C" onClick={actions.copy} />
+        <Action icon={Layers} label={t('common.duplicate')} kbd="Mod+D" onClick={actions.duplicate} />
+        <Action icon={Trash2} label={t('help.fixed.remove')} onClick={actions.remove} destructive />
       </div>
     </div>
   )

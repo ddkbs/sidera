@@ -26,6 +26,7 @@ import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Skeleton } from '@/components/ui/skeleton'
+import { t } from '@/lib/i18n'
 import { cn } from '@/lib/utils'
 import { useAppDispatch, useAppSelector } from '@/store'
 import {
@@ -82,7 +83,7 @@ import './canvas.css'
 export function WhiteboardView({ id }: { id: string }) {
   const { data, isLoading, isError } = useGetWhiteboardQuery(id)
   if (isLoading) return <Skeleton className="m-6 h-[calc(100%-3rem)] rounded-xl" />
-  if (isError || !data) return <div className="grid h-full place-items-center text-sm text-muted-foreground">Whiteboard not found</div>
+  if (isError || !data) return <div className="grid h-full place-items-center text-sm text-muted-foreground">{t('canvas.notFound')}</div>
   return (
     <ReactFlowProvider>
       <Canvas detail={data} />
@@ -182,7 +183,7 @@ function Canvas({ detail }: { detail: WhiteboardDetail }) {
     const add = async (o: HistoryOp) => (await show(), await applyOp(o))
     const remove = async (o: HistoryOp) => (await applyOp(o), await hide())
     record({
-      label: op.type === 'add' ? (op.objects.length === 1 ? 'Add text box' : opLabel(op)) : opLabel(op),
+      label: op.type === 'add' ? (op.objects.length === 1 ? t('undo.addTextBox') : opLabel(op)) : opLabel(op),
       undo: () => (op.type === 'add' ? remove(invert(op)) : add(invert(op))),
       redo: () => (op.type === 'add' ? add(op) : remove(op))
     })
@@ -247,7 +248,7 @@ function Canvas({ detail }: { detail: WhiteboardDetail }) {
     async (a: NodeMenuAction, node: ObjectNode) => {
       setMenu(null)
       const o = node.data.object
-      if (a === 'open' && o.refId && node.type === 'file') openFileObject(o.refId, String(o.data.name ?? 'File'), String(o.data.mime ?? ''))
+      if (a === 'open' && o.refId && node.type === 'file') openFileObject(o.refId, String(o.data.name ?? t('canvas.file')), String(o.data.mime ?? ''))
       else if (a === 'open' && o.refId) dispatch(node.type === 'whiteboard' ? navigate({ type: 'whiteboard', id: o.refId }) : openCard(o.refId))
       else if (a === 'remove') void rf.deleteElements({ nodes: [{ id: node.id }] })
       else if (a === 'delete-card' && o.refId) {
@@ -266,7 +267,7 @@ function Canvas({ detail }: { detail: WhiteboardDetail }) {
         const before: ObjectPatch = { id: o.id, ...box, data: o.data }
         const after: ObjectPatch = { id: o.id, ...next, data: { ...o.data, frameless } }
         await applyOp({ type: 'patch', before: [before], after: [after] })
-        record({ label: frameless ? 'Remove frame' : 'Add frame', undo: () => applyOp({ type: 'patch', before: [after], after: [before] }), redo: () => applyOp({ type: 'patch', before: [before], after: [after] }) })
+        record({ label: frameless ? t('undo.removeFrame') : t('undo.addFrame'), undo: () => applyOp({ type: 'patch', before: [after], after: [before] }), redo: () => applyOp({ type: 'patch', before: [before], after: [after] }) })
       } else if (a === 'front' || a === 'back') {
         const zs = rf.getNodes().map((n) => n.data.object.z)
         const z = a === 'front' ? Math.max(...zs) + 1 : Math.min(...zs) - 1
@@ -302,7 +303,7 @@ function Canvas({ detail }: { detail: WhiteboardDetail }) {
   const place = useCallback(
     async (kind: ObjectKind, pos: { x: number; y: number }, extra: { refId?: string; data?: Record<string, unknown>; color?: string; width?: number; height?: number } = {}) => {
       const res = await addObject({ whiteboardId: boardId, kind, x: pos.x, y: pos.y, ...extra })
-      if ('error' in res) toast.error('Could not add to whiteboard')
+      if ('error' in res) toast.error(t('canvas.addFailed'))
       if ('data' in res && res.data) track({ type: 'add', objects: [res.data], connections: [] })
       return 'data' in res ? res.data : undefined
     },
@@ -325,9 +326,9 @@ function Canvas({ detail }: { detail: WhiteboardDetail }) {
             const conn = await addConnection({ whiteboardId: boardId, sourceId: nodeId, targetId: o.id })
             if ('data' in conn && conn.data) track({ type: 'add', objects: [], connections: [conn.data] })
           }
-          toast.success('Saved as card')
+          toast.success(t('canvas.savedAsCard'))
         } catch {
-          toast.error('Could not save page as a card')
+          toast.error(t('canvas.saveAsCardFailed'))
         } finally {
           window.dispatchEvent(new CustomEvent(SAVE_LINK_DONE_EVENT, { detail: { nodeId } }))
         }
@@ -349,10 +350,10 @@ function Canvas({ detail }: { detail: WhiteboardDetail }) {
       await window.api.updateCard({ id: card.id, color: h.color })
       const o = await window.api.addObject({ whiteboardId: boardId, kind: 'card', refId: card.id, x: pos.x - 150, y: pos.y - 40, width: 300, height: 190 })
       const fileNode = rf.getNodes().find((n) => n.type === 'file' && n.data.object.refId === h.fileId)
-      const conn = fileNode ? await window.api.addConnection({ whiteboardId: boardId, sourceId: fileNode.id, targetId: o.id, label: `page ${h.page}` }) : null
+      const conn = fileNode ? await window.api.addConnection({ whiteboardId: boardId, sourceId: fileNode.id, targetId: o.id, label: t('pdf.pageLower', { n: h.page }) }) : null
       refreshBoard()
       record({
-        label: 'Card from highlight',
+        label: t('pdf.undoCard'),
         undo: async () => {
           if (conn) await window.api.removeConnections([conn.id])
           await window.api.removeObjects([o.id])
@@ -365,7 +366,7 @@ function Canvas({ detail }: { detail: WhiteboardDetail }) {
           refreshBoard()
         }
       })
-      toast.success('Card created from highlight')
+      toast.success(t('pdf.cardCreated'))
     },
     [boardId, rf, refreshBoard]
   )
@@ -380,7 +381,7 @@ function Canvas({ detail }: { detail: WhiteboardDetail }) {
       await window.api.updateCard({ id: cardId, content: after })
       refreshBoard()
       record({
-        label: 'Quote into card',
+        label: t('undo.quoteIntoCard'),
         undo: async () => {
           await window.api.updateCard({ id: cardId, content: before })
           refreshBoard()
@@ -390,7 +391,7 @@ function Canvas({ detail }: { detail: WhiteboardDetail }) {
           refreshBoard()
         }
       })
-      toast.success(`Quote added to “${card.title || 'card'}”`)
+      toast.success(t('canvas.quoteAdded', { title: card.title || t('kanban.card') }))
     },
     [refreshBoard]
   )
@@ -429,7 +430,7 @@ function Canvas({ detail }: { detail: WhiteboardDetail }) {
   const newTextBlockAt = useCallback(
     async (pos: { x: number; y: number }) => {
       const res = await addTextBlock({ whiteboardId: boardId, x: pos.x - 10, y: pos.y - 18 })
-      if (!('data' in res) || !res.data) return void toast.error('Could not add a text box')
+      if (!('data' in res) || !res.data) return void toast.error(t('canvas.textBoxFailed'))
       const { card, object } = res.data
       autoEdit.current = object.id
       setNodes((ns) => ns.map((n) => (n.id === object.id ? { ...n, data: { ...n.data, autoEdit: true } } : n)))
@@ -459,7 +460,7 @@ function Canvas({ detail }: { detail: WhiteboardDetail }) {
     async (nodeId: string, style: TextBlockStyle) => {
       const data = rf.getNode(nodeId)?.data.object.data ?? {}
       if ((data.style === 'framed' ? 'framed' : 'plain') === style) return
-      await patchData(nodeId, { ...data, style }, style === 'framed' ? 'Add frame' : 'Remove frame')
+      await patchData(nodeId, { ...data, style }, style === 'framed' ? t('undo.addFrame') : t('undo.removeFrame'))
     },
     [rf, patchData]
   )
@@ -497,7 +498,7 @@ function Canvas({ detail }: { detail: WhiteboardDetail }) {
       }
       if (!before.length) return
       await applyOp({ type: 'patch', before, after })
-      record({ label: 'Change text size', undo: () => applyOp({ type: 'patch', before: after, after: before }), redo: () => applyOp({ type: 'patch', before, after }) })
+      record({ label: t('undo.textSize'), undo: () => applyOp({ type: 'patch', before: after, after: before }), redo: () => applyOp({ type: 'patch', before, after }) })
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [currentTextSize]
@@ -509,7 +510,7 @@ function Canvas({ detail }: { detail: WhiteboardDetail }) {
   const unlinkChart = useCallback(
     async (nodeId: string) => {
       const { source: _source, ...rest } = rf.getNode(nodeId)?.data.object.data ?? {}
-      await patchData(nodeId, rest, 'Unlink chart')
+      await patchData(nodeId, rest, t('undo.unlinkChart'))
     },
     [rf, patchData]
   )
@@ -522,8 +523,8 @@ function Canvas({ detail }: { detail: WhiteboardDetail }) {
         dispatch(api.util.invalidateTags([{ type: 'Whiteboard', id: boardId }, 'CardList', { type: 'Card', id: cardId }]))
       }
       await set('card')
-      record({ label: 'Convert to card', undo: () => set('block'), redo: () => set('card') })
-      toast.success('Converted to a card', { action: { label: 'Open', onClick: () => dispatch(openCard(cardId)) } })
+      record({ label: t('undo.convertToCard'), undo: () => set('block'), redo: () => set('card') })
+      toast.success(t('canvas.converted'), { action: { label: t('common.open'), onClick: () => dispatch(openCard(cardId)) } })
     },
     [dispatch, boardId]
   )
@@ -531,7 +532,7 @@ function Canvas({ detail }: { detail: WhiteboardDetail }) {
   const insertChartFromTable = useCallback(
     async (tableId: string) => {
       const res = await chartFromTable({ whiteboardId: boardId, tableId })
-      if (!('data' in res) || !res.data) return void toast.error('Could not create a chart from this table')
+      if (!('data' in res) || !res.data) return void toast.error(t('canvas.chartFailed'))
       autoSelect.current = res.data.id
       track({ type: 'add', objects: [res.data], connections: [] })
     },
@@ -546,25 +547,25 @@ function Canvas({ detail }: { detail: WhiteboardDetail }) {
       const files = await window.api.importFiles()
       for (const [i, f] of files.entries())
         await place('file', { x: pos.x - 160 + i * 40, y: pos.y - 200 + i * 40 }, { refId: f.id, data: { name: f.name, mime: f.mime } })
-      if (files.length) toast.success(`Imported ${files.length} file${files.length > 1 ? 's' : ''}`)
+      if (files.length) toast.success(t('canvas.imported', { count: files.length }))
     },
     [place]
   )
 
   const changeTool = useCallback(
-    async (t: CanvasTool) => {
-      if (t === 'import') {
+    async (next: CanvasTool) => {
+      if (next === 'import') {
         dispatch(setTool('select'))
         await importAt(center())
         return
       }
-      if (t === 'search') {
+      if (next === 'search') {
         dispatch(setTool('select'))
         insertPos.current = null
         setSearchOpen(true)
         return
       }
-      dispatch(setTool(t))
+      dispatch(setTool(next))
     },
     [dispatch, center, importAt]
   )
@@ -673,10 +674,10 @@ function Canvas({ detail }: { detail: WhiteboardDetail }) {
         if (!o) return
         autoSelect.current = o.id
         setNodes((ns) => (ns.some((n) => n.id === o.id) ? ns.map((n) => ({ ...n, selected: n.id === o.id })) : ns))
-        toast.success('Drawing added', { description: 'Double-click it to edit every stroke.' })
+        toast.success(t('canvas.drawingAdded'), { description: t('canvas.drawingAddedHint') })
       } catch (e) {
         console.error('[sidera-draw] could not insert drawing', e)
-        toast.error('Could not add the drawing')
+        toast.error(t('canvas.drawingFailed'))
       }
     },
     [center, place]
@@ -826,7 +827,7 @@ function Canvas({ detail }: { detail: WhiteboardDetail }) {
         await newCardAt(pos)
       } else if (tool === 'section') {
         dispatch(setTool('select'))
-        await place('section', { x: pos.x, y: pos.y }, { color: 'blue', data: { title: 'Section' } })
+        await place('section', { x: pos.x, y: pos.y }, { color: 'blue', data: { title: t('canvas.section') } })
       }
     },
     [rf, tool, dispatch, newCardAt, newTextBlockAt, place]
@@ -837,7 +838,7 @@ function Canvas({ detail }: { detail: WhiteboardDetail }) {
       if (tool !== 'connector') return
       if (!connectFrom.current) {
         connectFrom.current = node.id
-        toast('Now click the target', { duration: 1500 })
+        toast(t('canvas.clickTarget'), { duration: 1500 })
       } else {
         void connect(connectFrom.current, node.id)
         connectFrom.current = null
@@ -863,7 +864,7 @@ function Canvas({ detail }: { detail: WhiteboardDetail }) {
         insertPos.current = c
         return setSearchOpen(true)
       }
-      if (a === 'section') return void place('section', { x: c.x, y: c.y }, { color: 'blue', data: { title: 'Section' } })
+      if (a === 'section') return void place('section', { x: c.x, y: c.y }, { color: 'blue', data: { title: t('canvas.section') } })
       if (a === 'connector') return void dispatch(setTool('connector'))
       if (a === 'import') return void importAt(c)
       if (a.startsWith('chart:')) {
@@ -906,7 +907,7 @@ function Canvas({ detail }: { detail: WhiteboardDetail }) {
         return
       }
       if (a === 'whiteboard') {
-        const res = await createWhiteboard({ name: 'Untitled whiteboard', parentId: boardId })
+        const res = await createWhiteboard({ name: t('board.untitled'), parentId: boardId })
         if ('data' in res && res.data) await place('whiteboard', { x: c.x - 130, y: c.y - 70 }, { refId: res.data.id })
         return
       }
@@ -917,12 +918,10 @@ function Canvas({ detail }: { detail: WhiteboardDetail }) {
       if (a === 'organize') {
         const hasKey = await window.chat.hasKey()
         if (!hasKey) {
-          toast('Add an Anthropic API key to organize with the built-in assistant', {
-            description: 'Or ask Claude Desktop/Code to do it via the "organize-board" MCP prompt.'
-          })
+          toast(t('board.organizeNoKey'), { description: t('board.organizeNoKeyHint') })
           return
         }
-        dispatch(queueChatMessage(`Organize the whiteboard "${detail.whiteboard.name}" (id ${boardId}) into meaningful sections.`))
+        dispatch(queueChatMessage(t('board.organizePrompt', { name: detail.whiteboard.name, id: boardId })))
         return
       }
       if (a === 'autolayout') {
@@ -931,7 +930,7 @@ function Canvas({ detail }: { detail: WhiteboardDetail }) {
         g.setDefaultEdgeLabel(() => ({}))
         const linked = new Set(edges.flatMap((e) => [e.source, e.target]))
         const targets = nodes.filter((n) => linked.has(n.id) && n.type !== 'section')
-        if (!targets.length) return void toast('Connect some objects first')
+        if (!targets.length) return void toast(t('canvas.connectFirst'))
         for (const n of targets) g.setNode(n.id, { width: n.measured?.width ?? n.width ?? 300, height: n.measured?.height ?? n.height ?? 200 })
         for (const e of edges) g.setEdge(e.source, e.target)
         dagre.layout(g)
@@ -991,7 +990,7 @@ function Canvas({ detail }: { detail: WhiteboardDetail }) {
       const afterObjs: ObjectPatch[] = objNodes.map((n) => ({ id: n.id, color: col }))
       await applyColors(afterCards, afterObjs)
       record({
-        label: 'Change colour',
+        label: t('undo.changeColor'),
         undo: () => void applyColors(beforeCards, beforeObjs),
         redo: () => void applyColors(afterCards, afterObjs)
       })
@@ -1023,7 +1022,7 @@ function Canvas({ detail }: { detail: WhiteboardDetail }) {
     if (sel.length < 2) return
     const b = bounds(sel.map(nodeBox))
     const pad = 40
-    await place('section', { x: b.x - pad, y: b.y - pad - 8 }, { color: 'blue', width: b.width + pad * 2, height: b.height + pad * 2 + 8, data: { title: 'Section' } })
+    await place('section', { x: b.x - pad, y: b.y - pad - 8 }, { color: 'blue', width: b.width + pad * 2, height: b.height + pad * 2 + 8, data: { title: t('canvas.section') } })
   }, [rf, place])
 
   const selectionActions = useMemo(
@@ -1033,7 +1032,7 @@ function Canvas({ detail }: { detail: WhiteboardDetail }) {
       group: () => void groupSelection(),
       copy: () => {
         clipboard.current = { objects: selectedObjects() }
-        toast('Copied', { duration: 1200 })
+        toast(t('common.copied'), { duration: 1200 })
       },
       duplicate: () => void pasteObjects(selectedObjects(), { x: 40, y: 40 }),
       remove: () => void rf.deleteElements({ nodes: rf.getNodes().filter((n) => n.selected).map((n) => ({ id: n.id })) }),
@@ -1069,7 +1068,7 @@ function Canvas({ detail }: { detail: WhiteboardDetail }) {
       }
       const undoPatch = Object.fromEntries(Object.keys(patch).map((k) => [k, before[k as keyof ConnectionPatch]])) as ConnectionPatch
       await apply(patch)
-      record({ label: 'Change connection', undo: () => void apply(undoPatch), redo: () => void apply(patch) })
+      record({ label: t('undo.changeConnection'), undo: () => void apply(undoPatch), redo: () => void apply(patch) })
     },
     [detail.connections, dispatch, boardId]
   )
@@ -1145,7 +1144,7 @@ function Canvas({ detail }: { detail: WhiteboardDetail }) {
         const files = await window.api.importFiles(paths)
         for (const [i, f] of files.entries())
           await place('file', { x: pos.x + i * 40, y: pos.y + i * 40 }, { refId: f.id, data: { name: f.name, mime: f.mime } })
-        if (!files.length) toast.error('Unsupported file type')
+        if (!files.length) toast.error(t('canvas.unsupportedFile'))
       }}
     >
       <ReactFlow<ObjectNode, ConnectionEdge>
@@ -1174,7 +1173,7 @@ function Canvas({ detail }: { detail: WhiteboardDetail }) {
         onNodeClick={onNodeClick}
         onNodeDoubleClick={(_e, node) => {
           const o = node.data.object
-          if (node.type === 'file' && o.refId) openFileObject(o.refId, String(o.data.name ?? 'File'), String(o.data.mime ?? ''))
+          if (node.type === 'file' && o.refId) openFileObject(o.refId, String(o.data.name ?? t('canvas.file')), String(o.data.mime ?? ''))
         }}
         onEdgeClick={(e, edge) => {
           const r = wrapper.current!.getBoundingClientRect()
@@ -1299,15 +1298,19 @@ function Canvas({ detail }: { detail: WhiteboardDetail }) {
             const conn = await addConnection({ whiteboardId: boardId, sourceId: fileNode.id, targetId: o.id })
             if ('data' in conn && conn.data) track({ type: 'add', objects: [], connections: [conn.data] })
           }
-          toast.success('Card created from highlight')
+          toast.success(t('pdf.cardCreated'))
         }}
       />
       <NodeMenu menu={menu} onClose={() => setMenu(null)} onAction={(a, n) => void onMenuAction(a, n)} />
       {nodes.length === 0 && (
         <div className="pointer-events-none absolute inset-0 grid place-items-center">
           <div className="text-center text-sm text-muted-foreground">
-            <p className="font-medium text-foreground">This whiteboard is empty</p>
-            <p className="mt-1">Double-click anywhere to start writing, or press <kbd className="rounded border px-1">F</kbd> to add an existing card.</p>
+            <p className="font-medium text-foreground">{t('canvas.empty')}</p>
+            <p className="mt-1">
+              {t('canvas.emptyBefore')}
+              <kbd className="rounded border px-1">F</kbd>
+              {t('canvas.emptyAfter')}
+            </p>
           </div>
         </div>
       )}
@@ -1328,7 +1331,7 @@ function Canvas({ detail }: { detail: WhiteboardDetail }) {
       <Dialog open={linkDialog} onOpenChange={setLinkDialog}>
         <DialogContent className="sm:max-w-sm">
           <DialogHeader>
-            <DialogTitle>Add link</DialogTitle>
+            <DialogTitle>{t('canvas.addLink')}</DialogTitle>
           </DialogHeader>
           <form
             onSubmit={async (e) => {
@@ -1343,7 +1346,7 @@ function Canvas({ detail }: { detail: WhiteboardDetail }) {
           >
             <Input autoFocus placeholder="https://example.com" value={linkUrl} onChange={(e) => setLinkUrl(e.target.value)} />
             <DialogFooter className="mt-4">
-              <Button type="submit">Add</Button>
+              <Button type="submit">{t('common.add')}</Button>
             </DialogFooter>
           </form>
         </DialogContent>

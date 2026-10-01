@@ -40,6 +40,7 @@ import {
   type AppIcon
 } from '@/components/icons'
 import type { ChartType } from '@shared/charts'
+import type { MessageKey } from '@/lib/i18n'
 import type { ShapeKind } from '@/features/ink/shapes'
 
 /** Everything the toolbar overflow and the canvas context menu can trigger. */
@@ -66,29 +67,29 @@ export type CanvasAction =
   | `chart:${ChartType}`
   | `shape:${ShapeKind}`
 
-/** Insert entries shared by the toolbar overflow and the right-click menu, in menu order. */
-export const INSERT_ITEMS: { action: CanvasAction; label: string; icon: AppIcon }[] = [
-  { action: 'text', label: 'Text', icon: Type },
-  { action: 'card', label: 'Card', icon: SquarePlus },
-  { action: 'existing-card', label: 'Existing card…', icon: Search },
-  { action: 'section', label: 'Section', icon: BoxSelect },
-  { action: 'connector', label: 'Connector', icon: ArrowUpRight },
-  { action: 'sketch', label: 'Sketch', icon: PenTool },
-  { action: 'draw-ipad', label: 'Draw on iPad…', icon: Tablet },
-  { action: 'mindmap', label: 'Mindmap', icon: Network },
-  { action: 'mermaid', label: 'Flowchart', icon: Workflow },
-  { action: 'whiteboard', label: 'Nested whiteboard', icon: LayoutDashboard },
-  { action: 'link', label: 'Link preview…', icon: Globe },
-  { action: 'import', label: 'Import file…', icon: Upload },
-  { action: 'table', label: 'Table', icon: Table2 }
+/** Insert entries shared by the toolbar overflow and the right-click menu, in menu order (labels are dictionary keys). */
+export const INSERT_ITEMS: { action: CanvasAction; label: MessageKey; icon: AppIcon }[] = [
+  { action: 'text', label: 'insert.text', icon: Type },
+  { action: 'card', label: 'task.card', icon: SquarePlus },
+  { action: 'existing-card', label: 'insert.existingCard', icon: Search },
+  { action: 'section', label: 'canvas.section', icon: BoxSelect },
+  { action: 'connector', label: 'insert.connector', icon: ArrowUpRight },
+  { action: 'sketch', label: 'ink.sketch', icon: PenTool },
+  { action: 'draw-ipad', label: 'palette.drawOnIpad', icon: Tablet },
+  { action: 'mindmap', label: 'insert.mindmap', icon: Network },
+  { action: 'mermaid', label: 'insert.flowchart', icon: Workflow },
+  { action: 'whiteboard', label: 'insert.nestedBoard', icon: LayoutDashboard },
+  { action: 'link', label: 'insert.link', icon: Globe },
+  { action: 'import', label: 'insert.import', icon: Upload },
+  { action: 'table', label: 'library.table', icon: Table2 }
 ]
 
 /** Window event to trigger a canvas action from outside the board (command palette); detail = CanvasAction. */
 export const CANVAS_ACTION_EVENT = 'sidera:canvas-action'
 
 export interface ChartItem {
-  label: string
-  hint: string
+  label: MessageKey
+  hint: MessageKey
   icon: AppIcon
   action: CanvasAction
   iconClass?: string
@@ -98,66 +99,66 @@ const chart = (type: ChartType): CanvasAction => `chart:${type}`
 const shape = (kind: ShapeKind): CanvasAction => `shape:${kind}`
 
 export interface ShapeItem {
-  label: string
+  label: MessageKey
   icon: AppIcon
   action: CanvasAction
 }
 
 /** Shape entries for the insert menus' "Shapes" group — frameless sketches built from native Excalidraw elements. */
 export const SHAPE_ITEMS: ShapeItem[] = [
-  { label: 'Rectangle', icon: ShapeRectangle, action: shape('rectangle') },
-  { label: 'Ellipse', icon: ShapeEllipse, action: shape('ellipse') },
-  { label: 'Diamond', icon: ShapeDiamond, action: shape('diamond') },
-  { label: 'Line', icon: ShapeLine, action: shape('line') },
-  { label: 'Arrow', icon: ShapeArrow, action: shape('arrow') },
-  { label: 'Curved arrow', icon: ShapeCurvedArrow, action: shape('curved-arrow') },
-  { label: 'Curve', icon: ShapeCurve, action: shape('curve') },
-  { label: 'Semicircle', icon: ShapeSemicircle, action: shape('semicircle') },
-  { label: 'Cross', icon: ShapeCross, action: shape('cross') },
-  { label: 'Checkmark', icon: ShapeCheck, action: shape('check') },
-  { label: 'Star', icon: ShapeStar, action: shape('star') }
+  { label: 'shape.rectangle', icon: ShapeRectangle, action: shape('rectangle') },
+  { label: 'shape.ellipse', icon: ShapeEllipse, action: shape('ellipse') },
+  { label: 'shape.diamond', icon: ShapeDiamond, action: shape('diamond') },
+  { label: 'shape.line', icon: ShapeLine, action: shape('line') },
+  { label: 'shape.arrow', icon: ShapeArrow, action: shape('arrow') },
+  { label: 'shape.curvedArrow', icon: ShapeCurvedArrow, action: shape('curved-arrow') },
+  { label: 'shape.curve', icon: ShapeCurve, action: shape('curve') },
+  { label: 'shape.semicircle', icon: ShapeSemicircle, action: shape('semicircle') },
+  { label: 'shape.cross', icon: ShapeCross, action: shape('cross') },
+  { label: 'shape.check', icon: ShapeCheck, action: shape('check') },
+  { label: 'shape.star', icon: ShapeStar, action: shape('star') }
 ]
 
 /** Chart entries for the insert menus, grouped by what you want to show. */
-export const CHART_GROUPS: { title: string; items: ChartItem[] }[] = [
+export const CHART_GROUPS: { title: MessageKey; items: ChartItem[] }[] = [
   {
-    title: 'Compare',
+    title: 'chartGroup.compare',
     items: [
-      { label: 'Column', hint: 'Compare values across categories', icon: BarChart, action: chart('column') },
-      { label: 'Bar', hint: 'Horizontal bars for long labels', icon: BarChart, action: chart('bar'), iconClass: 'rotate-90 -scale-x-100' },
-      { label: 'Radar', hint: 'Profiles across several dimensions', icon: RadarChart, action: chart('radar') }
+      { label: 'chart.type.column', hint: 'chartHint.column', icon: BarChart, action: chart('column') },
+      { label: 'chart.type.bar', hint: 'chartHint.bar', icon: BarChart, action: chart('bar'), iconClass: 'rotate-90 -scale-x-100' },
+      { label: 'chart.type.radar', hint: 'chartHint.radar', icon: RadarChart, action: chart('radar') }
     ]
   },
   {
-    title: 'Trends',
+    title: 'chartGroup.trends',
     items: [
-      { label: 'Line', hint: 'Change over time', icon: LineChart, action: chart('line') },
-      { label: 'Area', hint: 'Volume over time', icon: AreaChart, action: chart('area') },
-      { label: 'Column + line', hint: 'Two measures, two axes', icon: ComboChart, action: chart('combo') }
+      { label: 'chart.type.line', hint: 'chartHint.line', icon: LineChart, action: chart('line') },
+      { label: 'chart.type.area', hint: 'chartHint.area', icon: AreaChart, action: chart('area') },
+      { label: 'chart.type.combo', hint: 'chartHint.combo', icon: ComboChart, action: chart('combo') }
     ]
   },
   {
-    title: 'Parts of a whole',
+    title: 'chartGroup.parts',
     items: [
-      { label: 'Pie', hint: 'Share of a total', icon: PieChart, action: chart('pie') },
-      { label: 'Donut', hint: 'Share of a total, lighter', icon: DonutChart, action: chart('donut') },
-      { label: 'Venn', hint: 'Overlaps between 2–3 sets', icon: VennChart, action: chart('venn') }
+      { label: 'chart.type.pie', hint: 'chartHint.pie', icon: PieChart, action: chart('pie') },
+      { label: 'chart.type.donut', hint: 'chartHint.donut', icon: DonutChart, action: chart('donut') },
+      { label: 'chart.type.venn', hint: 'chartHint.venn', icon: VennChart, action: chart('venn') }
     ]
   },
   {
-    title: 'Relationships & flows',
+    title: 'chartGroup.relations',
     items: [
-      { label: 'Scatter', hint: 'Correlation of two values', icon: ScatterChart, action: chart('scatter') },
-      { label: 'Bubble', hint: 'Scatter with a size dimension', icon: BubbleChart, action: chart('bubble') },
-      { label: 'Sankey', hint: 'How quantities flow', icon: SankeyChart, action: chart('sankey') }
+      { label: 'chart.type.scatter', hint: 'chartHint.scatter', icon: ScatterChart, action: chart('scatter') },
+      { label: 'chart.type.bubble', hint: 'chartHint.bubble', icon: BubbleChart, action: chart('bubble') },
+      { label: 'chart.type.sankey', hint: 'chartHint.sankey', icon: SankeyChart, action: chart('sankey') }
     ]
   },
   {
-    title: 'Plan & prioritize',
+    title: 'chartGroup.plan',
     items: [
-      { label: 'Timeline', hint: 'Milestones in order', icon: TimelineChart, action: chart('timeline') },
-      { label: '2×2 matrix', hint: 'Drag items into quadrants', icon: MatrixChart, action: chart('matrix') },
-      { label: 'Heatmap', hint: 'Intensity across a grid', icon: Heatmap, action: chart('heatmap') }
+      { label: 'chart.type.timeline', hint: 'chartHint.timeline', icon: TimelineChart, action: chart('timeline') },
+      { label: 'chart.type.matrix', hint: 'chartHint.matrix', icon: MatrixChart, action: chart('matrix') },
+      { label: 'chart.type.heatmap', hint: 'chartHint.heatmap', icon: Heatmap, action: chart('heatmap') }
     ]
   }
 ]

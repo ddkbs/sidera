@@ -3,6 +3,7 @@ import { nanoid } from 'nanoid'
 import { useEffect, useRef, useState, type RefObject } from 'react'
 import { toast } from 'sonner'
 import type { WhiteboardObject } from '@shared/types'
+import { t } from '@/lib/i18n'
 import { record } from '@/lib/undo'
 import { storageKey } from '@/lib/storage'
 import { useAppDispatch, useAppSelector } from '@/store'
@@ -178,7 +179,7 @@ export function InkLayer({ host, boardId }: { host: RefObject<HTMLDivElement | n
         done.forEach((s) => (s.committedTo = before.id))
         refresh()
         record({
-          label: 'Draw',
+          label: t('undo.draw'),
           undo: async () => {
             await window.api.updateObjects([prev])
             refresh()
@@ -197,7 +198,7 @@ export function InkLayer({ host, boardId }: { host: RefObject<HTMLDivElement | n
         refresh()
         let obj: WhiteboardObject = o
         record({
-          label: 'Draw',
+          label: t('undo.draw'),
           undo: async () => {
             const n = rf.getNode(o.id) as ObjectNode | undefined
             if (n) obj = { ...n.data.object, ...nodeBox(n) }
@@ -212,7 +213,7 @@ export function InkLayer({ host, boardId }: { host: RefObject<HTMLDivElement | n
       }
     } catch (e) {
       console.error('[ink] commit failed', e)
-      toast.error('Could not save the drawing')
+      toast.error(t('ink.saveFailed'))
       strokes.current = strokes.current.filter((s) => !done.includes(s))
     }
     // safety net: never leave committed ink on the overlay
@@ -300,7 +301,7 @@ export function InkLayer({ host, boardId }: { host: RefObject<HTMLDivElement | n
         refresh()
       }
       await apply(true)
-      record({ label: 'Erase ink', undo: () => apply(false), redo: () => apply(true) })
+      record({ label: t('undo.eraseInk'), undo: () => apply(false), redo: () => apply(true) })
     }
 
     const onDown = (e: PointerEvent): void => {

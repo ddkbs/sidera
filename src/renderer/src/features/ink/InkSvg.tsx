@@ -1,4 +1,5 @@
 import { memo, useMemo, type CSSProperties, type ReactNode } from 'react'
+import { t } from '@/lib/i18n'
 import { absPoints, smoothPath, darkInk, freedrawOutline, inkBounds, liveElements, outlinePath, type InkElement } from './geometry'
 
 /** Only raster data URLs may be shown from stored sketch files. */
@@ -152,7 +153,7 @@ export const InkSvg = memo(function InkSvg({ elements, files, dark, scale, inter
       height="100%"
       overflow="visible"
       style={interactive ? { pointerEvents: 'none', overflow: 'visible' } : { overflow: 'visible' }}
-      aria-label="Sketch"
+      aria-label={t('ink.sketch')}
       role="img"
     >
       {live.map(render)}

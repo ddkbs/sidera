@@ -2,9 +2,14 @@ import { AnimatePresence, motion } from 'motion/react'
 import { useEffect, useState, type ReactNode } from 'react'
 import { Eraser, Highlighter, PenTool } from '@/components/icons'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
+import { labelMap, t } from '@/lib/i18n'
 import { cn } from '@/lib/utils'
 import { INK_COLORS, PEN_WIDTHS, highlighterColor, type PenSettings, type PenTool as Tool } from './elements'
 import { darkInk } from './geometry'
+
+const INK_NAME = labelMap({ Ink: 'ink.color.ink', Blue: 'color.blue', Red: 'color.red', Green: 'color.green', Orange: 'color.orange', Purple: 'color.purple' })
+const inkName = (name: string): string => INK_NAME[name as keyof typeof INK_NAME] ?? name
+const widthName = (i: number): string => t(i === 0 ? 'ink.width.fine' : i === 1 ? 'ink.width.medium' : 'ink.width.bold')
 
 interface Props {
   settings: PenSettings
@@ -16,8 +21,8 @@ interface Props {
 export function PenPalette({ settings, onChange, dark }: Props) {
   const [hint, setHint] = useState(true)
   useEffect(() => {
-    const t = setTimeout(() => setHint(false), 3500)
-    return () => clearTimeout(t)
+    const timer = setTimeout(() => setHint(false), 3500)
+    return () => clearTimeout(timer)
   }, [])
   const set = (patch: Partial<PenSettings>): void => onChange({ ...settings, ...patch })
   const swatch = (c: string): string => (dark ? (darkInk(c) ?? c) : c)
@@ -33,7 +38,7 @@ export function PenPalette({ settings, onChange, dark }: Props) {
             exit={{ opacity: 0 }}
             className="rounded-full bg-foreground/80 px-3 py-1 text-xs text-background shadow-sm"
           >
-            Pen · P — Esc to exit
+            {t('ink.hint')}
           </motion.div>
         )}
       </AnimatePresence>
@@ -43,13 +48,13 @@ export function PenPalette({ settings, onChange, dark }: Props) {
         transition={{ type: 'spring', stiffness: 400, damping: 30 }}
         className="pointer-events-auto flex items-center gap-1 rounded-2xl border bg-popover/95 p-1 shadow-[0_8px_30px_-6px_rgba(0,0,0,0.18)] backdrop-blur"
       >
-        <ToolButton tool="pen" label="Pen" active={settings.tool === 'pen'} onClick={() => set({ tool: 'pen' })}>
+        <ToolButton tool="pen" label={t('ink.pen')} active={settings.tool === 'pen'} onClick={() => set({ tool: 'pen' })}>
           <PenTool />
         </ToolButton>
-        <ToolButton tool="highlighter" label="Highlighter" active={settings.tool === 'highlighter'} onClick={() => set({ tool: 'highlighter' })}>
+        <ToolButton tool="highlighter" label={t('ink.highlighter')} active={settings.tool === 'highlighter'} onClick={() => set({ tool: 'highlighter' })}>
           <Highlighter />
         </ToolButton>
-        <ToolButton tool="eraser" label="Eraser — erases whole strokes" active={erasing} onClick={() => set({ tool: 'eraser' })}>
+        <ToolButton tool="eraser" label={t('ink.eraser')} active={erasing} onClick={() => set({ tool: 'eraser' })}>
           <Eraser />
         </ToolButton>
         <div className="mx-1 h-6 w-px bg-border" />
@@ -61,7 +66,7 @@ export function PenPalette({ settings, onChange, dark }: Props) {
                 <TooltipTrigger asChild>
                   <button
                     type="button"
-                    aria-label={c.name}
+                    aria-label={inkName(c.name)}
                     aria-pressed={settings.color === c.value}
                     onClick={() => set({ color: c.value, tool: erasing ? 'pen' : settings.tool })}
                     className={cn(
@@ -75,7 +80,7 @@ export function PenPalette({ settings, onChange, dark }: Props) {
                     />
                   </button>
                 </TooltipTrigger>
-                <TooltipContent side="top">{c.name}</TooltipContent>
+                <TooltipContent side="top">{inkName(c.name)}</TooltipContent>
               </Tooltip>
             )
           })}
@@ -87,7 +92,7 @@ export function PenPalette({ settings, onChange, dark }: Props) {
               <TooltipTrigger asChild>
                 <button
                   type="button"
-                  aria-label={['Fine', 'Medium', 'Bold'][i]}
+                  aria-label={widthName(i)}
                   aria-pressed={settings.width === i}
                   onClick={() => set({ width: i, tool: 'pen' })}
                   className={cn('grid size-8 place-items-center rounded-xl text-foreground transition hover:bg-accent', settings.width === i && 'bg-accent')}
@@ -95,7 +100,7 @@ export function PenPalette({ settings, onChange, dark }: Props) {
                   <span className="rounded-full bg-current" style={{ width: 3 + i * 3.5, height: 3 + i * 3.5 }} />
                 </button>
               </TooltipTrigger>
-              <TooltipContent side="top">{['Fine', 'Medium', 'Bold'][i]}</TooltipContent>
+              <TooltipContent side="top">{widthName(i)}</TooltipContent>
             </Tooltip>
           ))}
         </div>

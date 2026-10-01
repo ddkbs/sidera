@@ -5,21 +5,22 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger } from '@/compon
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { Kbd } from '@/components/ui/kbd'
+import { t, type MessageKey } from '@/lib/i18n'
 import { formatBinding, useBinding } from '@/lib/shortcuts'
 import type { CanvasTool } from '@/store/ui'
 import type { CanvasAction } from './actions'
 import { CanvasMenuItems } from './CanvasContextMenu'
 
 /** Every tool that has a keyboard shortcut; `primary` ones get a button on the toolbar. */
-export const TOOLS: { id: CanvasTool; label: string; icon: ReactNode; primary?: boolean }[] = [
-  { id: 'select', label: 'Select', icon: <MousePointer2 />, primary: true },
-  { id: 'text', label: 'Text', icon: <Type />, primary: true },
-  { id: 'card', label: 'Card', icon: <SquarePlus />, primary: true },
-  { id: 'connector', label: 'Connector', icon: <ArrowUpRight />, primary: true },
-  { id: 'section', label: 'Section', icon: <BoxSelect />, primary: true },
-  { id: 'pen', label: 'Pen', icon: <PenTool />, primary: true },
-  { id: 'import', label: 'Import file', icon: <Upload /> },
-  { id: 'search', label: 'Add existing card', icon: <Search /> }
+export const TOOLS: { id: CanvasTool; label: MessageKey; icon: ReactNode; primary?: boolean }[] = [
+  { id: 'select', label: 'tool.select', icon: <MousePointer2 />, primary: true },
+  { id: 'text', label: 'insert.text', icon: <Type />, primary: true },
+  { id: 'card', label: 'task.card', icon: <SquarePlus />, primary: true },
+  { id: 'connector', label: 'insert.connector', icon: <ArrowUpRight />, primary: true },
+  { id: 'section', label: 'canvas.section', icon: <BoxSelect />, primary: true },
+  { id: 'pen', label: 'ink.pen', icon: <PenTool />, primary: true },
+  { id: 'import', label: 'cmd.tool.import', icon: <Upload /> },
+  { id: 'search', label: 'cmd.tool.search', icon: <Search /> }
 ]
 
 interface Props {
@@ -48,20 +49,20 @@ export function CanvasToolbar({ tool, onTool, onAction }: Props) {
         onValueChange={(v) => v && onTool(v as CanvasTool)}
         className="flex flex-col gap-0.5 shadow-none"
       >
-        {TOOLS.filter((t) => t.primary).map((t) => (
-          <Tooltip key={t.id}>
+        {TOOLS.filter((tool) => tool.primary).map((tool) => (
+          <Tooltip key={tool.id}>
             <TooltipTrigger asChild>
               <ToggleGroupItem
-                value={t.id}
-                aria-label={t.label}
-                data-tour={`tool-${t.id}`}
+                value={tool.id}
+                aria-label={t(tool.label)}
+                data-tour={`tool-${tool.id}`}
                 className="size-9 rounded-xl! border-0 text-muted-foreground aria-checked:bg-primary aria-checked:text-primary-foreground aria-checked:hover:bg-primary aria-checked:hover:text-primary-foreground [&_svg]:size-[18px]"
               >
-                {t.icon}
+                {tool.icon}
               </ToggleGroupItem>
             </TooltipTrigger>
             <TooltipContent side="right" className="flex items-center gap-2">
-              {t.label} <ToolKey id={t.id} />
+              {t(tool.label)} <ToolKey id={tool.id} />
             </TooltipContent>
           </Tooltip>
         ))}
@@ -72,13 +73,13 @@ export function CanvasToolbar({ tool, onTool, onAction }: Props) {
           <TooltipTrigger asChild>
             <DropdownMenuTrigger
               data-tour="canvas-insert"
-              aria-label="Insert & more"
+              aria-label={t('insert.more')}
               className="grid size-9 place-items-center rounded-xl text-muted-foreground transition hover:bg-accent hover:text-foreground data-[state=open]:bg-accent data-[state=open]:text-foreground"
             >
               <Ellipsis className="size-[18px]" />
             </DropdownMenuTrigger>
           </TooltipTrigger>
-          <TooltipContent side="right">Insert & more</TooltipContent>
+          <TooltipContent side="right">{t('insert.more')}</TooltipContent>
         </Tooltip>
         <DropdownMenuContent side="right" align="center" sideOffset={10} className="w-56" onCloseAutoFocus={(e) => e.preventDefault()}>
           <CanvasMenuItems onAction={onAction} />

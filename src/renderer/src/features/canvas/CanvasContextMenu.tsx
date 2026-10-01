@@ -10,6 +10,7 @@ import {
   DropdownMenuSubTrigger,
   DropdownMenuTrigger
 } from '@/components/ui/dropdown-menu'
+import { t } from '@/lib/i18n'
 import { cn } from '@/lib/utils'
 import { CHART_GROUPS, INSERT_ITEMS, SHAPE_ITEMS, type CanvasAction } from './actions'
 
@@ -21,36 +22,36 @@ export function CanvasMenuItems({ onAction }: { onAction: (a: CanvasAction) => v
   const act = (a: CanvasAction) => () => onAction(a)
   return (
     <>
-      <DropdownMenuLabel className="text-muted-foreground">Insert</DropdownMenuLabel>
+      <DropdownMenuLabel className="text-muted-foreground">{t('insert.insert')}</DropdownMenuLabel>
       {INSERT_ITEMS.map((i) => (
         <DropdownMenuItem key={i.action} onClick={act(i.action)}>
-          <i.icon /> {i.label}
+          <i.icon /> {t(i.label)}
         </DropdownMenuItem>
       ))}
       <DropdownMenuSub>
         <DropdownMenuSubTrigger>
-          <ShapesMenu /> Shapes
+          <ShapesMenu /> {t('insert.shapes')}
         </DropdownMenuSubTrigger>
         <DropdownMenuSubContent className="w-48">
           {SHAPE_ITEMS.map((s) => (
             <DropdownMenuItem key={s.label} onClick={act(s.action)}>
-              <s.icon /> {s.label}
+              <s.icon /> {t(s.label)}
             </DropdownMenuItem>
           ))}
         </DropdownMenuSubContent>
       </DropdownMenuSub>
       <DropdownMenuSub>
         <DropdownMenuSubTrigger>
-          <ChartsMenu /> Chart
+          <ChartsMenu /> {t('insert.chart')}
         </DropdownMenuSubTrigger>
         <DropdownMenuSubContent className="w-56">
           {CHART_GROUPS.map((g, gi) => (
             <div key={g.title}>
               {gi > 0 && <DropdownMenuSeparator />}
-              <DropdownMenuLabel className="text-muted-foreground">{g.title}</DropdownMenuLabel>
+              <DropdownMenuLabel className="text-muted-foreground">{t(g.title)}</DropdownMenuLabel>
               {g.items.map((item) => (
                 <DropdownMenuItem key={item.label} onClick={act(item.action)}>
-                  <item.icon className={cn(item.iconClass)} /> {item.label}
+                  <item.icon className={cn(item.iconClass)} /> {t(item.label)}
                 </DropdownMenuItem>
               ))}
             </div>
@@ -59,20 +60,20 @@ export function CanvasMenuItems({ onAction }: { onAction: (a: CanvasAction) => v
       </DropdownMenuSub>
       <DropdownMenuSeparator />
       <DropdownMenuItem onClick={act('paste')}>
-        <Copy /> Paste
+        <Copy /> {t('insert.paste')}
       </DropdownMenuItem>
       <DropdownMenuItem onClick={act('select-all')}>
-        <BoxSelect /> Select all
+        <BoxSelect /> {t('cmd.canvas.selectAll')}
       </DropdownMenuItem>
       <DropdownMenuSeparator />
       <DropdownMenuItem onClick={act('autolayout')}>
-        <GitBranch /> Auto-layout connected
+        <GitBranch /> {t('insert.autolayout')}
       </DropdownMenuItem>
       <DropdownMenuItem onClick={act('fit')}>
-        <Maximize /> Fit to screen
+        <Maximize /> {t('cmd.canvas.fit')}
       </DropdownMenuItem>
       <DropdownMenuItem onClick={act('organize')}>
-        <AskAI /> Organize with AI
+        <AskAI /> {t('board.organize')}
       </DropdownMenuItem>
     </>
   )
@@ -84,7 +85,7 @@ function CanvasBoardMenuItems({ onAction }: { onAction: (a: CanvasAction) => voi
     <>
       <DropdownMenuSeparator />
       <DropdownMenuItem onClick={() => onAction('properties')}>
-        <Table2 /> Properties…
+        <Table2 /> {t('board.properties')}
       </DropdownMenuItem>
     </>
   )

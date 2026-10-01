@@ -1,5 +1,6 @@
 import { useReactFlow } from '@xyflow/react'
 import { useState } from 'react'
+import { t } from '@/lib/i18n'
 import { record } from '@/lib/undo'
 import type { ObjectNode } from '@/features/canvas/types'
 import { absPoints, fitTransform, inkBounds, liveElements, movePoint, reboxed, sceneToBoard, type InkElement } from './geometry'
@@ -71,7 +72,7 @@ export function PointHandles({ id, elements, width, height, rotation, onPreview 
         void window.api.updateObjects([p])
       }
       apply(after)
-      record({ label: 'Edit points', undo: () => apply(before), redo: () => apply(after) })
+      record({ label: t('undo.editPoints'), undo: () => apply(before), redo: () => apply(after) })
     }
     window.addEventListener('pointermove', move)
     window.addEventListener('pointerup', up)
