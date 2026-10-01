@@ -1055,6 +1055,8 @@ function Canvas({ detail }: { detail: WhiteboardDetail }) {
 
   const cardIds = useMemo(() => new Set(detail.objects.filter((o) => o.kind === 'card' && o.refId).map((o) => o.refId!)), [detail.objects])
   const hasViewport = detail.whiteboard.viewport.zoom !== 1 || detail.whiteboard.viewport.x !== 0 || detail.whiteboard.viewport.y !== 0
+  // decided once when the board opens: the first object drawn on an empty board must not make the view jump
+  const [fitOnOpen] = useState(() => !hasViewport && detail.objects.length > 0)
 
   return (
     <div
@@ -1164,7 +1166,7 @@ function Canvas({ detail }: { detail: WhiteboardDetail }) {
         }}
         onMoveEnd={onMoveEnd}
         defaultViewport={detail.whiteboard.viewport}
-        fitView={!hasViewport && nodes.length > 0}
+        fitView={fitOnOpen}
         fitViewOptions={{ padding: 0.2, maxZoom: 1 }}
         connectionMode={ConnectionMode.Loose}
         snapToGrid={snapToGrid}

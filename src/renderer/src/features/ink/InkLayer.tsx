@@ -43,6 +43,8 @@ interface Stroke {
   realPressure: boolean
   elementId: string
   done: boolean
+  /** handed to the commit queue */
+  queued?: boolean
   /** committed: drop from the overlay once this object shows the element */
   committedTo?: string
   /** cached overlay paint for finished strokes (the outline is expensive to recompute every frame) */
@@ -185,38 +187,58 @@ export function InkLayer({
   })
 
   // ─── committing ──────────────────────────────────────────────────────────────────────────────────
-  const commit = async (g: Group): Promise<void> => {
-    const done = g.strokes.filter((s) => s.done && s.points.length)
-    if (!done.length) return
-    const target = g.target ? (rf.getNode(g.target) as ObjectNode | undefined) : undefined
+  /**
+   * Ink objects as this layer last wrote them: strokes are committed on pen-up, faster than the board refetches, so
+   * appending to an object must build on what was just written, not on the (still stale) node.
+   */
+  const written = useRef(new Map<string, { object: WhiteboardObject; at: number }>())
+  const WRITTEN_TTL_MS = 4000
+  /** commits run one after another (each append builds on the previous one) */
+  const queue = useRef<Promise<void>>(Promise.resolve())
+
+  /** Writes `done` (strokes of `g`); returns the ink object they ended up in. */
+  const commit = async (g: Group, done: Stroke[]): Promise<string | null> => {
+    if (!done.length) return null
+    const node = g.target ? (rf.getNode(g.target) as ObjectNode | undefined) : undefined
+    const cached = g.target ? written.current.get(g.target) : undefined
+    const base: WhiteboardObject | undefined =
+      cached && performance.now() - cached.at < WRITTEN_TTL_MS ? cached.object : node ? { ...node.data.object, ...nodeBox(node) } : undefined
     const newStrokes = done.map((s) => ({ stroke: penStroke(s.points, s.settings, s.realPressure), id: s.elementId }))
+    let committed: string | null = null
     try {
-      if (target) {
-        const before = { ...target.data.object, ...nodeBox(target) }
-        const ink = appendStrokes(nodeElements(target), nodeBox(target), newStrokes)
+      if (base) {
+        const before = base
+        const box = { x: before.x, y: before.y, width: before.width, height: before.height }
+        const ink = appendStrokes(Array.isArray(before.data.elements) ? (before.data.elements as unknown[]) : [], box, newStrokes)
         if (!ink) throw new Error('empty target')
         const after = { id: before.id, ...ink.box, data: { ...before.data, elements: ink.elements } }
-        const prev = { id: before.id, x: before.x, y: before.y, width: before.width, height: before.height, data: before.data }
+        const prev = { id: before.id, ...box, data: before.data }
+        written.current.set(before.id, { object: { ...before, ...after }, at: performance.now() })
         await window.api.updateObjects([after])
         done.forEach((s) => (s.committedTo = before.id))
+        committed = before.id
         refresh()
         record({
           label: t('undo.draw'),
           undo: async () => {
+            written.current.delete(before.id)
             await window.api.updateObjects([prev])
             refresh()
           },
           redo: async () => {
+            written.current.delete(before.id)
             await window.api.updateObjects([after])
             refresh()
           }
         })
       } else {
         const ink = newInk(newStrokes)
-        if (!ink) return
+        if (!ink) return null
         const o = await window.api.addObject({ whiteboardId: boardId, kind: 'sketch', ...ink.box, data: { elements: ink.elements, files: {}, frameless: true } })
         sessionObjects.current.add(o.id)
+        written.current.set(o.id, { object: o, at: performance.now() })
         done.forEach((s) => (s.committedTo = o.id))
+        committed = o.id
         refresh()
         let obj: WhiteboardObject = o
         record({
@@ -224,10 +246,12 @@ export function InkLayer({
           undo: async () => {
             const n = rf.getNode(o.id) as ObjectNode | undefined
             if (n) obj = { ...n.data.object, ...nodeBox(n) }
+            written.current.delete(o.id)
             await window.api.removeObjects([o.id])
             refresh()
           },
           redo: async () => {
+            written.current.delete(o.id)
             await window.api.restoreObjects([obj], [])
             refresh()
           }
@@ -244,13 +268,26 @@ export function InkLayer({
       schedule()
     }, 3000)
     schedule()
+    return committed
+  }
+
+  /** Queues the finished, not yet written strokes of `g`; later strokes of the group append to the same object. */
+  const commitPending = (g: Group): Promise<void> => {
+    const batch = g.strokes.filter((s) => s.done && s.points.length && !s.queued)
+    batch.forEach((s) => (s.queued = true))
+    if (batch.length)
+      queue.current = queue.current.then(async () => {
+        const id = await commit(g, batch)
+        if (id) g.target = id
+      })
+    return queue.current
   }
 
   const flush = async (): Promise<void> => {
     clearTimeout(idle.current)
     const g = group.current
     group.current = null
-    if (g) await commit(g)
+    if (g) await commitPending(g)
   }
 
   // leaving pen mode (unmount) commits what is still pending
@@ -310,13 +347,15 @@ export function InkLayer({
       const zoom = rf.getViewport().zoom
       for (const n of rf.getNodes() as ObjectNode[]) {
         if (n.type !== 'sketch' || n.hidden || !isFrameless(n.data.object.data)) continue
-        const orig = erasing.originals.get(n.id)
+        const cached = written.current.get(n.id)
+        const fresh = cached && performance.now() - cached.at < WRITTEN_TTL_MS ? cached.object : undefined
+        const orig = erasing.originals.get(n.id) ?? fresh
         const box = orig ? { x: orig.x, y: orig.y, width: orig.width, height: orig.height } : nodeBox(n)
         const els = orig ? (orig.data.elements as unknown[]) : nodeElements(n)
         const hits = hitInkObject(els, box, p, ERASER_PX / zoom)
         const known = erasing.hit.get(n.id)
         if (!hits.length || (known && hits.every((id) => known.has(id)))) continue
-        if (!orig) erasing.originals.set(n.id, { ...n.data.object, ...nodeBox(n) })
+        if (!erasing.originals.has(n.id)) erasing.originals.set(n.id, orig ?? { ...n.data.object, ...nodeBox(n) })
         const set = known ?? new Set<string>()
         hits.forEach((id) => set.add(id))
         erasing.hit.set(n.id, set)
@@ -331,6 +370,7 @@ export function InkLayer({
       const e = erasing
       erasing = null
       if (!e || !e.hit.size) return
+      e.hit.forEach((_ids, id) => written.current.delete(id))
       const originals = [...e.originals.values()]
       const patches = originals.map((o) => ({ o, next: erasedPatch(o, e.hit.get(o.id)!) }))
       const apply = async (forward: boolean): Promise<void> => {
@@ -439,7 +479,12 @@ export function InkLayer({
       g.lastAt = performance.now()
       g.bounds = unionRects([g.bounds.width || g.bounds.height ? g.bounds : null, strokeBounds(s)]) ?? g.bounds
       schedule()
-      idle.current = setTimeout(() => void flush(), GROUP_PAUSE_MS)
+      // written right away (live on the other devices); the group stays open so nearby strokes join the same object
+      void commitPending(g)
+      clearTimeout(idle.current)
+      idle.current = setTimeout(() => {
+        if (group.current === g) group.current = null
+      }, GROUP_PAUSE_MS)
     }
 
     // a click must never reach xyflow in pen mode (it would select / deselect)
