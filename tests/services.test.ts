@@ -43,8 +43,8 @@ describe('cards', () => {
 describe('connections', () => {
   it('stores styling and keeps it through a restore', () => {
     const wb = api.createWhiteboard({ name: 'Board' })
-    const a = api.addObject({ whiteboardId: wb.id, kind: 'text', x: 0, y: 0 })
-    const b = api.addObject({ whiteboardId: wb.id, kind: 'text', x: 300, y: 0 })
+    const a = api.addObject({ whiteboardId: wb.id, kind: 'section', x: 0, y: 0 })
+    const b = api.addObject({ whiteboardId: wb.id, kind: 'section', x: 300, y: 0 })
     const conn = api.addConnection({ whiteboardId: wb.id, sourceId: a.id, targetId: b.id })
     expect(conn).toMatchObject({ label: '', color: null, lineStyle: 'solid', arrows: 'end' })
 
@@ -126,7 +126,7 @@ describe('whiteboards', () => {
     const child = api.createWhiteboard({ name: 'Child', parentId: root.id })
     const card = api.createCard({ title: 'Idea' })
     const o1 = api.addObject({ whiteboardId: child.id, kind: 'card', refId: card.id, x: 0, y: 0 })
-    const o2 = api.addObject({ whiteboardId: child.id, kind: 'text', x: 400, y: 0, data: { text: 'hi' } })
+    const o2 = api.addObject({ whiteboardId: child.id, kind: 'section', x: 400, y: 0, data: { title: 'hi' } })
     api.addConnection({ whiteboardId: child.id, sourceId: o1.id, targetId: o2.id })
     const detail = api.getWhiteboard(child.id)!
     expect(detail.breadcrumb.map((b) => b.name)).toEqual(['Root', 'Child'])
@@ -144,8 +144,8 @@ describe('whiteboards', () => {
 
   it('duplicates a whiteboard with its objects and connections, remapping ids', () => {
     const board = api.createWhiteboard({ name: 'Plan' })
-    const a = api.addObject({ whiteboardId: board.id, kind: 'text', x: 0, y: 0, data: { text: 'a' } })
-    const b = api.addObject({ whiteboardId: board.id, kind: 'text', x: 100, y: 0, data: { text: 'b' } })
+    const a = api.addObject({ whiteboardId: board.id, kind: 'section', x: 0, y: 0, data: { title: 'a' } })
+    const b = api.addObject({ whiteboardId: board.id, kind: 'section', x: 100, y: 0, data: { title: 'b' } })
     api.addConnection({ whiteboardId: board.id, sourceId: a.id, targetId: b.id })
 
     const copy = api.duplicateWhiteboard(board.id)
@@ -164,8 +164,8 @@ describe('whiteboards', () => {
   it('lists boards with an object count, for Home tiles', () => {
     const empty = api.createWhiteboard({ name: 'Empty' })
     const busy = api.createWhiteboard({ name: 'Busy' })
-    api.addObject({ whiteboardId: busy.id, kind: 'text', x: 0, y: 0, data: { text: 'a' } })
-    api.addObject({ whiteboardId: busy.id, kind: 'text', x: 100, y: 0, data: { text: 'b' } })
+    api.addObject({ whiteboardId: busy.id, kind: 'section', x: 0, y: 0, data: { title: 'a' } })
+    api.addObject({ whiteboardId: busy.id, kind: 'section', x: 100, y: 0, data: { title: 'b' } })
 
     const stats = api.listWhiteboardsWithStats()
     expect(stats.find((b) => b.id === empty.id)).toMatchObject({ objectCount: 0 })
@@ -177,7 +177,6 @@ describe('whiteboards', () => {
     const empty = api.createWhiteboard({ name: 'Empty' })
     const w = board.id
     api.addObject({ whiteboardId: w, kind: 'section', x: -20, y: -20, width: 800, height: 500, color: 'blue', data: { title: 'Research' } })
-    api.addObject({ whiteboardId: w, kind: 'text', x: 0, y: 0, width: 300, height: 50, data: { text: 'Heading\nsecond line' } })
     const { card: blockCard } = api.addTextBlock({ whiteboardId: w, x: 0, y: 80, markdown: 'A secret note body', style: 'framed' })
     const card = api.createCard({ title: 'Launch goals', markdown: 'long private body' })
     api.addObject({ whiteboardId: w, kind: 'card', refId: card.id, x: 400, y: 0 })
@@ -199,8 +198,7 @@ describe('whiteboards', () => {
     expect(e).toEqual({ id: empty.id, bounds: null, items: [] })
     expect(p.id).toBe(w)
     expect(p.items[0]).toMatchObject({ kind: 'section', label: 'Research', color: 'blue' })
-    expect(p.items.map((i) => i.kind).sort()).toEqual(['block', 'card', 'chart', 'ink', 'section', 'text'])
-    expect(p.items.find((i) => i.kind === 'text')!.label).toBe('Heading')
+    expect(p.items.map((i) => i.kind).sort()).toEqual(['block', 'card', 'chart', 'ink', 'section'])
     expect(p.items.find((i) => i.kind === 'block')).toMatchObject({ framed: true })
     expect(p.items.find((i) => i.kind === 'card')!.label).toBe('Launch goals')
     expect(p.items.find((i) => i.kind === 'chart')!.chartType).toBe('timeline')
@@ -345,7 +343,7 @@ describe('seed', () => {
     const detail = api.getWhiteboard(board.id)!
     expect(detail.objects.length).toBeGreaterThan(5)
     const kinds = detail.objects.map((o) => o.kind)
-    expect(kinds).toEqual(expect.arrayContaining(['text', 'card', 'table', 'chart', 'sketch']))
+    expect(kinds).toEqual(expect.arrayContaining(['card', 'table', 'chart', 'sketch']))
     // the chart follows the table
     const table = detail.objects.find((o) => o.kind === 'table')!
     expect(detail.objects.find((o) => o.kind === 'chart')!.data.source).toEqual({ tableId: table.id })
@@ -395,6 +393,33 @@ describe('text blocks', () => {
 
   it('refuses unknown boards', () => {
     expect(() => api.addTextBlock({ whiteboardId: 'nope', x: 0, y: 0 })).toThrow(/Whiteboard not found/)
+  })
+
+  it('takes a box size and font size (height = minimum, frame on/off via style)', () => {
+    const wb = api.createWhiteboard({ name: 'Sized' })
+    const { object } = api.addTextBlock({ whiteboardId: wb.id, x: 0, y: 0, width: 240, height: 180, fontSize: 20, markdown: 'Hi' })
+    expect(object).toMatchObject({ width: 240, height: 180, data: { style: 'plain', minHeight: 180, fontSize: 20 } })
+  })
+})
+
+describe('legacy heading objects', () => {
+  it('are dropped by the text-unification migration, connections included', async () => {
+    const Database = (await import('better-sqlite3')).default
+    const { migrations } = await import('../src/main/db/migrations')
+    const sqlite = new Database(':memory:')
+    sqlite.pragma('foreign_keys = ON')
+    const at = migrations.findIndex((m) => m.includes("DELETE FROM whiteboard_objects WHERE kind = 'text'"))
+    expect(at).toBeGreaterThan(0)
+    for (let i = 0; i < at; i++) if (migrations[i].trim()) sqlite.exec(migrations[i])
+    const t = Date.now()
+    sqlite.prepare(`INSERT INTO whiteboards (id, name, created_at, updated_at) VALUES ('w', 'W', ?, ?)`).run(t, t)
+    const obj = sqlite.prepare(`INSERT INTO whiteboard_objects (id, whiteboard_id, kind, x, y, width, height) VALUES (?, 'w', ?, 0, 0, 10, 10)`)
+    obj.run('h', 'text')
+    obj.run('s', 'section')
+    sqlite.prepare(`INSERT INTO connections (id, whiteboard_id, source_id, target_id) VALUES ('c', 'w', 's', 'h')`).run()
+    sqlite.exec(migrations[at])
+    expect(sqlite.prepare('SELECT id FROM whiteboard_objects').all()).toEqual([{ id: 's' }])
+    expect(sqlite.prepare('SELECT COUNT(*) AS n FROM connections').get()).toEqual({ n: 0 })
   })
 })
 

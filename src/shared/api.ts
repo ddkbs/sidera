@@ -58,12 +58,18 @@ export interface CanvasApi {
   restoreCard(id: ID): Promise<void>
   /** Find-or-create the "Inbox" card used as the default target for tasks added without a card. */
   getInboxCard(): Promise<Card>
-  /** Create a text block: a card of kind 'block' placed on a whiteboard in one step. */
+  /**
+   * Create a text box — the one text element on whiteboards: a card of kind 'block' placed in one step.
+   * `style` toggles the frame ('plain' = no frame); `height` is a minimum (the box still grows with its text);
+   * `fontSize` (px) scales the box's text.
+   */
   addTextBlock(input: {
     whiteboardId: ID
     x: number
     y: number
     width?: number
+    height?: number
+    fontSize?: number
     content?: DocJSON
     markdown?: string
     style?: TextBlockStyle

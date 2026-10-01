@@ -626,7 +626,7 @@ export function createServices(
       return getOrCreateInboxCard()
     },
 
-    addTextBlock({ whiteboardId, x, y, width, content, markdown, style }) {
+    addTextBlock({ whiteboardId, x, y, width, height, fontSize, content, markdown, style }) {
       if (!db.select({ id: s.whiteboards.id }).from(s.whiteboards).where(eq(s.whiteboards.id, whiteboardId)).get())
         throw new Error(`Whiteboard not found: ${whiteboardId}`)
       const blockStyle: TextBlockStyle = style === 'framed' ? 'framed' : 'plain'
@@ -640,8 +640,12 @@ export function createServices(
           x,
           y,
           width: width ?? TEXT_BLOCK_WIDTH,
-          height: Math.min(40 + lines * 24, 600),
-          data: { style: blockStyle }
+          height: height && height > 0 ? height : Math.min(40 + lines * 24, 600),
+          data: {
+            style: blockStyle,
+            ...(height && height > 0 ? { minHeight: height } : {}),
+            ...(fontSize && fontSize > 0 ? { fontSize } : {})
+          }
         })
         return { card, object }
       })

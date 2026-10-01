@@ -342,23 +342,27 @@ export function createMcpServer(api: Services, version: string, onCall?: ToolCal
     'add_text_block',
     {
       description:
-        'Write a text block directly on a whiteboard — the everyday way to take notes on a board (history, key facts, lists, ideas). ' +
-        'Markdown supports headings, lists, task lists, bold/italic, tables and [[Card title]] links. ' +
-        'A text block is a lightweight card (searchable, linkable) that stays out of the card library. ' +
-        'style "plain" = text directly on the board, "framed" = subtle bordered box. Without x/y it is placed right of existing content.',
+        'Write a text box directly on a whiteboard — the one text element on boards and the everyday way to take notes ' +
+        '(titles, history, key facts, lists, ideas). Markdown supports headings (use "# Title" for a board title), lists, ' +
+        'task lists, bold/italic, tables and [[Card title]] links. A text box is a lightweight card (searchable, linkable) ' +
+        'that stays out of the card library. style "plain" = no frame (text directly on the board), "framed" = bordered box. ' +
+        'width/height set the box size (the height grows with the text if needed); font_size (px, default 14.5) scales the text. ' +
+        'Without x/y it is placed right of existing content.',
       inputSchema: {
         whiteboard_id: z.string(),
         markdown: z.string(),
         style: z.enum(['plain', 'framed']).default('plain'),
         x: z.number().optional(),
         y: z.number().optional(),
-        width: z.number().min(120).max(1600).optional()
+        width: z.number().min(40).max(1600).optional(),
+        height: z.number().min(20).max(4000).optional(),
+        font_size: z.number().min(6).max(160).optional()
       }
     },
-    async ({ whiteboard_id, markdown, style, x, y, width }) => {
+    async ({ whiteboard_id, markdown, style, x, y, width, height, font_size }) => {
       if (!api.getWhiteboard(whiteboard_id)) return { ...ok(`Whiteboard ${whiteboard_id} not found`), isError: true }
       const pos = x !== undefined && y !== undefined ? { x, y } : freeSpot(api, whiteboard_id)
-      const { card, object } = api.addTextBlock({ whiteboardId: whiteboard_id, content: toDoc(markdown), style, width, ...pos })
+      const { card, object } = api.addTextBlock({ whiteboardId: whiteboard_id, content: toDoc(markdown), style, width, height, fontSize: font_size, ...pos })
       return ok({ object_id: object.id, card_id: card.id, title: card.title })
     }
   )

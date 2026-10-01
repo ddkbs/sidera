@@ -80,10 +80,6 @@ function toItem(o: PreviewSource): BoardPreviewItem {
       }
       if (o.cardColor) base.color = o.cardColor
       break
-    case 'text':
-      kind = 'text'
-      label = clip(o.data.text)
-      break
     case 'section':
       kind = 'section'
       label = clip(o.data.title)

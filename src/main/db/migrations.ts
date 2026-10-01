@@ -219,5 +219,10 @@ export const migrations: string[] = [
   /* 11: text blocks (cards written directly on a whiteboard) */ `
   ALTER TABLE cards ADD COLUMN kind TEXT NOT NULL DEFAULT 'card';
   CREATE INDEX cards_kind_idx ON cards(kind);
+  `,
+  /* 12: one text element on boards — legacy heading objects (kind 'text') are dropped (clean start, no migration) */ `
+  DELETE FROM connections WHERE source_id IN (SELECT id FROM whiteboard_objects WHERE kind = 'text')
+    OR target_id IN (SELECT id FROM whiteboard_objects WHERE kind = 'text');
+  DELETE FROM whiteboard_objects WHERE kind = 'text';
   `
 ]

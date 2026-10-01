@@ -8,7 +8,7 @@ const RED = '#e03131'
 
 /**
  * Creates the "Welcome to Sidera" board on first launch (empty database only). Returns true if seeded.
- * It is built from the everyday building blocks — a heading, text blocks, a table with a linked chart and pen
+ * It is built from the everyday building blocks — text boxes, a table with a linked chart and pen
  * ink — so the first thing people see is what a board looks like, and every piece on it is editable.
  */
 export function seedWelcome(api: Services): boolean {
@@ -19,12 +19,12 @@ export function seedWelcome(api: Services): boolean {
   const block = (x: number, y: number, markdown: string, width = 340, style: 'plain' | 'framed' = 'plain') =>
     api.addTextBlock({ whiteboardId: w, x, y, width, markdown, style })
 
-  // ── heading ───────────────────────────────────────────────────────────────
-  api.addObject({ whiteboardId: w, kind: 'text', x: 0, y: 0, width: 560, height: 60, data: { text: `Welcome to ${APP_NAME}`, size: 44 } })
+  // ── title ─────────────────────────────────────────────────────────────────
+  api.addTextBlock({ whiteboardId: w, x: 0, y: 0, width: 560, markdown: `# Welcome to ${APP_NAME}`, fontSize: 28 })
   block(4, 74, 'Fast, visual notes on an infinite whiteboard. Everything on this board is editable — click around, then make it yours.', 520)
 
   // ── the basics, as text blocks ──────────────────────────────────────────────
-  block(4, 184, '**Double-click anywhere to write**\n\nA text block appears right where you click. Press **T** for the text tool or **⌘N** for a new block.')
+  block(4, 184, '**Double-click anywhere to write**\n\nA text box appears right where you click. Press **T** for the text tool or **⌘N** for a new text box.')
   block(4, 314, '**Press P to draw**\n\nUnderline, circle, sketch — the pen draws straight onto the board. **Esc** puts it away.')
   block(4, 444, '**⇧⌘D to draw on your iPad**\n\nScan the QR code and sketch with Apple Pencil. End-to-end encrypted, over your own Wi-Fi.')
   block(

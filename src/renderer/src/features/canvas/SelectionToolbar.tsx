@@ -31,7 +31,7 @@ import { Kbd } from '@/components/ui/kbd'
 import { PALETTE } from '@/lib/colors'
 import { cn } from '@/lib/utils'
 import { bounds, type ArrangeMode } from './arrange'
-import { BLOCK_DEFAULT_SIZE, HEADING_DEFAULT_SIZE, TEXT_SIZE_PRESETS, nearestPreset, type TextObjectKind, type TextSizePreset } from './textSize'
+import { BLOCK_DEFAULT_SIZE, TEXT_SIZE_PRESETS, nearestPreset, type TextSizePreset } from './textSize'
 import type { ObjectNode } from './types'
 import type { TextBlockStyle } from '@shared/types'
 
@@ -50,8 +50,6 @@ export interface SelectionActions {
   textSizePreset: (preset: TextSizePreset) => void
   stepTextSize: (dir: 1 | -1) => void
 }
-
-const textKindOf = (n: ObjectNode): TextObjectKind | null => (n.type === 'text' ? 'heading' : n.type === 'card' ? 'block' : null)
 
 const TIDY: { mode: ArrangeMode; label: string; icon: AppIcon }[] = [
   { mode: 'left', label: 'Align left', icon: AlignLeft },
@@ -83,17 +81,9 @@ export function SelectionToolbar({ selected, actions }: { selected: ObjectNode[]
   const block = single?.type === 'card' && single.data.card?.kind === 'block' ? single : null
   const framed = block?.data.object.data.style === 'framed'
   const linkedChart = single?.type === 'chart' && (single.data.object.data.source as { tableId?: string } | undefined)?.tableId ? single : null
-  const textKinds = selected.map(textKindOf)
-  const allText = textKinds.every((k): k is TextObjectKind => !!k)
+  const allText = selected.every((n) => n.type === 'card')
   // shown preset: the nearest one to the (single) node's size, else 'M' as a neutral middle ground for a mixed selection
-  const textPreset: TextSizePreset | null = allText
-    ? (() => {
-        if (!single) return 'M'
-        const kind = textKinds[0]!
-        const size = Number(single.data.object.data[kind === 'heading' ? 'size' : 'fontSize']) || (kind === 'heading' ? HEADING_DEFAULT_SIZE : BLOCK_DEFAULT_SIZE)
-        return nearestPreset(kind, size)
-      })()
-    : null
+  const textPreset: TextSizePreset | null = allText ? (single ? nearestPreset(Number(single.data.object.data.fontSize) || BLOCK_DEFAULT_SIZE) : 'M') : null
 
   return (
     <div
@@ -176,7 +166,7 @@ export function SelectionToolbar({ selected, actions }: { selected: ObjectNode[]
         {block && (
           <Action
             icon={Frame}
-            label={framed ? 'Plain text (no frame)' : 'Framed box'}
+            label={framed ? 'Remove frame' : 'Add frame'}
             active={framed}
             onClick={() => actions.blockStyle(block, framed ? 'plain' : 'framed')}
           />

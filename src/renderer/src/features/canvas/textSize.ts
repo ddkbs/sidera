@@ -1,31 +1,24 @@
 /**
  * Pure text-size logic shared by the selection toolbar, the node right-click menu and the
- * ⌘⇧. / ⌘⇧, shortcuts. Two kinds of text object use it: headings (`text`, px font size stored as
- * `data.size`) and text blocks (`card` of kind `block`, px font size stored as `data.fontSize`,
- * scaling the block's prose via the `--block-font-size` CSS var — see canvas.css).
+ * ⌘⇧. / ⌘⇧, shortcuts. Text boxes (`card` of kind `block`) store their px font size as `data.fontSize`,
+ * scaling the box's prose via the `--block-font-size` CSS var (see canvas.css); regular cards zoom their content.
  */
 
-export type TextObjectKind = 'heading' | 'block'
 export type TextSizePreset = 'XXS' | 'XS' | 'S' | 'M' | 'L' | 'XL' | 'XXL' | '3XL' | '4XL' | '5XL'
 
 export const TEXT_SIZE_PRESETS: readonly TextSizePreset[] = ['XXS', 'XS', 'S', 'M', 'L', 'XL', 'XXL', '3XL', '4XL', '5XL']
 
-/** Font size (px) for each preset, per object kind. M is each kind's long-standing default. */
-export const TEXT_SIZE_PX: Record<TextObjectKind, Record<TextSizePreset, number>> = {
-  heading: { XXS: 10, XS: 13, S: 16, M: 20, L: 28, XL: 40, XXL: 56, '3XL': 72, '4XL': 96, '5XL': 128 },
-  block: { XXS: 9, XS: 11, S: 12.5, M: 14.5, L: 17, XL: 20, XXL: 24, '3XL': 30, '4XL': 38, '5XL': 48 }
-}
+/** Font size (px) for each preset. M is the long-standing default. */
+export const TEXT_SIZE_PX: Record<TextSizePreset, number> = { XXS: 9, XS: 11, S: 12.5, M: 14.5, L: 17, XL: 20, XXL: 24, '3XL': 30, '4XL': 38, '5XL': 48 }
 
-export const HEADING_DEFAULT_SIZE = TEXT_SIZE_PX.heading.M
-export const BLOCK_DEFAULT_SIZE = TEXT_SIZE_PX.block.M
+export const BLOCK_DEFAULT_SIZE = TEXT_SIZE_PX.M
 
 /** The preset whose px value is closest to `size` (ties favour the smaller preset). */
-export function nearestPreset(kind: TextObjectKind, size: number): TextSizePreset {
-  const sizes = TEXT_SIZE_PX[kind]
+export function nearestPreset(size: number): TextSizePreset {
   let best: TextSizePreset = TEXT_SIZE_PRESETS[0]
   let bestDiff = Infinity
   for (const p of TEXT_SIZE_PRESETS) {
-    const diff = Math.abs(sizes[p] - size)
+    const diff = Math.abs(TEXT_SIZE_PX[p] - size)
     if (diff < bestDiff) {
       best = p
       bestDiff = diff
@@ -41,6 +34,6 @@ export function stepPreset(preset: TextSizePreset, dir: 1 | -1): TextSizePreset 
 }
 
 /** Next font size (px) when stepping bigger/smaller from the current size (snaps to the nearest preset first). */
-export function steppedSize(kind: TextObjectKind, currentSize: number, dir: 1 | -1): number {
-  return TEXT_SIZE_PX[kind][stepPreset(nearestPreset(kind, currentSize), dir)]
+export function steppedSize(currentSize: number, dir: 1 | -1): number {
+  return TEXT_SIZE_PX[stepPreset(nearestPreset(currentSize), dir)]
 }

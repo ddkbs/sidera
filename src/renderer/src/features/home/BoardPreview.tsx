@@ -65,10 +65,6 @@ function Item({ it, unit, dark }: { it: BoardPreviewItem; unit: number; dark: bo
         </g>
       )
     }
-    case 'text': {
-      const th = Math.max(unit * 3, Math.min(h * 0.6, 40))
-      return <rect x={x + 4} y={y + (h - th) / 2} width={Math.max(unit * 4, w * 0.8)} height={th} rx={th / 3} className="fill-foreground/80" />
-    }
     case 'block': {
       const tint = it.color ? paletteColor(it.color) : null
       return (

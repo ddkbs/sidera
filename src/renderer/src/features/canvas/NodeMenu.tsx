@@ -1,4 +1,4 @@
-import { ArrowDownToLine, ArrowUpToLine, BarChart, Check, Expand, Frame, LayoutDashboard, SquarePlus, Type, Trash2, Unlink, X } from '@/components/icons'
+import { ArrowDownToLine, ArrowUpToLine, BarChart, Expand, Frame, LayoutDashboard, SquarePlus, Type, Trash2, Unlink, X } from '@/components/icons'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -39,7 +39,7 @@ export function NodeMenu({ menu, onClose, onAction }: Props) {
   const block = node?.type === 'card' && node.data.card?.kind === 'block'
   const framed = block && node.data.object.data.style === 'framed'
   const linkedChart = node?.type === 'chart' && !!(node.data.object.data.source as { tableId?: string } | undefined)?.tableId
-  const isText = node?.type === 'text' || node?.type === 'card'
+  const isText = node?.type === 'card'
   return (
     <DropdownMenu open={!!menu} onOpenChange={(o) => !o && onClose()} modal={false}>
       <DropdownMenuTrigger asChild>
@@ -57,11 +57,8 @@ export function NodeMenu({ menu, onClose, onAction }: Props) {
               <SquarePlus /> Convert to card
             </DropdownMenuItem>
             <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={act('style-plain')}>
-              <Check className={framed ? 'opacity-0' : ''} /> Plain text
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={act('style-framed')}>
-              <Check className={framed ? '' : 'opacity-0'} /> Framed box
+            <DropdownMenuItem onClick={act(framed ? 'style-plain' : 'style-framed')}>
+              <Frame /> {framed ? 'Remove frame' : 'Add frame'}
             </DropdownMenuItem>
             <DropdownMenuSeparator />
           </>
@@ -109,7 +106,7 @@ export function NodeMenu({ menu, onClose, onAction }: Props) {
         <DropdownMenuSeparator />
         {block ? (
           <DropdownMenuItem variant="destructive" onClick={act('remove')}>
-            <Trash2 /> Delete text block
+            <Trash2 /> Delete text box
           </DropdownMenuItem>
         ) : (
           <DropdownMenuItem onClick={act('remove')}>

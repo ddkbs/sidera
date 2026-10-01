@@ -14,6 +14,7 @@ import {
   Table2,
   Tablet,
   TextBlock,
+  Type,
   Compass,
   Upload
 } from '@/components/icons'
@@ -111,8 +112,8 @@ export function CommandPalette() {
           <CommandSeparator />
           <CommandGroup heading="Actions">
             {view.type === 'whiteboard' && (!text || /text|block|note|write/i.test(text)) && (
-              <CommandItem value="new-text-block" onSelect={run(() => canvasAction('text-block'))}>
-                <TextBlock /> New text block <CommandShortcut>⌘N</CommandShortcut>
+              <CommandItem value="new-text-block" onSelect={run(() => canvasAction('text'))}>
+                <Type /> New text box <CommandShortcut>⌘N</CommandShortcut>
               </CommandItem>
             )}
             {view.type === 'whiteboard' && (!text || /table|grid|data/i.test(text)) && (

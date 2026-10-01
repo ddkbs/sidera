@@ -33,12 +33,12 @@ export const TOUR_STEPS: TourStep[] = [
   {
     id: 'write',
     title: 'Write anywhere',
-    body: 'Double-click empty space on a board and just type — a text block appears right there. Or pick the text block tool.',
-    fallbackBody: 'Create a board from Home or with ⌘K, then double-click anywhere on it and just type — a text block appears right there.',
-    target: 'tool-block',
+    body: 'Double-click empty space on a board and just type — a text box appears right there. Or pick the Text tool (T).',
+    fallbackBody: 'Create a board from Home or with ⌘K, then double-click anywhere on it and just type — a text box appears right there.',
+    target: 'tool-text',
     placement: 'right',
     needs: 'whiteboard',
-    shortcuts: ['tool.block', 'canvas.newTextBlock']
+    shortcuts: ['tool.text', 'canvas.newTextBlock']
   },
   {
     id: 'pen',

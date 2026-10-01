@@ -12,7 +12,6 @@ import { SectionNode } from './SectionNode'
 import { SketchNode } from './SketchNode'
 import { TableNode } from './TableNode'
 import { TextBlockNode } from './TextBlockNode'
-import { TextNode } from './TextNode'
 import { WhiteboardNode } from './WhiteboardNode'
 
 /** Wrap every node so a failing node renders an inline error instead of crashing the canvas. */
@@ -32,7 +31,6 @@ function CardOrBlockNode(props: NodeProps<ObjectNode>) {
 
 export const nodeTypes: NodeTypes = {
   card: safe(CardOrBlockNode),
-  text: safe(TextNode),
   section: safe(SectionNode),
   whiteboard: safe(WhiteboardNode),
   file: safe(FileNode),

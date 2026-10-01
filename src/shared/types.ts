@@ -92,7 +92,7 @@ export interface WhiteboardSummary extends Whiteboard {
 }
 
 /** What a Home tile draws for an object (text blocks and frameless ink get their own look). */
-export type BoardPreviewKind = 'card' | 'block' | 'text' | 'section' | 'table' | 'chart' | 'sketch' | 'ink' | 'other'
+export type BoardPreviewKind = 'card' | 'block' | 'section' | 'table' | 'chart' | 'sketch' | 'ink' | 'other'
 
 /** One object in a board preview: geometry + kind, a short label at most — never the content. */
 export interface BoardPreviewItem {
@@ -130,7 +130,7 @@ export interface Folder {
   updatedAt: number
 }
 
-export type ObjectKind = 'card' | 'text' | 'section' | 'whiteboard' | 'file' | 'mindmap' | 'mermaid' | 'sketch' | 'chart' | 'link' | 'table'
+export type ObjectKind = 'card' | 'section' | 'whiteboard' | 'file' | 'mindmap' | 'mermaid' | 'sketch' | 'chart' | 'link' | 'table'
 
 export interface WhiteboardObject {
   id: ID
@@ -144,7 +144,7 @@ export interface WhiteboardObject {
   height: number
   z: number
   color: string | null
-  /** text for 'text', title for 'section', mermaid/mindmap source, … */
+  /** title for 'section', mermaid/mindmap source, … */
   data: Record<string, unknown>
 }
 

@@ -34,7 +34,7 @@ import {
   SquarePlus,
   Table2,
   Tablet,
-  TextBlock,
+  Type,
   Upload,
   Workflow,
   type AppIcon
@@ -44,11 +44,10 @@ import type { ShapeKind } from '@/features/ink/shapes'
 
 /** Everything the toolbar overflow and the canvas context menu can trigger. */
 export type CanvasAction =
-  | 'text-block'
+  | 'text'
   | 'table'
   | 'card'
   | 'existing-card'
-  | 'text'
   | 'section'
   | 'connector'
   | 'sketch'
@@ -69,7 +68,7 @@ export type CanvasAction =
 
 /** Insert entries shared by the toolbar overflow and the right-click menu, in menu order. */
 export const INSERT_ITEMS: { action: CanvasAction; label: string; icon: AppIcon }[] = [
-  { action: 'text-block', label: 'Text block', icon: TextBlock },
+  { action: 'text', label: 'Text', icon: Type },
   { action: 'card', label: 'Card', icon: SquarePlus },
   { action: 'existing-card', label: 'Existing card…', icon: Search },
   { action: 'section', label: 'Section', icon: BoxSelect },

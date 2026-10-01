@@ -1,4 +1,4 @@
-import { ArrowUpRight, BoxSelect, Ellipsis, MousePointer2, PenTool, Search, SquarePlus, TextBlock, Upload } from '@/components/icons'
+import { ArrowUpRight, BoxSelect, Ellipsis, MousePointer2, PenTool, Search, SquarePlus, Type, Upload } from '@/components/icons'
 import { motion } from 'motion/react'
 import type { ReactNode } from 'react'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
@@ -13,7 +13,7 @@ import { CanvasMenuItems } from './CanvasContextMenu'
 /** Every tool that has a keyboard shortcut; `primary` ones get a button on the toolbar. */
 export const TOOLS: { id: CanvasTool; label: string; icon: ReactNode; primary?: boolean }[] = [
   { id: 'select', label: 'Select', icon: <MousePointer2 />, primary: true },
-  { id: 'block', label: 'Text block', icon: <TextBlock />, primary: true },
+  { id: 'text', label: 'Text', icon: <Type />, primary: true },
   { id: 'card', label: 'Card', icon: <SquarePlus />, primary: true },
   { id: 'connector', label: 'Connector', icon: <ArrowUpRight />, primary: true },
   { id: 'section', label: 'Section', icon: <BoxSelect />, primary: true },

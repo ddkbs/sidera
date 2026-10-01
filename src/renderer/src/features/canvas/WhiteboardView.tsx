@@ -76,7 +76,7 @@ import { persist, type ConnectionEdge, type ObjectNode } from './types'
 import { ZoomControls } from './ZoomControls'
 import { useCommands } from '@/lib/shortcuts'
 import { defaultChart, type ChartType } from '@shared/charts'
-import { BLOCK_DEFAULT_SIZE, HEADING_DEFAULT_SIZE, TEXT_SIZE_PX, steppedSize, type TextObjectKind, type TextSizePreset } from './textSize'
+import { BLOCK_DEFAULT_SIZE, TEXT_SIZE_PX, steppedSize, type TextSizePreset } from './textSize'
 import './canvas.css'
 
 export function WhiteboardView({ id }: { id: string }) {
@@ -182,7 +182,7 @@ function Canvas({ detail }: { detail: WhiteboardDetail }) {
     const add = async (o: HistoryOp) => (await show(), await applyOp(o))
     const remove = async (o: HistoryOp) => (await applyOp(o), await hide())
     record({
-      label: op.type === 'add' ? (op.objects.length === 1 ? 'Add text block' : opLabel(op)) : opLabel(op),
+      label: op.type === 'add' ? (op.objects.length === 1 ? 'Add text box' : opLabel(op)) : opLabel(op),
       undo: () => (op.type === 'add' ? remove(invert(op)) : add(invert(op))),
       redo: () => (op.type === 'add' ? add(op) : remove(op))
     })
@@ -429,7 +429,7 @@ function Canvas({ detail }: { detail: WhiteboardDetail }) {
   const newTextBlockAt = useCallback(
     async (pos: { x: number; y: number }) => {
       const res = await addTextBlock({ whiteboardId: boardId, x: pos.x - 10, y: pos.y - 18 })
-      if (!('data' in res) || !res.data) return void toast.error('Could not add a text block')
+      if (!('data' in res) || !res.data) return void toast.error('Could not add a text box')
       const { card, object } = res.data
       autoEdit.current = object.id
       setNodes((ns) => ns.map((n) => (n.id === object.id ? { ...n, data: { ...n.data, autoEdit: true } } : n)))
@@ -459,44 +459,31 @@ function Canvas({ detail }: { detail: WhiteboardDetail }) {
     async (nodeId: string, style: TextBlockStyle) => {
       const data = rf.getNode(nodeId)?.data.object.data ?? {}
       if ((data.style === 'framed' ? 'framed' : 'plain') === style) return
-      await patchData(nodeId, { ...data, style }, 'Change text block style')
+      await patchData(nodeId, { ...data, style }, style === 'framed' ? 'Add frame' : 'Remove frame')
     },
     [rf, patchData]
   )
 
-  /** 'text' (heading) or text-block 'card', or null for anything else. */
-  const textKindOf = useCallback((n: ObjectNode): TextObjectKind | null => (n.type === 'text' ? 'heading' : n.type === 'card' ? 'block' : null), [])
-
-  const currentTextSize = useCallback(
-    (n: ObjectNode, kind: TextObjectKind): number => {
-      const raw = Number(n.data.object.data[kind === 'heading' ? 'size' : 'fontSize'])
-      return Number.isFinite(raw) && raw > 0 ? raw : kind === 'heading' ? HEADING_DEFAULT_SIZE : BLOCK_DEFAULT_SIZE
-    },
-    []
-  )
+  const currentTextSize = useCallback((n: ObjectNode): number => {
+    const raw = Number(n.data.object.data.fontSize)
+    return Number.isFinite(raw) && raw > 0 ? raw : BLOCK_DEFAULT_SIZE
+  }, [])
 
   /**
-   * Change the font size of every text/text-block node in `nodes` (`sizeFor` picks the next px per node's kind
-   * and current size). Headings grow their box height proportionally so the bigger text still fits; text blocks
-   * already auto-grow height from their content, so only the data changes.
+   * Change the font size of every text box / card in `nodes` (`sizeFor` picks the next px from the current size).
+   * Text boxes auto-grow their height from their content, so only the data changes.
    */
   const applyTextSize = useCallback(
-    async (nodes: ObjectNode[], sizeFor: (kind: TextObjectKind, current: number) => number) => {
+    async (nodes: ObjectNode[], sizeFor: (current: number) => number) => {
       const before: ObjectPatch[] = []
       const after: ObjectPatch[] = []
       for (const n of nodes) {
-        const kind = textKindOf(n)
-        if (!kind) continue
-        const current = currentTextSize(n, kind)
-        const next = sizeFor(kind, current)
+        if (n.type !== 'card') continue
+        const current = currentTextSize(n)
+        const next = sizeFor(current)
         if (next === current) continue
         const o = n.data.object
-        if (kind === 'heading') {
-          const h = n.height ?? o.height
-          const nextHeight = Math.max(30, Math.round(h * (next / current)))
-          before.push({ id: n.id, data: o.data, height: h })
-          after.push({ id: n.id, data: { ...o.data, size: next }, height: nextHeight })
-        } else if (n.data.card?.kind === 'block') {
+        if (n.data.card?.kind === 'block') {
           before.push({ id: n.id, data: o.data })
           after.push({ id: n.id, data: { ...o.data, fontSize: next } })
         } else {
@@ -513,11 +500,11 @@ function Canvas({ detail }: { detail: WhiteboardDetail }) {
       record({ label: 'Change text size', undo: () => applyOp({ type: 'patch', before: after, after: before }), redo: () => applyOp({ type: 'patch', before, after }) })
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [textKindOf, currentTextSize]
+    [currentTextSize]
   )
 
-  const setTextSizePreset = useCallback((nodes: ObjectNode[], preset: TextSizePreset) => applyTextSize(nodes, (kind) => TEXT_SIZE_PX[kind][preset]), [applyTextSize])
-  const stepTextSize = useCallback((nodes: ObjectNode[], dir: 1 | -1) => applyTextSize(nodes, (kind, current) => steppedSize(kind, current, dir)), [applyTextSize])
+  const setTextSizePreset = useCallback((nodes: ObjectNode[], preset: TextSizePreset) => applyTextSize(nodes, () => TEXT_SIZE_PX[preset]), [applyTextSize])
+  const stepTextSize = useCallback((nodes: ObjectNode[], dir: 1 | -1) => applyTextSize(nodes, (current) => steppedSize(current, dir)), [applyTextSize])
 
   const unlinkChart = useCallback(
     async (nodeId: string) => {
@@ -741,16 +728,32 @@ function Canvas({ detail }: { detail: WhiteboardDetail }) {
       if (c.type !== 'dimensions' || !c.dimensions) continue
       const n = rf.getNode(c.id)
       if (c.resizing && n && !resizeBefore.current.has(c.id))
-        resizeBefore.current.set(c.id, { id: c.id, x: n.position.x, y: n.position.y, width: n.width ?? n.measured?.width, height: n.height ?? n.measured?.height })
+        resizeBefore.current.set(c.id, {
+          id: c.id,
+          x: n.position.x,
+          y: n.position.y,
+          width: n.width ?? n.measured?.width,
+          height: n.height ?? n.measured?.height,
+          ...(isBlock(n.data.object.refId) ? { data: n.data.object.data } : {})
+        })
       if (c.resizing === false) {
         // a manual resize pins the height (cards grow with their content, image nodes hug their picture)
         const o = n?.data.object
+        const start = resizeBefore.current.get(c.id)
         const pin =
-          o && (o.kind === 'card' || o.kind === 'file') && !isBlock(o.refId) && o.data?.autoSize !== false ? { data: { ...(o.data ?? {}), autoSize: false } } : {}
+          o && (o.kind === 'card' || o.kind === 'file') && !isBlock(o.refId) && o.data?.autoSize !== false
+            ? { data: { ...(o.data ?? {}), autoSize: false } }
+            : // a text box resized from a corner keeps that height as its minimum (it still grows with its text)
+              o && isBlock(o.refId) && start?.data
+              ? { data: { ...o.data, minHeight: Math.abs((start.height ?? 0) - c.dimensions.height) >= 1 ? Math.round(c.dimensions.height) : o.data.minHeight } }
+              : {}
         patches.push({ id: c.id, width: c.dimensions.width, height: c.dimensions.height, ...(n ? { x: n.position.x, y: n.position.y } : {}), ...pin })
       }
     }
     if (patches.length) {
+      const withData = new Map(patches.filter((p) => p.data).map((p) => [p.id, p.data!]))
+      if (withData.size)
+        setNodes((ns) => ns.map((n) => (withData.has(n.id) ? { ...n, data: { ...n.data, object: { ...n.data.object, data: withData.get(n.id)! } } } : n)))
       const before = patches.map((p) => resizeBefore.current.get(p.id)).filter((p): p is ObjectPatch => !!p)
       if (before.length === patches.length) track({ type: 'patch', before, after: patches })
       patches.forEach((p) => resizeBefore.current.delete(p.id))
@@ -815,17 +818,12 @@ function Canvas({ detail }: { detail: WhiteboardDetail }) {
     async (e: React.MouseEvent) => {
       connectFrom.current = null
       const pos = rf.screenToFlowPosition({ x: e.clientX, y: e.clientY })
-      if (tool === 'block') {
+      if (tool === 'text') {
         dispatch(setTool('select'))
         await newTextBlockAt(pos)
       } else if (tool === 'card') {
         dispatch(setTool('select'))
         await newCardAt(pos)
-      } else if (tool === 'text') {
-        dispatch(setTool('select'))
-        const o = await place('text', { x: pos.x, y: pos.y - 20 }, { data: { text: '' } })
-        if (o) autoEdit.current = o.id
-        if (o) setNodes((ns) => ns.map((n) => (n.id === o.id ? { ...n, data: { ...n.data, autoEdit: true } } : n)))
       } else if (tool === 'section') {
         dispatch(setTool('select'))
         await place('section', { x: pos.x, y: pos.y }, { color: 'blue', data: { title: 'Section' } })
@@ -854,7 +852,7 @@ function Canvas({ detail }: { detail: WhiteboardDetail }) {
       if (a === 'fit') return void rf.fitView({ duration: 300, padding: 0.15 })
       if (a === 'paste') return void pasteAt(c)
       if (a === 'select-all') return selectAll()
-      if (a === 'text-block') return void newTextBlockAt(c)
+      if (a === 'text') return void newTextBlockAt(c)
       if (a === 'table') {
         const o = await place('table', { x: c.x - 210, y: c.y - 80 }, { data: emptyTable() as unknown as Record<string, unknown>, width: 420 })
         if (o) autoSelect.current = o.id
@@ -864,14 +862,6 @@ function Canvas({ detail }: { detail: WhiteboardDetail }) {
       if (a === 'existing-card') {
         insertPos.current = c
         return setSearchOpen(true)
-      }
-      if (a === 'text') {
-        const o = await place('text', { x: c.x, y: c.y - 20 }, { data: { text: '' } })
-        if (o) {
-          autoEdit.current = o.id
-          setNodes((ns) => ns.map((n) => (n.id === o.id ? { ...n, data: { ...n.data, autoEdit: true } } : n)))
-        }
-        return
       }
       if (a === 'section') return void place('section', { x: c.x, y: c.y }, { color: 'blue', data: { title: 'Section' } })
       if (a === 'connector') return void dispatch(setTool('connector'))

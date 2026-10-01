@@ -74,7 +74,7 @@
   // ---------- helpers ----------
   const block = (whiteboardId, x, y, markdown, width = 340, style = 'plain') => api.addTextBlock({ whiteboardId, x, y, width, markdown, style })
   const tint = async (res, color) => api.updateCard({ id: res.card.id, color })
-  const heading = (whiteboardId, x, y, text, size = 44, width = 620) => api.addObject({ whiteboardId, kind: 'text', x, y, width, height: size * 1.4, data: { text, size } })
+  const heading = (whiteboardId, x, y, text, size = 44, width = 620) => api.addTextBlock({ whiteboardId, x, y, width, markdown: `# ${text}`, fontSize: Math.round(size / 1.55) })
   let rid = 0
   const table = (title, columns, rows) => {
     const cols = columns.map(([name, type]) => ({ id: `c${++rid}`, name, ...(type ? { type } : {}) }))
