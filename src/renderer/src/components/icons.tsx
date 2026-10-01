@@ -523,6 +523,8 @@ export const ShapeEllipse = glyph('ShapeEllipse', () => <ellipse cx="8" cy="8" r
 export const ShapeDiamond = glyph('ShapeDiamond', () => <path d="M8 2 14 8 8 14 2 8Z" {...stroke} />)
 export const ShapeLine = glyph('ShapeLine', () => <path d="M2.5 12 13.5 4" {...stroke} />)
 export const ShapeArrow = glyph('ShapeArrow', () => <path d="M2.5 12 13 4.2M8 3.6l5-.2.4 4.8" {...stroke} />)
+export const ShapeCurve = glyph('ShapeCurve', () => <path d="M2 11C4 3 6 3 8 8s4 5 6-3" {...stroke} />)
+export const ShapeSemicircle = glyph('ShapeSemicircle', () => <path d="M2.5 11a5.5 5.5 0 0 1 11 0" {...stroke} />)
 export const ShapeCurvedArrow = glyph('ShapeCurvedArrow', () => <path d="M2.5 12C4 5 10 3 13.5 5M9.6 3.1l4 1.7-1.1 4" {...stroke} />)
 export const ShapeCross = glyph('ShapeCross', () => <path d="M3 3l10 10M13 3 3 13" {...stroke} />)
 export const ShapeCheck = glyph('ShapeCheck', () => <path d="M2.5 8.5 6 12l7.5-8" {...stroke} strokeWidth={1.8} />)

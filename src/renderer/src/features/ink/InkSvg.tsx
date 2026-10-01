@@ -1,5 +1,5 @@
 import { memo, useMemo, type CSSProperties, type ReactNode } from 'react'
-import { absPoints, darkInk, freedrawOutline, inkBounds, liveElements, outlinePath, type InkElement } from './geometry'
+import { absPoints, smoothPath, darkInk, freedrawOutline, inkBounds, liveElements, outlinePath, type InkElement } from './geometry'
 
 /** Only raster data URLs may be shown from stored sketch files. */
 const SAFE_IMAGE = /^data:image\/(png|jpeg|webp|gif);base64,[A-Za-z0-9+/=]+$/
@@ -13,6 +13,8 @@ interface Props {
   /** true = only the ink takes pointer events (frameless sketches) */
   interactive?: boolean
   className?: string
+  /** fixed viewBox (e.g. while dragging a point, so the rest of the ink doesn't re-fit) */
+  viewBounds?: { x: number; y: number; width: number; height: number } | null
 }
 
 /** Invisible hit area around thin ink, in screen-ish px at zoom 1. */
@@ -23,8 +25,9 @@ const HIT_PX = 8
  * box shows the ink uniformly scaled and centred — the same mapping as `fitTransform`. Freedraw strokes use
  * Excalidraw's own outline, so ink looks the same here, in the pen overlay and in the editor.
  */
-export const InkSvg = memo(function InkSvg({ elements, files, dark, scale, interactive, className }: Props) {
-  const bounds = useMemo(() => inkBounds(elements), [elements])
+export const InkSvg = memo(function InkSvg({ elements, files, dark, scale, interactive, className, viewBounds }: Props) {
+  const fitted = useMemo(() => inkBounds(elements), [elements])
+  const bounds = viewBounds ?? fitted
   const live = useMemo(() => liveElements<InkElement>(elements), [elements])
   if (!bounds) return null
   const hitW = HIT_PX / (scale || 1)
@@ -54,7 +57,7 @@ export const InkSvg = memo(function InkSvg({ elements, files, dark, scale, inter
       case 'arrow': {
         const pts = absPoints(el)
         if (!pts.length) return null
-        const d = pts.map((p, j) => `${j ? 'L' : 'M'}${p.x},${p.y}`).join(' ')
+        const d = (el as { roundness?: unknown }).roundness ? smoothPath(pts) : pts.map((p, j) => `${j ? 'L' : 'M'}${p.x},${p.y}`).join(' ')
         const heads: string[] = []
         const head = (tip: { x: number; y: number }, from: { x: number; y: number }): void => {
           const a = Math.atan2(tip.y - from.y, tip.x - from.x)

@@ -7,9 +7,9 @@
  * editor on double-click.
  */
 
-export type ShapeKind = 'rectangle' | 'ellipse' | 'diamond' | 'line' | 'arrow' | 'curved-arrow' | 'cross' | 'check' | 'star'
+export type ShapeKind = 'rectangle' | 'ellipse' | 'diamond' | 'line' | 'arrow' | 'curved-arrow' | 'curve' | 'semicircle' | 'cross' | 'check' | 'star'
 
-export const SHAPE_KINDS: readonly ShapeKind[] = ['rectangle', 'ellipse', 'diamond', 'line', 'arrow', 'curved-arrow', 'cross', 'check', 'star']
+export const SHAPE_KINDS: readonly ShapeKind[] = ['rectangle', 'ellipse', 'diamond', 'line', 'arrow', 'curved-arrow', 'curve', 'semicircle', 'cross', 'check', 'star']
 
 export interface ShapeInsert {
   /** Elements in their own box, top-left at (0, 0) — box == bounds at scale 1, like pen-mode ink. */
@@ -108,19 +108,24 @@ export function buildShape(kind: ShapeKind, size = 120, now = Date.now()): Shape
       const h = size * 0.35
       return { elements: [linear('arrow', 0, 0, [[0, h], [w, 0]], now)], width: w, height: h }
     }
+    // curved lines: few points + roundness → drawn smooth, each point draggable on the board
     case 'curved-arrow': {
       const w = size
       const h = size * 0.5
-      // a gentle bend, sampled densely enough to read as a curve at typical shape sizes
-      const bend = h * 0.9
-      const n = 16
-      const pts: [number, number][] = Array.from({ length: n + 1 }, (_, i) => {
-        const t = i / n
-        const u = 1 - t
-        // quadratic bezier from (0, h) via (w/2, h - bend) to (w, 0)
-        return [r2(u * u * 0 + 2 * u * t * (w / 2) + t * t * w), r2(u * u * h + 2 * u * t * (h - bend) + t * t * 0)]
+      return { elements: [linear('arrow', 0, 0, [[0, h], [w / 2, 0], [w, h * 0.4]], now, { roundness: { type: 2 } })], width: w, height: h }
+    }
+    case 'curve': {
+      const w = size
+      const h = size * 0.45
+      return { elements: [linear('line', 0, 0, [[0, h], [w * 0.33, 0], [w * 0.66, h], [w, 0]], now, { roundness: { type: 2 } })], width: w, height: h }
+    }
+    case 'semicircle': {
+      const r = size / 2
+      const pts: [number, number][] = [0, 1, 2, 3, 4].map((k) => {
+        const a = Math.PI + (k * Math.PI) / 4
+        return [r2(r + r * Math.cos(a)), r2(r + r * Math.sin(a))]
       })
-      return { elements: [linear('arrow', 0, 0, pts, now)], width: w, height: h }
+      return { elements: [linear('line', 0, 0, pts, now, { roundness: { type: 2 } })], width: size, height: r }
     }
     case 'cross': {
       const s = size * 0.8

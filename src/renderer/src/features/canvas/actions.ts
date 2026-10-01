@@ -24,6 +24,8 @@ import {
   ShapeCheck,
   ShapeCross,
   ShapeCurvedArrow,
+  ShapeCurve,
+  ShapeSemicircle,
   ShapeDiamond,
   ShapeEllipse,
   ShapeLine,
@@ -112,6 +114,8 @@ export const SHAPE_ITEMS: ShapeItem[] = [
   { label: 'Line', icon: ShapeLine, action: shape('line') },
   { label: 'Arrow', icon: ShapeArrow, action: shape('arrow') },
   { label: 'Curved arrow', icon: ShapeCurvedArrow, action: shape('curved-arrow') },
+  { label: 'Curve', icon: ShapeCurve, action: shape('curve') },
+  { label: 'Semicircle', icon: ShapeSemicircle, action: shape('semicircle') },
   { label: 'Cross', icon: ShapeCross, action: shape('cross') },
   { label: 'Checkmark', icon: ShapeCheck, action: shape('check') },
   { label: 'Star', icon: ShapeStar, action: shape('star') }

@@ -1,6 +1,6 @@
 import type { NodeProps } from '@xyflow/react'
 import { PenTool } from '@/components/icons'
-import { memo, useMemo } from 'react'
+import { memo, useMemo, useState } from 'react'
 import { cn } from '@/lib/utils'
 import { useAppSelector } from '@/store'
 import { InkSvg } from '@/features/ink/InkSvg'
@@ -9,6 +9,7 @@ import { inkBounds } from '@/features/ink/geometry'
 import type { ObjectNode } from '../types'
 import { Handles, Resizer } from './NodeChrome'
 import { Rotatable } from './Rotatable'
+import { PointHandles } from '@/features/ink/PointHandles'
 
 export const EDIT_SKETCH_EVENT = 'sidera:edit-sketch'
 
@@ -23,12 +24,14 @@ export const EDIT_SKETCH_EVENT = 'sidera:edit-sketch'
  * inline SVG built from the elements (`InkSvg`). The node itself ignores the pointer (CSS in canvas.css); only the
  * painted ink and photos are hit, so empty space inside the bounding box still reaches whatever lies below.
  */
-export const SketchNode = memo(function SketchNode({ id, data, selected, width }: NodeProps<ObjectNode>) {
+export const SketchNode = memo(function SketchNode({ id, data, selected, width, height }: NodeProps<ObjectNode>) {
   const dark = useAppSelector((s) => s.ui.theme) === 'dark'
   const d = data.object.data
-  const elements = Array.isArray(d.elements) ? (d.elements as unknown[]) : undefined
+  const [preview, setPreview] = useState<unknown[] | null>(null)
+  const stored = Array.isArray(d.elements) ? (d.elements as unknown[]) : undefined
+  const elements = preview ?? stored
   const files = d.files && typeof d.files === 'object' ? (d.files as Record<string, unknown>) : undefined
-  const bounds = useMemo(() => inkBounds(elements), [elements])
+  const bounds = useMemo(() => inkBounds(stored), [stored])
   const rotation = Number(d.rotation) || 0
   const edit = () => window.dispatchEvent(new CustomEvent(EDIT_SKETCH_EVENT, { detail: id }))
 
@@ -39,7 +42,8 @@ export const SketchNode = memo(function SketchNode({ id, data, selected, width }
         <Resizer selected={selected} minWidth={16} minHeight={16} keepAspectRatio />
         <div className="sketch-frameless relative h-full w-full" onDoubleClick={edit}>
           <Rotatable id={id} rotation={rotation} selected={!!selected}>
-            <InkSvg elements={elements} files={files} dark={dark} scale={w / bounds.width} interactive className="absolute inset-0" />
+            <InkSvg elements={elements} files={files} dark={dark} scale={w / bounds.width} interactive viewBounds={preview ? bounds : null} className="absolute inset-0" />
+            {selected && stored && <PointHandles id={id} elements={stored} width={w} height={height ?? data.object.height} rotation={rotation} onPreview={setPreview} />}
             <div
               className={cn(
                 'ink-outline pointer-events-none absolute -inset-1.5 rounded-md border border-dashed border-brand/50 opacity-0 transition-opacity',

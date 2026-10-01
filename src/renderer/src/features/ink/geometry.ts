@@ -100,6 +100,30 @@ const rotate = (p: Point, c: Point, angle: number): Point => {
 }
 
 /** Absolute points of a line-like element (line / arrow / freedraw centre line). */
+/** Smooth SVG path through points (Catmull-Rom → cubic Béziers): how curved lines (`roundness`) are drawn. */
+export function smoothPath(pts: readonly Point[]): string {
+  if (pts.length < 3) return pts.map((p, j) => `${j ? 'L' : 'M'}${p.x},${p.y}`).join(' ')
+  let d = `M${pts[0].x},${pts[0].y}`
+  for (let i = 0; i < pts.length - 1; i++) {
+    const p0 = pts[i - 1] ?? pts[i]
+    const p1 = pts[i]
+    const p2 = pts[i + 1]
+    const p3 = pts[i + 2] ?? p2
+    d += ` C${p1.x + (p2.x - p0.x) / 6},${p1.y + (p2.y - p0.y) / 6} ${p2.x - (p3.x - p1.x) / 6},${p2.y - (p3.y - p1.y) / 6} ${p2.x},${p2.y}`
+  }
+  return d
+}
+
+/** A line/arrow with point `index` moved to absolute scene position `to` (first point stays [0, 0], size updated). */
+export function movePoint<T extends InkElement>(el: T, index: number, to: Point): T {
+  const abs = absPoints(el).map((p, i) => (i === index ? to : p))
+  const o = abs[0]
+  const pts = abs.map((p) => [p.x - o.x, p.y - o.y] as [number, number])
+  const xs = pts.map((p) => p[0])
+  const ys = pts.map((p) => p[1])
+  return { ...el, x: o.x, y: o.y, points: pts, width: Math.max(...xs) - Math.min(...xs), height: Math.max(...ys) - Math.min(...ys) }
+}
+
 export const absPoints = (el: InkElement): Point[] => (el.points ?? []).map(([x, y]) => ({ x: el.x + x, y: el.y + y }))
 
 /** Axis-aligned bounds of one element in scene coordinates, stroke width included. */
