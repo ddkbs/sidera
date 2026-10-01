@@ -50,14 +50,16 @@ const staticDir = (): string | null => {
 }
 
 /**
- * Sidera for iPad, per Session: the paired devices and (while a whiteboard is shared) the LAN server. Pressing the
- * iPad button on a board starts the server for that board or moves the iPad to it; pressing it again stops it.
+ * Sidera for iPad, per Session: the paired devices and the LAN server. The server runs while devices are paired (so
+ * the home-screen app always opens, showing "waiting" until a board is shared) or while a board is shared (pairing).
+ * Pressing the iPad button on a board shares it / moves the iPad to it; pressing it again stops sharing.
  */
 export class IpadController {
   readonly devices: DeviceStore
   private server: IpadServer | null = null
   /** bumped by every start/stop, so a start that finishes after a newer call never leaves a port open */
   private generation = 0
+  private starting: Promise<{ ok: true } | { ok: false; message: string }> | null = null
 
   constructor(private deps: IpadControllerDeps) {
     this.devices = new DeviceStore(join(deps.dataDir, 'ipad-devices.bin'), deps.box)
@@ -79,16 +81,20 @@ export class IpadController {
     this.deps.sendStatus(this.status())
   }
 
-  async share(whiteboardId: string): Promise<IpadShareResult> {
-    const board = this.deps.services.getWhiteboard(whiteboardId)?.whiteboard
-    if (!board) return { ok: false, message: 'Whiteboard not found' }
-    const ref = { id: board.id, name: board.name }
-    if (this.server) {
-      this.server.setBoard(ref)
-      this.emit()
-      return { ok: true, status: this.status() }
-    }
-    const gen = ++this.generation
+  /** While devices are paired the server stays up (app + authenticated connections) so the iPad app always opens. */
+  async autostart(): Promise<void> {
+    if (!this.server && this.devices.list().length) await this.ensureServer()
+  }
+
+  private ensureServer(): Promise<{ ok: true } | { ok: false; message: string }> {
+    if (this.server) return Promise.resolve({ ok: true })
+    // one start at a time (autostart and a button press may race for the same port)
+    this.starting ??= this.startServer().finally(() => (this.starting = null))
+    return this.starting
+  }
+
+  private async startServer(): Promise<{ ok: true } | { ok: false; message: string }> {
+    const gen = this.generation
     const dir = staticDir()
     if (!dir) return { ok: false, message: 'The iPad app is not built (run `npm run build:ipad`).' }
     const lan = lanInterfaces()[0]
@@ -120,12 +126,30 @@ export class IpadController {
       return { ok: false, message: 'Cancelled' }
     }
     this.server = server
-    server.setBoard(ref)
+    return { ok: true }
+  }
+
+  /** Show this board on the iPad (starting the server if needed, or moving the iPad over from another board). */
+  async share(whiteboardId: string): Promise<IpadShareResult> {
+    const board = this.deps.services.getWhiteboard(whiteboardId)?.whiteboard
+    if (!board) return { ok: false, message: 'Whiteboard not found' }
+    const started = await this.ensureServer()
+    if (!started.ok) return started
+    this.server!.setBoard({ id: board.id, name: board.name })
     this.emit()
     return { ok: true, status: this.status() }
   }
 
-  async stop(reason = 'stopped'): Promise<void> {
+  /** Stop sharing: the iPad goes back to "waiting"; the server itself only stops when no device is paired. */
+  async stop(): Promise<void> {
+    if (this.devices.list().length) {
+      this.server?.setBoard(null)
+      this.emit()
+    } else await this.shutdown('stopped')
+  }
+
+  /** Closes the server for good (sign-out, last device revoked). */
+  async shutdown(reason: string): Promise<void> {
     this.generation++
     const s = this.server
     this.server = null
@@ -144,7 +168,9 @@ export class IpadController {
   revoke(id: string): void {
     this.devices.remove(id)
     this.server?.disconnectDevice(id)
-    this.emit()
+    // last device gone and nothing shared: nobody needs the server any more
+    if (!this.devices.list().length && !this.server?.currentBoard) void this.shutdown('no-devices')
+    else this.emit()
   }
 
   /** The shared board was renamed / deleted. */
@@ -153,7 +179,7 @@ export class IpadController {
     const b = s?.currentBoard
     if (!s || !b) return
     const board = this.deps.services.getWhiteboard(b.id)?.whiteboard
-    if (!board) return void this.stop('board-deleted')
+    if (!board) return void this.stop()
     if (board.name !== b.name) {
       s.setBoard({ id: board.id, name: board.name })
       this.emit()

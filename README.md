@@ -148,7 +148,7 @@ a board, and follows the board where you pressed the button last. Paired devices
 Settings → iPad.
 
 How it works: the iPad app is a second build of the desktop renderer (`vite.ipad.config.ts`), served by the Mac on your
-private LAN address only while a board is shared. Every message is end-to-end encrypted (XChaCha20-Poly1305 under
+private LAN address while an iPad is paired (it only sees a board while you share one). Every message is end-to-end encrypted (XChaCha20-Poly1305 under
 per-connection keys derived from a per-device key that was handed over once via the QR code fragment) with replay
 protection, and the Mac only answers a whitelist of calls scoped to the shared board (`src/main/ipad/policy.ts`).
 The protocol (`src/shared/sync`) is transport-agnostic: the LAN WebSocket can later be replaced by a cloud relay

@@ -112,6 +112,7 @@ export class Session {
         }
       }, 1500)
       if (seedWelcome(this.services)) this.welcomeBoardId = this.services.listWhiteboards()[0]?.id ?? null
+      void this.ipad.autostart()
     }
   }
 
@@ -225,7 +226,7 @@ export class Session {
     if (this.ipadTimer) clearTimeout(this.ipadTimer)
     this.watcher = this.changeTimer = this.ipadTimer = null
     this.pending.clear()
-    const stopped = Promise.all([this.stopMcp(), this.ipad.stop('signed-out')]).then(() => undefined)
+    const stopped = Promise.all([this.stopMcp(), this.ipad.shutdown('signed-out')]).then(() => undefined)
     this.db.$client.close()
     return stopped
   }

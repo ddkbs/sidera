@@ -1060,7 +1060,12 @@ function Canvas({ detail }: { detail: WhiteboardDetail }) {
     <div
       ref={wrapper}
       className={cn('canvas-root relative h-full w-full bg-canvas', `tool-${tool}`)}
-      onContextMenu={(e) => e.preventDefault()}
+      onContextMenu={(e) => {
+        e.preventDefault()
+        // iPad: a long press (ipad/longPress.ts) on empty board opens the canvas menu (nodes use onNodeContextMenu)
+        if (IS_IPAD && (e.target as HTMLElement).classList.contains('react-flow__pane'))
+          setPaneMenu({ x: e.clientX, y: e.clientY, flow: rf.screenToFlowPosition({ x: e.clientX, y: e.clientY }) })
+      }}
       onPointerMove={(e) => (pointer.current = { x: e.clientX, y: e.clientY })}
       onPointerLeave={() => (pointer.current = null)}
       onPointerDownCapture={(e) => {

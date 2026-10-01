@@ -102,7 +102,7 @@ describe('board scope policy', () => {
     denied(() => scope.authorize('getCard', [offBoardCard]))
     expect(scope.fileAllowed('img1')).toBe(true)
     expect(scope.fileAllowed('img2')).toBe(false)
-    for (const m of ['listCards', 'search', 'listWhiteboards', 'importFiles', 'openFile', 'exportMarkdown', 'getMcpInfo', 'deleteWhiteboard'] as const) denied(() => scope.authorize(m, []))
+    for (const m of ['listCards', 'listWhiteboards', 'importFiles', 'openFile', 'exportMarkdown', 'getMcpInfo', 'deleteWhiteboard'] as const) denied(() => scope.authorize(m, []))
   })
 
   it('writes only objects of the shared board and strips foreign fields', () => {
@@ -123,6 +123,12 @@ describe('board scope policy', () => {
     denied(() => scope.authorize('getCard', [card.id]))
     scope.learn('createCard', card)
     expect(scope.authorize('addObject', [{ whiteboardId: board, kind: 'card', refId: card.id, x: 0, y: 0 }])).toHaveProperty('args')
+  })
+
+  it('search (mentions) only finds cards placed on the shared board', () => {
+    const d = scope.authorize('search', ['', 10]) as { args: unknown[]; post: (h: unknown) => unknown }
+    const hits = d.post(api.search(...(d.args as Parameters<Services['search']>))) as { id: string }[]
+    expect(hits.map((h) => h.id)).toEqual([onBoardCard])
   })
 
   it('finds file references in stored content (both URL schemes)', () => {

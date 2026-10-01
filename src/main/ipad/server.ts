@@ -464,7 +464,7 @@ export class IpadServer {
     if (!conn.scope) return fail('No whiteboard is shared right now')
     try {
       const decision = conn.scope.authorize(method, msg.args)
-      const data = 'result' in decision ? decision.result : await this.opts.call(method, decision.args)
+      const data = 'result' in decision ? decision.result : await this.opts.call(method, decision.args).then((d) => (decision.post ? decision.post(d) : d))
       conn.scope.learn(method, data)
       // the Mac's file system layout is none of the iPad's business
       const safe = method === 'importFileData' && data && typeof data === 'object' ? { ...(data as object), path: '' } : data

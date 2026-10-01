@@ -1,5 +1,5 @@
 import type { ApiMethod } from '@shared/api'
-import type { ObjectKind, ObjectPatch, WhiteboardObject } from '@shared/types'
+import type { ObjectKind, ObjectPatch, SearchHit, WhiteboardObject } from '@shared/types'
 import { FILE_PROTOCOL, LEGACY_FILE_PROTOCOL } from '@shared/fileProtocol'
 import { validateUpload } from '@shared/sync/protocol'
 import type { Services } from '../services'
@@ -148,7 +148,7 @@ export class BoardScope {
    * Checks one call and returns the (cleaned) arguments to run it with, or a ready result for calls answered without
    * touching the services (`result`). Throws PolicyError when the call is not allowed.
    */
-  authorize(method: ApiMethod, args: unknown[]): { args: unknown[] } | { result: unknown } {
+  authorize(method: ApiMethod, args: unknown[]): { args: unknown[]; post?: (data: unknown) => unknown } | { result: unknown } {
     const a0 = args[0]
     switch (method) {
       // ── reads ──
@@ -166,6 +166,15 @@ export class BoardScope {
       case 'getBoardPreviews': {
         const list = ids(a0).filter((c) => this.snapshot().children.has(c))
         return { args: [list] }
+      }
+      case 'search': {
+        // card mentions in the editor: only cards placed on the shared board are found
+        const q = optStr(a0, 200) ?? ''
+        const limit = Math.min(50, Math.max(1, Math.floor(optNum(args[1]) ?? 20)))
+        return {
+          args: [q, 500, { kind: 'all' }],
+          post: (hits) => (hits as SearchHit[]).filter((h) => h.kind === 'card' && this.snapshot().cards.has(h.id)).slice(0, limit)
+        }
       }
       case 'listTags':
       case 'listProfiles':

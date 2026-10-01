@@ -2,6 +2,7 @@ import type { DeviceCredential } from '@shared/sync/protocol'
 import { installBridge } from './bridge'
 import { SyncClient } from './client'
 import { readLaunch } from './credentials'
+import { installLongPress } from './longPress'
 
 export interface Launch {
   client: SyncClient
@@ -22,5 +23,6 @@ export function boot(): Launch {
   const name = deviceName()
   const client = new SyncClient(launch.credential, name)
   installBridge(client)
+  installLongPress()
   return { client, ...launch, deviceName: name }
 }

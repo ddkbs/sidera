@@ -22,7 +22,7 @@ export function IpadSettings() {
       <section className="rounded-xl border p-4 text-sm">
         {status.running ? (
           <>
-            <div className="font-medium">Sharing “{status.board?.name}”</div>
+            <div className="font-medium">{status.board ? `Sharing “${status.board.name}”` : 'Ready — no whiteboard shared'}</div>
             <div className="mt-0.5 text-muted-foreground">
               {status.origin} · {status.connected.length ? `${status.connected.length} connected` : 'no iPad connected'}
             </div>
@@ -30,13 +30,15 @@ export function IpadSettings() {
               <Button size="sm" variant="outline" onClick={() => setPairOpen(true)}>
                 Pair an iPad…
               </Button>
-              <Button size="sm" variant="ghost" onClick={() => void window.ipad.stop()}>
-                Stop
-              </Button>
+              {status.board && (
+                <Button size="sm" variant="ghost" onClick={() => void window.ipad.stop()}>
+                  Stop sharing
+                </Button>
+              )}
             </div>
           </>
         ) : (
-          <div className="text-muted-foreground">Off. To pair a new iPad, click the iPad button on a whiteboard.</div>
+          <div className="text-muted-foreground">Off. To pair an iPad, click the iPad button on a whiteboard.</div>
         )}
       </section>
       <section>

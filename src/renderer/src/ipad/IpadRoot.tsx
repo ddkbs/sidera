@@ -113,10 +113,10 @@ function IpadApp({ launch }: { launch: Launch }) {
         {board ? (
           <WhiteboardView key={board.id} id={board.id} />
         ) : (
-          <Screen title={conn === 'connected' ? 'Waiting for a whiteboard' : 'Waiting for your Mac'} inline>
+          <Screen title="Waiting for your Mac" inline>
             <p>
               {conn === 'connected'
-                ? 'Click the iPad button on a whiteboard on your Mac to show it here.'
+                ? 'Click the iPad button on a whiteboard on your Mac — it shows up here right away.'
                 : 'Open Sidera on your Mac and click the iPad button on a whiteboard. This iPad reconnects by itself.'}
             </p>
           </Screen>

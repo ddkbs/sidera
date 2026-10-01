@@ -11,8 +11,9 @@ export interface PairedDevice {
 }
 
 export interface IpadStatus {
+  /** LAN server up (devices paired, or a board shared) */
   running: boolean
-  /** the whiteboard the iPad shows (the one whose iPad button was pressed last) */
+  /** the shared whiteboard (whose iPad button was pressed last); null = not sharing, the iPad waits */
   board: { id: string; name: string } | null
   /** e.g. http://ddkbs-MacBook-Pro.local:47821 */
   origin: string | null
@@ -37,8 +38,9 @@ export type IpadShareResult = { ok: true; status: IpadStatus } | { ok: false; me
 
 export interface IpadBridge {
   status(): Promise<IpadStatus>
-  /** Start the server for this board, or switch the running server (and the iPad) to it. */
+  /** Share this board (starting the server if needed), or move the iPad to it. */
   share(whiteboardId: string): Promise<IpadShareResult>
+  /** Stop sharing (the iPad waits; the server keeps running while devices are paired). */
   stop(): Promise<void>
   /** One-time pairing QR (server must be running). */
   pair(): Promise<IpadPairing | { error: string }>

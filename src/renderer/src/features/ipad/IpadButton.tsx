@@ -14,14 +14,16 @@ export const IPAD_TOGGLE_EVENT = 'sidera:ipad-toggle'
 const BUTTON = 'flex h-9 items-center gap-2 rounded-xl border bg-popover/95 px-3 text-sm shadow-lg backdrop-blur transition hover:bg-accent'
 
 /**
- * Board corner button (next to "Cards"): shows this whiteboard live on the paired iPad(s), or stops the LAN server.
+ * Board corner button (next to "Cards"): shows this whiteboard live on the paired iPad(s), or stops sharing (the iPad
+ * then waits; the server keeps running while devices are paired, so the home-screen app always opens).
  * Pressed on another board while running, it moves the iPad to this board. The first time, it opens the pairing QR.
  */
 export function IpadButton({ boardId }: { boardId: string }) {
   const status = useIpadStatus()
   const [pairOpen, setPairOpen] = useState(false)
   const [busy, setBusy] = useState(false)
-  const here = status.running && status.board?.id === boardId
+  const sharing = !!status.board
+  const here = sharing && status.board?.id === boardId
   const connected = status.connected.length > 0
 
   const toggle = useCallback(async () => {
@@ -48,9 +50,9 @@ export function IpadButton({ boardId }: { boardId: string }) {
   }, [toggle])
   useCommands({ 'canvas.ipad': () => void toggle() })
 
-  const label = !here ? (status.running ? 'Show on iPad' : 'iPad') : connected ? 'Live on iPad' : 'Waiting for iPad'
+  const label = !here ? (sharing ? 'Show on iPad' : 'iPad') : connected ? 'Live on iPad' : 'Waiting for iPad'
   const tip = !here
-    ? status.running
+    ? sharing
       ? `The iPad shows “${status.board?.name}”. Click to show this board instead.`
       : status.devices.length
         ? 'Show this whiteboard live on your iPad'
