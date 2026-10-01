@@ -1,23 +1,24 @@
 import { toast } from 'sonner'
 import type { TaskPatch } from '@shared/types'
+import { t } from './i18n'
 import { record, redo, undo, type UndoResult } from './undo'
 
-const report = (kind: string, r: UndoResult): void => {
+const report = (kind: 'undo' | 'redo', r: UndoResult): void => {
   if (!r) return
-  if (r.ok) toast(`${kind}: ${r.label}`, { duration: 1500, id: 'undo' })
-  else toast.error(`Could not ${kind.toLowerCase()} “${r.label}”`, { id: 'undo' })
+  if (r.ok) toast(t(kind === 'undo' ? 'undo.done' : 'redo.done', { label: r.label }), { duration: 1500, id: 'undo' })
+  else toast.error(t(kind === 'undo' ? 'undo.failed' : 'redo.failed', { label: r.label }), { id: 'undo' })
 }
 
-export const undoWithToast = async (): Promise<void> => report('Undo', await undo())
-export const redoWithToast = async (): Promise<void> => report('Redo', await redo())
+export const undoWithToast = async (): Promise<void> => report('undo', await undo())
+export const redoWithToast = async (): Promise<void> => report('redo', await redo())
 
 /** Soft-deleted cards/whiteboards come back via restore*. Toast offers an inline Undo too. */
 export function recordDelete(kind: 'card' | 'whiteboard', id: string): void {
-  const label = kind === 'card' ? 'Delete card' : 'Delete whiteboard'
+  const label = kind === 'card' ? t('undo.deleteCard') : t('undo.deleteBoard')
   const restore = () => (kind === 'card' ? window.api.restoreCard(id) : window.api.restoreWhiteboard(id))
   const remove = () => (kind === 'card' ? window.api.deleteCard(id) : window.api.deleteWhiteboard(id))
   record({ label, undo: restore, redo: remove })
-  toast(kind === 'card' ? 'Card deleted' : 'Whiteboard deleted', { action: { label: 'Undo', onClick: () => void undoWithToast() } })
+  toast(kind === 'card' ? t('card.deleted') : t('board.deleted'), { action: { label: t('common.undo'), onClick: () => void undoWithToast() } })
 }
 
 type CardPatch = { title?: string; color?: string | null; icon?: string | null }
@@ -48,7 +49,7 @@ export async function addTaskUndoable(add: () => Promise<{ cardId: string } | un
   const after = await window.api.getCard(task.cardId)
   if (!after) return true
   record({
-    label: 'Add task',
+    label: t('undo.addTask'),
     undo: () => window.api.updateCard({ id: task.cardId, content: target.content }),
     redo: () => window.api.updateCard({ id: task.cardId, content: after.content })
   })

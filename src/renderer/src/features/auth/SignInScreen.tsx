@@ -1,11 +1,12 @@
 import { useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react'
 import { AnimatePresence, motion, useAnimation } from 'motion/react'
 import type { PublicAccount } from '@shared/auth'
-import { APP_NAME, APP_TAGLINE } from '@shared/brand'
+import { APP_NAME } from '@shared/brand'
 import { ArrowLeft, ArrowRight, ChevronRight, Lock, User, UserPlus } from '@/components/icons'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Input } from '@/components/ui/input'
+import { formatDate, t } from '@/lib/i18n'
 import { cn } from '@/lib/utils'
 import { ProfileAvatar } from '@/features/profile/ProfileAvatar'
 import { AccountForm, FormError, Spinner } from './AccountForm'
@@ -35,16 +36,16 @@ function useSystemTheme(): void {
 }
 
 function lastUsedLabel(ts: number | null): string {
-  if (!ts) return 'Never opened'
+  if (!ts) return t('auth.neverOpened')
   const mins = Math.round((Date.now() - ts) / 60000)
-  if (mins < 2) return 'Active just now'
-  if (mins < 60) return `Last opened ${mins} min ago`
+  if (mins < 2) return t('auth.activeNow')
+  if (mins < 60) return t('auth.openedMin', { n: mins })
   const hours = Math.round(mins / 60)
-  if (hours < 24) return `Last opened ${hours} h ago`
+  if (hours < 24) return t('auth.openedH', { n: hours })
   const days = Math.round(hours / 24)
-  if (days === 1) return 'Last opened yesterday'
-  if (days < 30) return `Last opened ${days} days ago`
-  return `Last opened ${new Date(ts).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}`
+  if (days === 1) return t('auth.openedYesterday')
+  if (days < 30) return t('auth.openedDays', { n: days })
+  return t('auth.openedOn', { date: formatDate(ts) })
 }
 
 const avatarOf = (a: PublicAccount) => ({ name: a.name, color: a.color, avatarUrl: a.avatarDataUrl })
@@ -90,12 +91,12 @@ export function SignInScreen() {
               {view.kind === 'create' && (
                 <motion.div key="create" {...panel}>
                   <Header
-                    title={accounts.length ? 'Create an account' : `Welcome to ${APP_NAME}`}
-                    subtitle={accounts.length ? 'Each account has its own notes, whiteboards, files and settings.' : APP_TAGLINE}
+                    title={accounts.length ? t('auth.createTitle') : t('welcome.label', { app: APP_NAME })}
+                    subtitle={accounts.length ? t('auth.createSubtitle') : t('auth.tagline')}
                     back={accounts.length ? () => setView({ kind: 'pick' }) : undefined}
                   />
                   <AccountForm
-                    submitLabel={accounts.length ? 'Create account' : 'Get started'}
+                    submitLabel={accounts.length ? t('auth.createAccount') : t('welcome.getStarted')}
                     initialColor={['blue', 'purple', 'teal', 'orange', 'pink', 'green'][accounts.length % 6]}
                     onSubmit={(input) => window.auth.createAccount(input)}
                   />
@@ -105,13 +106,13 @@ export function SignInScreen() {
               {view.kind === 'setup' && (
                 <motion.div key="setup" {...panel}>
                   <Header
-                    title="Welcome back"
-                    subtitle={`${APP_NAME} now has accounts. Your notes, whiteboards and settings are safe and unchanged — confirm your name to continue.`}
+                    title={t('auth.welcomeBack')}
+                    subtitle={t('auth.welcomeBackBody', { app: APP_NAME })}
                   />
                   <AccountForm
                     initialName={view.account.name}
                     initialColor={view.account.color}
-                    submitLabel="Continue"
+                    submitLabel={t('common.continue')}
                     onSubmit={(input) => window.auth.setupAccount(view.account.id, input)}
                   />
                 </motion.div>
@@ -123,7 +124,7 @@ export function SignInScreen() {
 
       <footer className="relative flex items-center justify-center gap-1.5 pb-5 text-xs text-muted-foreground">
         <Lock className="size-3.5" />
-        Accounts are stored only on this Mac — nothing is sent to a server.
+        {t('auth.localOnly')}
       </footer>
     </div>
   )
@@ -139,7 +140,7 @@ function Header({ title, subtitle, back }: { title: string; subtitle: ReactNode;
           className="-ml-1 mb-3 inline-flex items-center gap-1 rounded-md px-1 py-0.5 text-sm text-muted-foreground transition hover:text-foreground"
         >
           <ArrowLeft className="size-3.5" />
-          All accounts
+          {t('auth.allAccounts')}
         </button>
       )}
       <h1 className="text-[22px] leading-tight font-semibold tracking-tight">{title}</h1>
@@ -163,9 +164,9 @@ function GuestButton({ className }: { className?: string }) {
     <div className={className}>
       <Button variant="ghost" className="w-full text-muted-foreground" disabled={busy} onClick={() => void go()} data-testid="continue-as-guest">
         {busy ? <Spinner /> : <User />}
-        Continue as guest
+        {t('auth.continueGuest')}
       </Button>
-      <p className="mt-1 text-center text-xs text-muted-foreground/80">A temporary workspace — deleted when you sign out.</p>
+      <p className="mt-1 text-center text-xs text-muted-foreground/80">{t('auth.guestHint')}</p>
       <FormError>{error}</FormError>
     </div>
   )
@@ -198,7 +199,7 @@ function Picker({ accounts, onCreate }: { accounts: PublicAccount[]; onCreate: (
 
   return (
     <>
-      <Header title={`Sign in to ${APP_NAME}`} subtitle="Choose an account to continue." />
+      <Header title={t('auth.signInTitle', { app: APP_NAME })} subtitle={t('auth.chooseAccount')} />
       <div className="overflow-hidden rounded-xl border bg-card shadow-xs">
         {accounts.map((a, i) => (
           <motion.div
@@ -257,13 +258,13 @@ function Picker({ accounts, onCreate }: { accounts: PublicAccount[]; onCreate: (
 
       <label className="mt-3 flex cursor-pointer items-center gap-2 text-sm text-muted-foreground">
         <Checkbox checked={stay} onCheckedChange={(v) => setStay(v === true)} />
-        Keep me signed in on this Mac
+        {t('account.staySignedIn')}
       </label>
 
       <div className="mt-6 grid gap-2">
         <Button variant="outline" className="w-full" onClick={onCreate} disabled={!!busy}>
           <UserPlus />
-          Add account
+          {t('auth.addAccount')}
         </Button>
         <GuestButton />
       </div>
@@ -287,8 +288,8 @@ function PasswordRow({ busy, onSubmit }: { busy: boolean; onSubmit: (pw: string)
   }
   return (
     <motion.form animate={shake} onSubmit={submit} className="flex gap-2 px-3.5 pt-1 pb-3.5 pl-[3.75rem]">
-      <Input ref={input} autoFocus type="password" placeholder="Password" value={pw} onChange={(e) => setPw(e.target.value)} className="h-8" aria-label="Password" />
-      <Button type="submit" size="icon-sm" disabled={busy} aria-label="Sign in">
+      <Input ref={input} autoFocus type="password" placeholder={t('account.password')} value={pw} onChange={(e) => setPw(e.target.value)} className="h-8" aria-label={t('account.password')} />
+      <Button type="submit" size="icon-sm" disabled={busy} aria-label={t('auth.signIn')}>
         {busy ? <Spinner /> : <ArrowRight />}
       </Button>
     </motion.form>

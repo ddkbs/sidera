@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { ProfileAvatar } from '@/features/profile/ProfileAvatar'
+import { t } from '@/lib/i18n'
 import { ColorPicker, FormError, Spinner } from './AccountForm'
 import { openSaveGuestDialog, refreshAuthSession, signOut, useAuthSession } from './AccountDialogs'
 
@@ -45,20 +46,17 @@ export function AccountSettings() {
         <div className="rounded-xl border border-amber-500/25 bg-amber-500/[0.06] p-4">
           <div className="flex items-center gap-2 text-sm font-medium">
             <TriangleAlert className="size-4 text-amber-500" />
-            Guest workspace
+            {t('account.guestWorkspace')}
           </div>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Everything you create as a guest — cards, whiteboards, files, settings and API keys — is deleted when you sign out or when the next guest session
-            starts.
-          </p>
+          <p className="mt-1 text-sm text-muted-foreground">{t('account.guestWorkspaceBody')}</p>
           <div className="mt-3 flex gap-2">
             <Button size="sm" onClick={openSaveGuestDialog}>
               <Upload />
-              Save as account…
+              {t('account.saveGuest')}
             </Button>
             <Button size="sm" variant="outline" onClick={signOut}>
               <LogOut />
-              End guest session
+              {t('account.endGuest')}
             </Button>
           </div>
         </div>
@@ -66,7 +64,7 @@ export function AccountSettings() {
     )
 
   if (!account)
-    return <p className="text-sm text-muted-foreground">Accounts are disabled for this window: it was opened on a fixed data folder (SIDERA_DATA_DIR).</p>
+    return <p className="text-sm text-muted-foreground">{t('account.disabled')}</p>
 
   return (
     <div>
@@ -76,38 +74,32 @@ export function AccountSettings() {
           <div className="truncate font-medium">{account.name}</div>
           <div className="flex items-center gap-1 truncate text-sm text-muted-foreground">
             {account.hasPassword && <Lock className="size-3.5" />}
-            Local account · stored only on this Mac
+            {t('account.localStored')}
           </div>
         </div>
         <Button variant="outline" onClick={signOut}>
           <LogOut />
-          Sign out
+          {t('account.signOut')}
         </Button>
       </div>
 
-      <Row title="Name" description="Also used as your profile name on comments and tasks.">
+      <Row title={t('account.name')} description={t('account.nameHint')}>
         <NameField name={account.name} />
       </Row>
-      <Row title="Color">
-        <ColorPicker value={account.color} onChange={(color) => void report(window.auth.updateAccount({ color }), 'Color updated')} />
+      <Row title={t('account.color')}>
+        <ColorPicker value={account.color} onChange={(color) => void report(window.auth.updateAccount({ color }), t('account.colorUpdated'))} />
       </Row>
       <Row
-        title="Password"
-        description={
-          account.hasPassword ? 'Asked for when signing in to this account.' : `Optional. Anyone using this Mac can open this account in ${APP_NAME}.`
-        }
+        title={t('account.password')}
+        description={account.hasPassword ? t('account.passwordAsked') : t('account.passwordOptional', { app: APP_NAME })}
       >
         <PasswordButton hasPassword={account.hasPassword} />
       </Row>
-      <p className="mt-1 mb-8 text-xs text-muted-foreground">
-        The password locks this account inside {APP_NAME}; it does not encrypt the files on disk. Use FileVault to protect your Mac.
-      </p>
+      <p className="mt-1 mb-8 text-xs text-muted-foreground">{t('account.passwordNote', { app: APP_NAME })}</p>
 
       <div className="rounded-xl border border-destructive/30 p-4">
-        <div className="text-sm font-medium">Delete account</div>
-        <p className="mt-0.5 text-sm text-muted-foreground">
-          Removes this account and moves its data folder (notes, whiteboards, files, settings) to the Trash, where you can still recover it.
-        </p>
+        <div className="text-sm font-medium">{t('account.delete')}</div>
+        <p className="mt-0.5 text-sm text-muted-foreground">{t('account.deleteHint')}</p>
         <DeleteAccountButton id={account.id} name={account.name} hasPassword={account.hasPassword} />
       </div>
     </div>
@@ -118,7 +110,7 @@ function NameField({ name }: { name: string }) {
   const [value, setValue] = useState(name)
   useEffect(() => setValue(name), [name])
   const save = () => {
-    if (value.trim() && value.trim() !== name) void report(window.auth.updateAccount({ name: value }), 'Name updated').then((ok) => !ok && setValue(name))
+    if (value.trim() && value.trim() !== name) void report(window.auth.updateAccount({ name: value }), t('account.nameUpdated')).then((ok) => !ok && setValue(name))
     else setValue(name)
   }
   return <Input className="w-56" value={value} maxLength={60} onChange={(e) => setValue(e.target.value)} onBlur={save} onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.blur()} />
@@ -131,11 +123,11 @@ function PasswordButton({ hasPassword }: { hasPassword: boolean }) {
       <div className="flex gap-2">
         {hasPassword && (
           <Button variant="ghost" size="sm" onClick={() => setMode('remove')}>
-            Remove
+            {t('common.remove')}
           </Button>
         )}
         <Button variant="outline" size="sm" onClick={() => setMode('set')}>
-          {hasPassword ? 'Change password' : 'Set password'}
+          {hasPassword ? t('account.changePassword') : t('account.setPassword')}
         </Button>
       </div>
       <Dialog open={!!mode} onOpenChange={(o) => !o && setMode(null)}>
@@ -156,44 +148,42 @@ function PasswordForm({ mode, hasPassword, onDone }: { mode: 'set' | 'remove'; h
   const submit = async (e: FormEvent) => {
     e.preventDefault()
     if (mode === 'set') {
-      if (next.length < MIN_PASSWORD_LENGTH) return setError(`Password must be at least ${MIN_PASSWORD_LENGTH} characters`)
-      if (next !== confirm) return setError('Passwords don’t match')
+      if (next.length < MIN_PASSWORD_LENGTH) return setError(t('account.passwordTooShort', { n: MIN_PASSWORD_LENGTH }))
+      if (next !== confirm) return setError(t('account.passwordMismatch'))
     }
     setBusy(true)
     const res = await window.auth.updateAccount({ password: mode === 'set' ? next : null, currentPassword: current || undefined })
     setBusy(false)
     if (!res.ok) return setError(res.error)
     await refreshAuthSession()
-    toast.success(mode === 'set' ? 'Password saved' : 'Password removed')
+    toast.success(mode === 'set' ? t('account.passwordSaved') : t('account.passwordRemoved'))
     onDone()
   }
   return (
     <form onSubmit={submit} className="space-y-4">
       <DialogHeader>
-        <DialogTitle>{mode === 'remove' ? 'Remove password' : hasPassword ? 'Change password' : 'Set a password'}</DialogTitle>
-        <DialogDescription>
-          {mode === 'remove' ? 'This account will open without asking for a password.' : 'You’ll be asked for it when signing in to this account.'}
-        </DialogDescription>
+        <DialogTitle>{mode === 'remove' ? t('account.removePassword') : hasPassword ? t('account.changePassword') : t('account.setAPassword')}</DialogTitle>
+        <DialogDescription>{mode === 'remove' ? t('account.removePasswordBody') : t('account.setPasswordBody')}</DialogDescription>
       </DialogHeader>
       <div className="grid gap-2">
         {hasPassword && (
-          <Input type="password" autoFocus autoComplete="current-password" placeholder="Current password" value={current} onChange={(e) => setCurrent(e.target.value)} />
+          <Input type="password" autoFocus autoComplete="current-password" placeholder={t('account.currentPassword')} value={current} onChange={(e) => setCurrent(e.target.value)} />
         )}
         {mode === 'set' && (
           <>
-            <Input type="password" autoFocus={!hasPassword} autoComplete="new-password" placeholder="New password" value={next} onChange={(e) => setNext(e.target.value)} />
-            <Input type="password" autoComplete="new-password" placeholder="Confirm new password" value={confirm} onChange={(e) => setConfirm(e.target.value)} />
+            <Input type="password" autoFocus={!hasPassword} autoComplete="new-password" placeholder={t('account.newPassword')} value={next} onChange={(e) => setNext(e.target.value)} />
+            <Input type="password" autoComplete="new-password" placeholder={t('account.confirmNewPassword')} value={confirm} onChange={(e) => setConfirm(e.target.value)} />
           </>
         )}
       </div>
       <FormError>{error}</FormError>
       <DialogFooter>
         <Button type="button" variant="ghost" onClick={onDone}>
-          Cancel
+          {t('common.cancel')}
         </Button>
         <Button type="submit" variant={mode === 'remove' ? 'destructive' : 'default'} disabled={busy}>
           {busy && <Spinner />}
-          {mode === 'remove' ? 'Remove password' : 'Save password'}
+          {mode === 'remove' ? t('account.removePassword') : t('account.savePassword')}
         </Button>
       </DialogFooter>
     </form>
@@ -222,27 +212,27 @@ function DeleteAccountButton({ id, name, hasPassword }: { id: string; name: stri
     <>
       <Button variant="outline" size="sm" className="mt-3 text-destructive hover:text-destructive" onClick={() => setOpen(true)}>
         <Trash2 />
-        Delete account…
+        {t('account.deleteEllipsis')}
       </Button>
       <Dialog open={open} onOpenChange={(o) => !busy && setOpen(o)}>
         <DialogContent className="sm:max-w-sm">
           <form onSubmit={submit} className="space-y-4">
             <DialogHeader>
-              <DialogTitle>Delete “{name}”?</DialogTitle>
-              <DialogDescription>You’ll be signed out and the account’s data folder moves to the Trash. Type the account name to confirm.</DialogDescription>
+              <DialogTitle>{t('common.deleteNamed', { name })}</DialogTitle>
+              <DialogDescription>{t('account.deleteBody')}</DialogDescription>
             </DialogHeader>
             <div className="grid gap-2">
               <Input autoFocus placeholder={name} value={typed} onChange={(e) => setTyped(e.target.value)} />
-              {hasPassword && <Input type="password" placeholder="Password" value={password} onChange={(e) => setPassword(e.target.value)} />}
+              {hasPassword && <Input type="password" placeholder={t('account.password')} value={password} onChange={(e) => setPassword(e.target.value)} />}
             </div>
             <AnimatePresence>{error && <motion.p className="text-sm text-destructive">{error}</motion.p>}</AnimatePresence>
             <DialogFooter>
               <Button type="button" variant="ghost" onClick={() => setOpen(false)} disabled={busy}>
-                Cancel
+                {t('common.cancel')}
               </Button>
               <Button type="submit" variant="destructive" disabled={!confirmed || busy}>
                 {busy && <Spinner />}
-                Move to Trash
+                {t('account.moveToTrash')}
               </Button>
             </DialogFooter>
           </form>

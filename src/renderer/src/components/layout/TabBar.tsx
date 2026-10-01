@@ -1,6 +1,7 @@
 import { BookOpen, Redo2, Undo2, Hash, Home, LayoutDashboard, ListChecks, PanelLeft, Plus, X } from '@/components/icons'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { AppActions } from './AppActions'
+import { t } from '@/lib/i18n'
 import { formatBinding, useBinding } from '@/lib/shortcuts'
 import { useUndoState } from '@/lib/undo'
 import { redoWithToast, undoWithToast } from '@/lib/undo-actions'
@@ -15,15 +16,15 @@ export function useViewLabel(view: View): { title: string; Icon: typeof Home } {
   const { data: tags = [] } = useListTagsQuery()
   switch (view.type) {
     case 'whiteboard':
-      return { title: boards.find((b) => b.id === view.id)?.name ?? 'Whiteboard', Icon: LayoutDashboard }
+      return { title: boards.find((b) => b.id === view.id)?.name ?? t('board.whiteboard'), Icon: LayoutDashboard }
     case 'library': {
-      const tag = tags.find((t) => t.id === view.tagId)
-      return tag ? { title: tag.name, Icon: Hash } : { title: 'Card Library', Icon: BookOpen }
+      const tag = tags.find((tg) => tg.id === view.tagId)
+      return tag ? { title: tag.name, Icon: Hash } : { title: t('sidebar.library'), Icon: BookOpen }
     }
     case 'tasks':
-      return { title: 'Tasks', Icon: ListChecks }
+      return { title: t('sidebar.tasks'), Icon: ListChecks }
     default:
-      return { title: 'Home', Icon: Home }
+      return { title: t('sidebar.home'), Icon: Home }
   }
 }
 
@@ -61,7 +62,7 @@ function TabItem({ id, view, index, active, closable }: { id: string; view: View
             dispatch(closeTab(id))
           }}
           className={cn('ml-auto grid size-5 shrink-0 place-items-center rounded hover:bg-accent', !active && 'opacity-0 group-hover:opacity-100')}
-          aria-label="Close tab"
+          aria-label={t('cmd.tab.close')}
         >
           <X className="size-3" />
         </button>
@@ -91,46 +92,46 @@ export function TabBar() {
     >
       <div className="flex items-center gap-0.5 px-2">
         {!sidebarOpen && (
-          <button className={navBtn} onClick={() => dispatch(toggleSidebar())} aria-label="Show sidebar">
+          <button className={navBtn} onClick={() => dispatch(toggleSidebar())} aria-label={t('tabs.showSidebar')}>
             <PanelLeft className="size-4" />
           </button>
         )}
         <Tooltip>
           <TooltipTrigger asChild>
-            <button className={navBtn} disabled={!undoState.undo} onClick={() => void undoWithToast()} aria-label="Undo">
+            <button className={navBtn} disabled={!undoState.undo} onClick={() => void undoWithToast()} aria-label={t('common.undo')}>
               <Undo2 className="size-4" />
             </button>
           </TooltipTrigger>
           <TooltipContent>
-            {undoState.undo ? `Undo ${undoState.undo}` : 'Nothing to undo'} {undoKey}
+            {undoState.undo ? t('undo.tooltip', { label: undoState.undo }) : t('undo.nothing')} {undoKey}
           </TooltipContent>
         </Tooltip>
         <Tooltip>
           <TooltipTrigger asChild>
-            <button className={navBtn} disabled={!undoState.redo} onClick={() => void redoWithToast()} aria-label="Redo">
+            <button className={navBtn} disabled={!undoState.redo} onClick={() => void redoWithToast()} aria-label={t('cmd.edit.redo')}>
               <Redo2 className="size-4" />
             </button>
           </TooltipTrigger>
           <TooltipContent>
-            {undoState.redo ? `Redo ${undoState.redo}` : 'Nothing to redo'} {redoKey}
+            {undoState.redo ? t('redo.tooltip', { label: undoState.redo }) : t('redo.nothing')} {redoKey}
           </TooltipContent>
         </Tooltip>
       </div>
       <div className="flex min-w-0 flex-1 items-stretch overflow-x-auto border-l [scrollbar-width:none]">
-        {tabs.map((t, i) => (
-          <TabItem key={t.id} id={t.id} view={t.view} index={i} active={t.id === activeTabId} closable={tabs.length > 1} />
+        {tabs.map((tab, i) => (
+          <TabItem key={tab.id} id={tab.id} view={tab.view} index={i} active={tab.id === activeTabId} closable={tabs.length > 1} />
         ))}
         <Tooltip>
           <TooltipTrigger asChild>
             <button
               className="no-drag grid w-9 shrink-0 place-items-center text-muted-foreground transition hover:text-foreground"
               onClick={() => dispatch(openTab(undefined))}
-              aria-label="New tab"
+              aria-label={t('cmd.tab.new')}
             >
               <Plus className="size-4" />
             </button>
           </TooltipTrigger>
-          <TooltipContent>New tab {newTabKey}</TooltipContent>
+          <TooltipContent>{t('cmd.tab.new')} {newTabKey}</TooltipContent>
         </Tooltip>
         <div className="flex-1" />
       </div>

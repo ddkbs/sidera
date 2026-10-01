@@ -8,6 +8,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { color } from '@/lib/colors'
+import { t } from '@/lib/i18n'
 import { cn } from '@/lib/utils'
 import { useAppDispatch, useAppSelector } from '@/store'
 import {
@@ -73,18 +74,18 @@ function ProfileForm({ id, onDone }: { id: string | null; onDone: () => void }) 
 
   const upload = async (file: File | undefined) => {
     if (!file) return
-    if (!file.type.startsWith('image/')) return void toast.error('Choose an image file')
+    if (!file.type.startsWith('image/')) return void toast.error(t('profile.chooseImage'))
     try {
       const res = await importFileData({ name: file.name, mime: file.type, dataBase64: await readBase64(file) })
       if ('error' in res) throw new Error(String(res.error))
       setAvatarFileId(res.data.id)
     } catch (e) {
-      toast.error(`Could not upload image: ${e instanceof Error ? e.message : e}`)
+      toast.error(t('profile.uploadFailed', { error: e instanceof Error ? e.message : String(e) }))
     }
   }
 
   const save = async () => {
-    if (!name.trim()) return void toast.error('Name is required')
+    if (!name.trim()) return void toast.error(t('profile.nameRequired'))
     setBusy(true)
     const input = { name, email: email.trim() || null, color: tone, avatarFileId }
     const res = existing ? await updateProfile({ id: existing.id, ...input }) : await createProfile(input)
@@ -92,7 +93,7 @@ function ProfileForm({ id, onDone }: { id: string | null; onDone: () => void }) 
     if ('error' in res) return void toast.error(String(res.error).replace(/^Error: /, ''))
     if (!existing) {
       await setActive(res.data.id)
-      toast.success(`Created and switched to ${res.data.name}`)
+      toast.success(t('profile.created', { name: res.data.name }))
     }
     onDone()
   }
@@ -101,7 +102,7 @@ function ProfileForm({ id, onDone }: { id: string | null; onDone: () => void }) 
     if (!existing) return
     const res = await deleteProfile(existing.id)
     if ('error' in res) return void toast.error(String(res.error).replace(/^Error: /, ''))
-    toast.success(`Deleted ${existing.name}`)
+    toast.success(t('profile.deleted', { name: existing.name }))
     onDone()
   }
 
@@ -114,8 +115,8 @@ function ProfileForm({ id, onDone }: { id: string | null; onDone: () => void }) 
       }}
     >
       <DialogHeader>
-        <DialogTitle>{existing ? 'Edit profile' : 'New profile'}</DialogTitle>
-        <DialogDescription>Profiles are local to this Mac and sign your comments.</DialogDescription>
+        <DialogTitle>{existing ? t('settings.profile.edit') : t('settings.profile.new')}</DialogTitle>
+        <DialogDescription>{t('profile.dialogHint')}</DialogDescription>
       </DialogHeader>
 
       <div className="flex items-center gap-4">
@@ -123,11 +124,11 @@ function ProfileForm({ id, onDone }: { id: string | null; onDone: () => void }) 
         <div className="flex flex-wrap gap-2">
           <Button type="button" variant="outline" size="sm" onClick={() => fileInput.current?.click()}>
             <Upload />
-            {avatarFileId ? 'Change image' : 'Upload image'}
+            {avatarFileId ? t('profile.changeImage') : t('profile.uploadImage')}
           </Button>
           {avatarFileId && (
             <Button type="button" variant="ghost" size="sm" onClick={() => setAvatarFileId(null)}>
-              Remove
+              {t('common.remove')}
             </Button>
           )}
           <input
@@ -144,17 +145,17 @@ function ProfileForm({ id, onDone }: { id: string | null; onDone: () => void }) 
       </div>
 
       <div className="grid gap-2">
-        <Label htmlFor="profile-name">Name</Label>
-        <Input id="profile-name" autoFocus value={name} onChange={(e) => setName(e.target.value)} placeholder="Your name" />
+        <Label htmlFor="profile-name">{t('account.name')}</Label>
+        <Input id="profile-name" autoFocus value={name} onChange={(e) => setName(e.target.value)} placeholder={t('account.namePlaceholder')} />
       </div>
       <div className="grid gap-2">
         <Label htmlFor="profile-email">
-          Email <span className="font-normal text-muted-foreground">(optional)</span>
+          {t('profile.email')} <span className="font-normal text-muted-foreground">{t('profile.optional')}</span>
         </Label>
-        <Input id="profile-email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" />
+        <Input id="profile-email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder={t('profile.emailPlaceholder')} />
       </div>
       <div className="grid gap-2">
-        <Label>Color</Label>
+        <Label>{t('account.color')}</Label>
         <div className="flex flex-wrap gap-2">
           {TAG_COLORS.map((c) => (
             <button
@@ -176,17 +177,17 @@ function ProfileForm({ id, onDone }: { id: string | null; onDone: () => void }) 
         {canDelete ? (
           <Button type="button" variant="ghost" size="sm" className="text-destructive hover:text-destructive" onClick={() => void remove()}>
             <Trash2 />
-            Delete profile
+            {t('profile.delete')}
           </Button>
         ) : (
           <span />
         )}
         <div className="flex gap-2">
           <Button type="button" variant="outline" onClick={onDone}>
-            Cancel
+            {t('common.cancel')}
           </Button>
           <Button type="submit" disabled={busy || !name.trim()}>
-            {existing ? 'Save' : 'Create profile'}
+            {existing ? t('common.save') : t('profile.create')}
           </Button>
         </div>
       </DialogFooter>

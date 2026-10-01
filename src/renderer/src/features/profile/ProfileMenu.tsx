@@ -18,6 +18,7 @@ import {
   DropdownMenuTrigger
 } from '@/components/ui/dropdown-menu'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
+import { t } from '@/lib/i18n'
 import { formatBinding, useBinding } from '@/lib/shortcuts'
 import { cn } from '@/lib/utils'
 import { useAppDispatch, useAppSelector } from '@/store'
@@ -53,8 +54,8 @@ export function ProfileMenuContent({ side = 'top', align = 'start' }: { side?: '
   const switchTo = async (id: string) => {
     if (id === active?.id) return
     const res = await setActive(id)
-    if ('error' in res) toast.error('Could not switch profile')
-    else toast.success(`Switched to ${res.data.name}`)
+    if ('error' in res) toast.error(t('profile.switchFailed'))
+    else toast.success(t('profile.switched', { name: res.data.name }))
   }
 
   return (
@@ -68,13 +69,13 @@ export function ProfileMenuContent({ side = 'top', align = 'start' }: { side?: '
               {session?.kind === 'guest' && <GuestBadge />}
             </div>
             <div className="truncate text-xs text-muted-foreground">
-              {session?.kind === 'guest' ? 'Temporary workspace' : (active.email ?? (session?.kind === 'account' ? 'Local account' : 'Local profile'))}
+              {session?.kind === 'guest' ? t('profile.tempWorkspace') : (active.email ?? (session?.kind === 'account' ? t('profile.localAccount') : t('profile.localProfile')))}
             </div>
           </div>
         </div>
       )}
       <DropdownMenuSeparator />
-      <DropdownMenuLabel className="text-xs font-normal text-muted-foreground">Switch profile</DropdownMenuLabel>
+      <DropdownMenuLabel className="text-xs font-normal text-muted-foreground">{t('profile.switch')}</DropdownMenuLabel>
       {profiles.map((p) => (
         <DropdownMenuItem key={p.id} onSelect={() => void switchTo(p.id)}>
           <ProfileAvatar profile={p} size="xs" />
@@ -84,40 +85,40 @@ export function ProfileMenuContent({ side = 'top', align = 'start' }: { side?: '
       ))}
       <DropdownMenuItem onSelect={() => dispatch(openProfileDialog({ id: null }))}>
         <UserPlus />
-        New profile…
+        {t('profile.newEllipsis')}
       </DropdownMenuItem>
       <DropdownMenuItem disabled={!active} onSelect={() => active && dispatch(openProfileDialog({ id: active.id }))}>
         <Pencil />
-        Edit profile…
+        {t('profile.editEllipsis')}
       </DropdownMenuItem>
       <DropdownMenuSeparator />
       <DropdownMenuSub>
         <DropdownMenuSubTrigger className="gap-2 [&_svg:not([class*='text-'])]:text-muted-foreground">
           <Palette className="size-4" />
-          Theme
-          <span className="ml-auto text-xs text-muted-foreground capitalize">{themePref}</span>
+          {t('settings.general.theme')}
+          <span className="ml-auto text-xs text-muted-foreground">{t(themePref === 'light' ? 'settings.general.themeLight' : themePref === 'dark' ? 'settings.general.themeDark' : 'settings.general.themeSystem')}</span>
         </DropdownMenuSubTrigger>
         <DropdownMenuSubContent>
           <DropdownMenuRadioGroup value={themePref} onValueChange={(v) => dispatch(updateSettings({ theme: v as ThemePref }))}>
-            <DropdownMenuRadioItem value="light">Light</DropdownMenuRadioItem>
-            <DropdownMenuRadioItem value="dark">Dark</DropdownMenuRadioItem>
-            <DropdownMenuRadioItem value="system">System</DropdownMenuRadioItem>
+            <DropdownMenuRadioItem value="light">{t('settings.general.themeLight')}</DropdownMenuRadioItem>
+            <DropdownMenuRadioItem value="dark">{t('settings.general.themeDark')}</DropdownMenuRadioItem>
+            <DropdownMenuRadioItem value="system">{t('settings.general.themeSystem')}</DropdownMenuRadioItem>
           </DropdownMenuRadioGroup>
         </DropdownMenuSubContent>
       </DropdownMenuSub>
       <DropdownMenuItem onSelect={() => dispatch(openSettings(undefined))}>
         <Settings />
-        Settings
+        {t('settings.title')}
         <DropdownMenuShortcut>{settingsKey}</DropdownMenuShortcut>
       </DropdownMenuItem>
       <DropdownMenuItem onSelect={() => dispatch(setShortcutsOpen(true))}>
         <Keyboard />
-        Keyboard shortcuts
+        {t('cmd.shortcuts.open')}
         <DropdownMenuShortcut>{shortcutsKey}</DropdownMenuShortcut>
       </DropdownMenuItem>
       <DropdownMenuItem onSelect={() => onboarding.startTour()}>
         <Compass />
-        Take the tour
+        {t('settings.general.takeTour')}
       </DropdownMenuItem>
       {session?.kind === 'account' && (
         <>
@@ -125,7 +126,7 @@ export function ProfileMenuContent({ side = 'top', align = 'start' }: { side?: '
           <DropdownMenuSub>
             <DropdownMenuSubTrigger className="gap-2 [&_svg:not([class*='text-'])]:text-muted-foreground">
               <Users className="size-4" />
-              Switch account
+              {t('account.switch')}
             </DropdownMenuSubTrigger>
             <DropdownMenuSubContent className="w-56">
               {otherAccounts.map((a) => (
@@ -137,13 +138,13 @@ export function ProfileMenuContent({ side = 'top', align = 'start' }: { side?: '
               {otherAccounts.length > 0 && <DropdownMenuSeparator />}
               <DropdownMenuItem onSelect={() => void window.auth.signOut()}>
                 <UserPlus />
-                Add or manage accounts…
+                {t('account.manage')}
               </DropdownMenuItem>
             </DropdownMenuSubContent>
           </DropdownMenuSub>
           <DropdownMenuItem onSelect={signOut}>
             <LogOut />
-            Sign out
+            {t('account.signOut')}
           </DropdownMenuItem>
         </>
       )}
@@ -152,11 +153,11 @@ export function ProfileMenuContent({ side = 'top', align = 'start' }: { side?: '
           <DropdownMenuSeparator />
           <DropdownMenuItem onSelect={openSaveGuestDialog}>
             <Upload />
-            Save as account…
+            {t('account.saveGuest')}
           </DropdownMenuItem>
           <DropdownMenuItem onSelect={signOut}>
             <LogOut />
-            End guest session
+            {t('account.endGuest')}
           </DropdownMenuItem>
         </>
       )}
@@ -165,7 +166,7 @@ export function ProfileMenuContent({ side = 'top', align = 'start' }: { side?: '
         <span className="grid size-4 place-items-center">
           <span className={cn('size-2 rounded-full', mcp?.running ? 'bg-emerald-500' : 'bg-muted-foreground/40')} />
         </span>
-        {mcp?.running ? `MCP server running on :${mcpPort(mcp.url, configuredPort)}` : 'MCP server offline'}
+        {mcp?.running ? t('profile.mcpRunning', { port: mcpPort(mcp.url, configuredPort) }) : t('profile.mcpOffline')}
       </DropdownMenuItem>
     </DropdownMenuContent>
   )
@@ -174,7 +175,7 @@ export function ProfileMenuContent({ side = 'top', align = 'start' }: { side?: '
 function GuestBadge() {
   return (
     <Badge variant="outline" className="h-4 shrink-0 rounded px-1 text-[10px] font-medium tracking-wide text-amber-600 uppercase dark:text-amber-400">
-      Guest
+      {t('account.guest')}
     </Badge>
   )
 }
@@ -183,10 +184,10 @@ function GuestBadge() {
 function GuestBanner() {
   return (
     <div className="mx-2 mb-2 rounded-lg border border-amber-500/25 bg-amber-500/[0.06] px-3 py-2.5">
-      <div className="text-xs font-medium">You’re using a guest workspace</div>
-      <div className="mt-0.5 text-[11px] leading-snug text-muted-foreground">Everything here is deleted when you sign out.</div>
+      <div className="text-xs font-medium">{t('account.guestBanner')}</div>
+      <div className="mt-0.5 text-[11px] leading-snug text-muted-foreground">{t('account.guestBannerHint')}</div>
       <button onClick={openSaveGuestDialog} className="mt-1.5 text-[11px] font-medium text-foreground underline-offset-2 hover:underline">
-        Save as account →
+        {t('account.saveGuestArrow')}
       </button>
     </div>
   )
@@ -197,15 +198,15 @@ export function NotificationsButton({ className }: { className?: string }) {
   return (
     <Popover>
       <PopoverTrigger asChild>
-        <button aria-label="Notifications" title="Notifications" className={cn('no-drag grid size-7 shrink-0 place-items-center rounded-md text-muted-foreground transition hover:bg-sidebar-accent hover:text-foreground data-[state=open]:bg-sidebar-accent data-[state=open]:text-foreground', className)}>
+        <button aria-label={t('profile.notifications')} title={t('profile.notifications')} className={cn('no-drag grid size-7 shrink-0 place-items-center rounded-md text-muted-foreground transition hover:bg-sidebar-accent hover:text-foreground data-[state=open]:bg-sidebar-accent data-[state=open]:text-foreground', className)}>
           <Bell className="size-4" />
         </button>
       </PopoverTrigger>
       <PopoverContent side="top" align="start" className="w-64 p-0">
-        <div className="border-b px-3 py-2 text-sm font-medium">Notifications</div>
+        <div className="border-b px-3 py-2 text-sm font-medium">{t('profile.notifications')}</div>
         <div className="flex flex-col items-center gap-1.5 px-3 py-6 text-center">
           <Bell className="size-5 text-muted-foreground" />
-          <div className="text-sm text-muted-foreground">No notifications</div>
+          <div className="text-sm text-muted-foreground">{t('profile.noNotifications')}</div>
         </div>
       </PopoverContent>
     </Popover>
@@ -234,14 +235,14 @@ export function ProfileFooter({ status }: { status?: ReactNode }) {
                 <span className="truncate text-sm font-medium">{active?.name ?? ' '}</span>
                 {guest && <GuestBadge />}
               </span>
-              <span className="block truncate text-[11px] text-muted-foreground">{status ?? active?.email ?? (guest ? 'Temporary workspace' : 'Local')}</span>
+              <span className="block truncate text-[11px] text-muted-foreground">{status ?? active?.email ?? (guest ? t('profile.tempWorkspace') : t('profile.local'))}</span>
             </span>
           </button>
         </DropdownMenuTrigger>
         <button
           data-tour="settings-gear"
-          aria-label="Account menu"
-          title="Account menu"
+          aria-label={t('profile.accountMenu')}
+          title={t('profile.accountMenu')}
           onClick={() => setOpen(true)}
           className={cn('grid size-7 shrink-0 place-items-center rounded-md text-muted-foreground', hover, open && 'bg-sidebar-accent text-foreground')}
         >
@@ -260,7 +261,7 @@ export function ProfileMenuButton({ className }: { className?: string }) {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <button aria-label="Account menu" title={active?.name} className={cn('no-drag grid size-7 place-items-center rounded-md transition hover:bg-accent', className)}>
+        <button aria-label={t('profile.accountMenu')} title={active?.name} className={cn('no-drag grid size-7 place-items-center rounded-md transition hover:bg-accent', className)}>
           <ProfileAvatar profile={active} size="xs" />
         </button>
       </DropdownMenuTrigger>

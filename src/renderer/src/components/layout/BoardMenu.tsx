@@ -16,6 +16,7 @@ import {
 } from '@/components/ui/context-menu'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
+import { t } from '@/lib/i18n'
 import { useAppDispatch, useAppSelector } from '@/store'
 import {
   useCreateWhiteboardMutation,
@@ -32,12 +33,10 @@ import { WhiteboardPropertiesDialog } from '@/features/canvas/WhiteboardProperti
 async function organizeWithAi(dispatch: ReturnType<typeof useAppDispatch>, board: Whiteboard): Promise<void> {
   const hasKey = await window.chat.hasKey()
   if (!hasKey) {
-    toast('Add an Anthropic API key to organize with the built-in assistant', {
-      description: 'Or ask Claude Desktop/Code to do it via the "organize-board" MCP prompt.'
-    })
+    toast(t('board.organizeNoKey'), { description: t('board.organizeNoKeyHint') })
     return
   }
-  dispatch(queueChatMessage(`Organize the whiteboard "${board.name}" (id ${board.id}) into meaningful sections.`))
+  dispatch(queueChatMessage(t('board.organizePrompt', { name: board.name, id: board.id })))
 }
 
 export function BoardMenu({ board, children }: { board: Whiteboard; children: ReactElement }) {
@@ -51,7 +50,7 @@ export function BoardMenu({ board, children }: { board: Whiteboard; children: Re
   const moveBoard = async (folderId: string | null) => {
     const prev = board.folderId ?? null
     await moveToFolder({ whiteboardId: board.id, folderId })
-    record({ label: 'Move whiteboard', undo: () => window.api.moveWhiteboardToFolder(board.id, prev), redo: () => window.api.moveWhiteboardToFolder(board.id, folderId) })
+    record({ label: t('undo.moveBoard'), undo: () => window.api.moveWhiteboardToFolder(board.id, prev), redo: () => window.api.moveWhiteboardToFolder(board.id, folderId) })
   }
   const { data: folders = [] } = useListFoldersQuery()
   const [dialog, setDialog] = useState<'rename' | 'delete' | null>(null)
@@ -66,35 +65,35 @@ export function BoardMenu({ board, children }: { board: Whiteboard; children: Re
         </ContextMenuTrigger>
         <ContextMenuContent className="w-52">
           <ContextMenuItem onSelect={() => dispatch(openTab({ type: 'whiteboard', id: board.id }))}>
-            <Plus /> Open in new tab
+            <Plus /> {t('help.fixed.cmdClick')}
           </ContextMenuItem>
           <ContextMenuItem onSelect={() => (setName(board.name), setDialog('rename'))}>
-            <Pencil /> Rename
+            <Pencil /> {t('common.rename')}
           </ContextMenuItem>
           <ContextMenuItem onSelect={() => setPropertiesFor(board.id)}>
-            <Table2 /> Properties…
+            <Table2 /> {t('board.properties')}
           </ContextMenuItem>
           <ContextMenuItem onSelect={() => void organizeWithAi(dispatch, board)}>
-            <Sparkles /> Organize with AI
+            <Sparkles /> {t('board.organize')}
           </ContextMenuItem>
           <ContextMenuItem
             onSelect={async () => {
-              const r = await create({ name: 'Untitled whiteboard', parentId: board.id })
+              const r = await create({ name: t('board.untitled'), parentId: board.id })
               if ('data' in r && r.data) {
                 await window.api.addObject({ whiteboardId: board.id, kind: 'whiteboard', refId: r.data.id, x: 0, y: -240 })
                 dispatch(navigate({ type: 'whiteboard', id: r.data.id }))
               }
             }}
           >
-            <LayoutDashboard /> New sub-whiteboard
+            <LayoutDashboard /> {t('board.newSub')}
           </ContextMenuItem>
           <ContextMenuSub>
             <ContextMenuSubTrigger>
-              <FolderIcon /> Move to folder
+              <FolderIcon /> {t('folder.moveTo')}
             </ContextMenuSubTrigger>
             <ContextMenuSubContent className="w-48">
               <ContextMenuItem disabled={!board.folderId} onSelect={() => moveBoard(null)}>
-                No folder
+                {t('folder.none')}
               </ContextMenuItem>
               {folders.length > 0 && <ContextMenuSeparator />}
               {folders.map((f) => (
@@ -113,15 +112,15 @@ export function BoardMenu({ board, children }: { board: Whiteboard; children: Re
               const r = await duplicate(board.id)
               if ('data' in r && r.data) {
                 dispatch(navigate({ type: 'whiteboard', id: r.data.id }))
-                toast.success(`Duplicated “${board.name}”`)
-              } else toast.error('Could not duplicate whiteboard')
+                toast.success(t('board.duplicated', { name: board.name }))
+              } else toast.error(t('board.duplicateFailed'))
             }}
           >
-            <Copy /> Duplicate
+            <Copy /> {t('common.duplicate')}
           </ContextMenuItem>
           <ContextMenuSeparator />
           <ContextMenuItem variant="destructive" onSelect={() => setDialog('delete')}>
-            <Trash2 /> Delete
+            <Trash2 /> {t('common.delete')}
           </ContextMenuItem>
         </ContextMenuContent>
       </ContextMenu>
@@ -136,22 +135,22 @@ export function BoardMenu({ board, children }: { board: Whiteboard; children: Re
               }}
             >
               <DialogHeader>
-                <DialogTitle>Rename whiteboard</DialogTitle>
+                <DialogTitle>{t('board.renameTitle')}</DialogTitle>
               </DialogHeader>
               <Input className="mt-4" autoFocus value={name} onChange={(e) => setName(e.target.value)} />
               <DialogFooter className="mt-4">
-                <Button type="submit">Save</Button>
+                <Button type="submit">{t('common.save')}</Button>
               </DialogFooter>
             </form>
           ) : (
             <>
               <DialogHeader>
-                <DialogTitle>Delete “{board.name}”?</DialogTitle>
-                <DialogDescription>The whiteboard and its layout are removed. Cards stay in your library.</DialogDescription>
+                <DialogTitle>{t('common.deleteNamed', { name: board.name })}</DialogTitle>
+                <DialogDescription>{t('board.deleteBody')}</DialogDescription>
               </DialogHeader>
               <DialogFooter>
                 <Button variant="outline" onClick={() => setDialog(null)}>
-                  Cancel
+                  {t('common.cancel')}
                 </Button>
                 <Button
                   variant="destructive"
@@ -162,7 +161,7 @@ export function BoardMenu({ board, children }: { board: Whiteboard; children: Re
                     recordDelete('whiteboard', board.id)
                   }}
                 >
-                  Delete
+                  {t('common.delete')}
                 </Button>
               </DialogFooter>
             </>

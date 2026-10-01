@@ -2,6 +2,7 @@ import { ThinkingOrb } from 'thinking-orbs'
 import { LayoutDashboard, Text } from '@/components/icons'
 import { motion } from 'motion/react'
 import { Button } from '@/components/ui/button'
+import { formatDate, t } from '@/lib/i18n'
 import { useAppDispatch, useAppSelector } from '@/store'
 import { useCreateCardMutation, useCreateWhiteboardMutation, useGetBoardPreviewsQuery, useListWhiteboardsWithStatsQuery } from '@/store/api'
 import { navigate, openCard, setChatOpen } from '@/store/ui'
@@ -19,7 +20,7 @@ export function HomeView() {
   const previewById = new Map(previews.map((p) => [p.id, p]))
 
   const newBoard = async () => {
-    const r = await createWhiteboard({ name: 'Untitled whiteboard' })
+    const r = await createWhiteboard({ name: t('board.untitled') })
     if ('data' in r && r.data) dispatch(navigate({ type: 'whiteboard', id: r.data.id }))
   }
   const quickNote = async () => {
@@ -34,8 +35,8 @@ export function HomeView() {
           <button
             onClick={() => dispatch(setChatOpen(true))}
             className="shrink-0 rounded-full transition hover:scale-105"
-            title="Ask AI"
-            aria-label="Ask AI"
+            title={t('sidebar.askAi')}
+            aria-label={t('sidebar.askAi')}
           >
             {/* Explicit theme: relying on "auto" ancestor-class detection can pick up the OS's
                 prefers-color-scheme instead of our resolved app theme when they disagree,
@@ -44,29 +45,29 @@ export function HomeView() {
           </button>
           <div className="min-w-0">
             <motion.h1 initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} className="text-3xl font-semibold tracking-tight">
-              Good {greeting()}.
+              {greeting()}
             </motion.h1>
-            <p className="mt-1 text-muted-foreground">Fast, visual notes on whiteboards — local, open and MCP-ready.</p>
+            <p className="mt-1 text-muted-foreground">{t('home.tagline')}</p>
           </div>
         </div>
 
         <div className="mt-8 flex items-center gap-3">
           <Button size="lg" className="gap-2 shadow-sm" onClick={() => void newBoard()}>
             <LayoutDashboard className="size-4" />
-            New board
+            {t('home.newBoard')}
           </Button>
           <button
             onClick={() => void quickNote()}
             className="flex h-10 items-center gap-2 rounded-md border bg-card px-3.5 text-sm font-medium text-muted-foreground transition hover:-translate-y-0.5 hover:text-foreground hover:shadow-md"
           >
             <Text className="size-4" />
-            Quick note
+            {t('home.quickNote')}
           </button>
         </div>
 
         <section className="mt-10">
           <div className="mb-3 flex items-center justify-between">
-            <h2 className="text-sm font-semibold">Recent boards</h2>
+            <h2 className="text-sm font-semibold">{t('home.recent')}</h2>
           </div>
           {boards.length === 0 ? (
             <button
@@ -74,7 +75,7 @@ export function HomeView() {
               className="flex w-full flex-col items-center justify-center gap-2 rounded-xl border border-dashed px-4 py-14 text-center text-sm text-muted-foreground transition hover:border-foreground/30 hover:text-foreground"
             >
               <LayoutDashboard className="size-6" />
-              No boards yet — create one to start mapping ideas.
+              {t('home.empty')}
             </button>
           ) : (
             <div className="grid grid-cols-3 gap-4">
@@ -107,9 +108,9 @@ function BoardTile({ board, preview, dark, onOpen }: { board: WhiteboardSummary;
       <div className="relative flex h-[3.75rem] flex-col justify-center gap-0.5 px-4">
         <div className="truncate text-sm font-medium">{board.name}</div>
         <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-          <span>{board.objectCount} {board.objectCount === 1 ? 'object' : 'objects'}</span>
+          <span>{t('home.objects', { count: board.objectCount })}</span>
           <span aria-hidden>·</span>
-          <span>Edited {relativeTime(board.updatedAt)}</span>
+          <span>{t('home.edited', { time: relativeTime(board.updatedAt) })}</span>
         </div>
       </div>
     </button>
@@ -118,18 +119,18 @@ function BoardTile({ board, preview, dark, onOpen }: { board: WhiteboardSummary;
 
 const greeting = () => {
   const h = new Date().getHours()
-  return h < 12 ? 'morning' : h < 18 ? 'afternoon' : 'evening'
+  return h < 12 ? t('home.morning') : h < 18 ? t('home.afternoon') : t('home.evening')
 }
 
 /** Short relative time for board tiles ("just now", "2h ago", "3d ago"), falling back to a date. */
 function relativeTime(ms: number): string {
   const diff = Date.now() - ms
   const min = Math.floor(diff / 60_000)
-  if (min < 1) return 'just now'
-  if (min < 60) return `${min}m ago`
+  if (min < 1) return t('time.justNow')
+  if (min < 60) return t('time.minAgo', { n: min })
   const hr = Math.floor(min / 60)
-  if (hr < 24) return `${hr}h ago`
+  if (hr < 24) return t('time.hAgo', { n: hr })
   const day = Math.floor(hr / 24)
-  if (day < 7) return `${day}d ago`
-  return new Date(ms).toLocaleDateString()
+  if (day < 7) return t('time.dAgo', { n: day })
+  return formatDate(ms)
 }

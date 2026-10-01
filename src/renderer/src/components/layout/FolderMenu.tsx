@@ -13,6 +13,7 @@ import {
   ContextMenuTrigger
 } from '@/components/ui/context-menu'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { t } from '@/lib/i18n'
 import { useAppDispatch } from '@/store'
 import { useCreateWhiteboardMutation, useDeleteFolderMutation } from '@/store/api'
 import { navigate } from '@/store/ui'
@@ -61,9 +62,9 @@ export function FolderMenu({
   const moveTargets = allFolders.filter((f) => !blocked.has(f.id))
 
   const newWhiteboard = async () => {
-    const res = await create({ name: 'Untitled whiteboard', folderId: folder.id })
+    const res = await create({ name: t('board.untitled'), folderId: folder.id })
     if ('data' in res && res.data) dispatch(navigate({ type: 'whiteboard', id: res.data.id }))
-    else toast.error('Could not create whiteboard')
+    else toast.error(t('board.createFailed'))
   }
 
   return (
@@ -74,21 +75,21 @@ export function FolderMenu({
         </ContextMenuTrigger>
         <ContextMenuContent className="w-56">
           <ContextMenuItem onSelect={() => void newWhiteboard()}>
-            <LayoutDashboard /> New whiteboard in folder
+            <LayoutDashboard /> {t('folder.newBoardIn')}
           </ContextMenuItem>
           <ContextMenuItem onSelect={onNewSubfolder}>
-            <FolderPlus /> New subfolder
+            <FolderPlus /> {t('folder.newSub')}
           </ContextMenuItem>
           <ContextMenuItem onSelect={onStartRename}>
-            <Pencil /> Rename
+            <Pencil /> {t('common.rename')}
           </ContextMenuItem>
           <ContextMenuSub>
             <ContextMenuSubTrigger>
-              <FolderIcon /> Move to folder
+              <FolderIcon /> {t('folder.moveTo')}
             </ContextMenuSubTrigger>
             <ContextMenuSubContent className="w-48">
               <ContextMenuItem disabled={folder.parentId === null} onSelect={() => onMove(null)}>
-                No folder (top level)
+                {t('folder.topLevel')}
               </ContextMenuItem>
               {moveTargets.length > 0 && <ContextMenuSeparator />}
               {moveTargets.map((f) => (
@@ -100,31 +101,29 @@ export function FolderMenu({
           </ContextMenuSub>
           <ContextMenuSeparator />
           <ContextMenuItem variant="destructive" onSelect={() => setConfirmDelete(true)}>
-            <Trash2 /> Delete folder
+            <Trash2 /> {t('folder.delete')}
           </ContextMenuItem>
         </ContextMenuContent>
       </ContextMenu>
       <Dialog open={confirmDelete} onOpenChange={setConfirmDelete}>
         <DialogContent className="sm:max-w-sm">
           <DialogHeader>
-            <DialogTitle>Delete “{folder.name}”?</DialogTitle>
-            <DialogDescription>
-              The folder is removed, but its whiteboards and subfolders are kept — they move up to the level above.
-            </DialogDescription>
+            <DialogTitle>{t('common.deleteNamed', { name: folder.name })}</DialogTitle>
+            <DialogDescription>{t('folder.deleteBody')}</DialogDescription>
           </DialogHeader>
           <DialogFooter>
             <Button variant="outline" onClick={() => setConfirmDelete(false)}>
-              Cancel
+              {t('common.cancel')}
             </Button>
             <Button
               variant="destructive"
               onClick={async () => {
                 setConfirmDelete(false)
                 await remove(folder.id)
-                toast('Folder deleted')
+                toast(t('folder.deleted'))
               }}
             >
-              Delete
+              {t('common.delete')}
             </Button>
           </DialogFooter>
         </DialogContent>

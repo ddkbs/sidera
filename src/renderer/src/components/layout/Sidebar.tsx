@@ -14,6 +14,7 @@ import {
 } from '@/components/icons'
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { Orb } from '@/components/Orb'
+import { t } from '@/lib/i18n'
 import { formatBinding, useBinding } from '@/lib/shortcuts'
 import { BoardMenu } from './BoardMenu'
 import { FolderMenu } from './FolderMenu'
@@ -150,9 +151,9 @@ export function Sidebar() {
   /** ⌘-click opens in a new tab, like a browser */
   const go = (v: View, e?: { metaKey: boolean }) => dispatch(e?.metaKey ? openTab(v) : navigate(v))
   const newBoard = async (folderId?: string | null) => {
-    const res = await createWhiteboard({ name: 'Untitled whiteboard', folderId: folderId ?? null })
+    const res = await createWhiteboard({ name: t('board.untitled'), folderId: folderId ?? null })
     if ('data' in res && res.data) go({ type: 'whiteboard', id: res.data.id })
-    else toast.error('Could not create whiteboard')
+    else toast.error(t('board.createFailed'))
   }
 
   const confirmDraftFolder = async () => {
@@ -163,7 +164,7 @@ export function Sidebar() {
     if (!name) return
     if (parentId) setCollapsed((prev) => { const n = new Set(prev); n.delete(parentId); return n })
     const res = await createFolder({ name, parentId })
-    if (!('data' in res)) toast.error('Could not create folder')
+    if (!('data' in res)) toast.error(t('folder.createFailed'))
   }
 
   const dropOnFolder = async (e: React.DragEvent, folderId: string | null) => {
@@ -176,7 +177,7 @@ export function Sidebar() {
       if (prev === folderId) return
       await moveWhiteboardToFolder({ whiteboardId: boardId, folderId })
       record({
-        label: 'Move whiteboard',
+        label: t('undo.moveBoard'),
         undo: () => window.api.moveWhiteboardToFolder(boardId, prev),
         redo: () => window.api.moveWhiteboardToFolder(boardId, folderId)
       })
@@ -186,7 +187,7 @@ export function Sidebar() {
       if ('error' in res) toast.error(String(res.error))
       else
         record({
-          label: 'Move folder',
+          label: t('undo.moveFolder'),
           undo: () => window.api.moveFolder(draggedFolderId, prev),
           redo: () => window.api.moveFolder(draggedFolderId, folderId)
         })
@@ -199,7 +200,7 @@ export function Sidebar() {
         <button
           onClick={() => dispatch(toggleSidebar())}
           className="no-drag grid size-7 place-items-center rounded-md text-muted-foreground transition hover:bg-sidebar-accent hover:text-foreground"
-          aria-label="Hide sidebar"
+          aria-label={t('sidebar.hide')}
         >
           <PanelLeft className="size-4" />
         </button>
@@ -211,7 +212,7 @@ export function Sidebar() {
           className="no-drag flex h-8 w-full items-center gap-2 rounded-md border border-sidebar-border bg-background px-2.5 text-sm text-muted-foreground shadow-xs transition hover:text-foreground"
         >
           <Search className="size-3.5" />
-          <span className="flex-1 text-left">Search</span>
+          <span className="flex-1 text-left">{t('common.search')}</span>
           <Kbd>{searchKey}</Kbd>
         </button>
         <button
@@ -223,14 +224,14 @@ export function Sidebar() {
           )}
         >
           <Orb online active={agentBusy} className="size-3.5" />
-          <span className="flex-1 text-left">Ask AI</span>
+          <span className="flex-1 text-left">{t('sidebar.askAi')}</span>
           <span className="text-xs text-muted-foreground">{chatKey}</span>
         </button>
       </div>
       <ScrollArea className="min-h-0 flex-1">
         <nav data-tour="sidebar-nav" className="flex flex-col gap-0.5 px-2 text-sm">
           <NavItem tour="nav-home" icon={<Home className="size-4" />} active={view.type === 'home'} onClick={(e) => go({ type: 'home' }, e)}>
-            Home
+            {t('sidebar.home')}
           </NavItem>
 
           <ContextMenu>
@@ -251,23 +252,23 @@ export function Sidebar() {
                   action={
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="icon" className="size-5" aria-label="Add to Hub">
+                        <Button variant="ghost" size="icon" className="size-5" aria-label={t('sidebar.addToHub')}>
                           <Plus className="size-3.5" />
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end" className="w-44">
                         <DropdownMenuItem onSelect={() => void newBoard(null)}>
-                          <LayoutDashboard /> New whiteboard
+                          <LayoutDashboard /> {t('board.new')}
                         </DropdownMenuItem>
                         <DropdownMenuItem onSelect={() => setDraftFolder({ parentId: null, name: '' })}>
-                          <FolderPlus /> New folder
+                          <FolderPlus /> {t('folder.new')}
                         </DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
                   }
                   className={cn(dropTarget === 'root' && 'rounded bg-sidebar-accent ring-1 ring-inset ring-primary/40')}
                 >
-                  Hub
+                  {t('sidebar.hub')}
                 </SectionHeader>
 
                 {(folderTree.get(null) ?? []).map((f) => (
@@ -299,9 +300,9 @@ export function Sidebar() {
                 ))}
                 {!boards.length && !folders.length && !draftFolder && (
                   <div className="mx-2 mt-1 rounded-md border border-dashed px-2.5 py-4 text-center text-xs text-muted-foreground">
-                    Your Hub is empty.
+                    {t('sidebar.emptyHub')}
                     <br />
-                    Right-click to add a whiteboard or folder.
+                    {t('sidebar.emptyHubHint')}
                   </div>
                 )}
                 <div className="min-h-8 flex-1" />
@@ -309,10 +310,10 @@ export function Sidebar() {
             </ContextMenuTrigger>
             <ContextMenuContent className="w-48">
               <ContextMenuItem onSelect={() => void newBoard(null)}>
-                <LayoutDashboard /> New whiteboard
+                <LayoutDashboard /> {t('board.new')}
               </ContextMenuItem>
               <ContextMenuItem onSelect={() => setDraftFolder({ parentId: null, name: '' })}>
-                <FolderPlus /> New folder
+                <FolderPlus /> {t('folder.new')}
               </ContextMenuItem>
             </ContextMenuContent>
           </ContextMenu>
@@ -323,7 +324,7 @@ export function Sidebar() {
               className="flex h-6 w-full items-center gap-1 rounded-md px-2 text-xs font-medium text-muted-foreground transition hover:bg-sidebar-accent"
             >
               <ChevronDown className={cn('size-3 transition-transform', moreCollapsed && '-rotate-90')} />
-              More
+              {t('sidebar.more')}
             </button>
             {!moreCollapsed && (
               <>
@@ -333,7 +334,7 @@ export function Sidebar() {
                   active={view.type === 'library' && !view.tagId}
                   onClick={(e) => go({ type: 'library', tagId: null, mode: 'table' }, e)}
                 >
-                  Card Library
+                  {t('sidebar.library')}
                 </NavItem>
                 <NavItem
                   tour="nav-tasks"
@@ -342,14 +343,14 @@ export function Sidebar() {
                   onClick={(e) => go({ type: 'tasks' }, e)}
                   badge={openTasks > 0 ? (openTasks > 99 ? '99+' : String(openTasks)) : undefined}
                 >
-                  Tasks
+                  {t('sidebar.tasks')}
                 </NavItem>
               </>
             )}
           </div>
         </nav>
       </ScrollArea>
-      <ProfileFooter status={agentBusy && last ? `Agent: ${last.tool}` : undefined} />
+      <ProfileFooter status={agentBusy && last ? t('sidebar.agentStatus', { tool: last.tool }) : undefined} />
     </div>
   )
 }
@@ -418,7 +419,7 @@ function FolderItem(props: FolderItemProps) {
           const prev = folder.parentId
           const res = await moveFolder({ id: folder.id, parentId })
           if ('error' in res) toast.error(String(res.error))
-          else record({ label: 'Move folder', undo: () => window.api.moveFolder(folder.id, prev), redo: () => window.api.moveFolder(folder.id, parentId) })
+          else record({ label: t('undo.moveFolder'), undo: () => window.api.moveFolder(folder.id, prev), redo: () => window.api.moveFolder(folder.id, parentId) })
         }}
       >
         <div
@@ -481,7 +482,7 @@ function FolderItem(props: FolderItemProps) {
           ))}
           {!subfolders.length && !childBoards.length && !draftFolder && (
             <p style={{ paddingLeft: (depth + 1) * 12 + 8 }} className="py-1 text-xs text-muted-foreground">
-              Empty
+              {t('folder.empty')}
             </p>
           )}
         </>
@@ -508,7 +509,7 @@ function FolderDraftRow({
       <span className="grid size-5 place-items-center text-muted-foreground">
         <FolderIcon className="size-4" />
       </span>
-      <InlineNameInput value={value} onChange={onChange} onConfirm={onConfirm} onCancel={onCancel} placeholder="Folder name" />
+      <InlineNameInput value={value} onChange={onChange} onConfirm={onConfirm} onCancel={onCancel} placeholder={t('folder.namePlaceholder')} />
     </div>
   )
 }
@@ -601,7 +602,7 @@ function NavItem(props: { icon: ReactNode; active?: boolean; onClick: (e: React.
       <span className="shrink-0 text-muted-foreground">{props.icon}</span>
       <span className="truncate">{props.children}</span>
       {props.badge && (
-        <span className="ml-auto pr-0.5 text-[11px] font-medium text-muted-foreground tabular-nums" aria-label={`${props.badge} open`}>
+        <span className="ml-auto pr-0.5 text-[11px] font-medium text-muted-foreground tabular-nums" aria-label={t('sidebar.openBadge', { count: props.badge })}>
           {props.badge}
         </span>
       )}

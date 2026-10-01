@@ -4,6 +4,7 @@ import type { PublicAccount, SessionInfo } from '@shared/auth'
 import { TriangleAlert } from '@/components/icons'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { t } from '@/lib/i18n'
 import { AccountForm, Spinner } from './AccountForm'
 import { PRESELECT_KEY } from './SignInScreen'
 
@@ -77,10 +78,10 @@ export function AccountDialogs() {
       <Dialog open={open === 'save-guest'} onOpenChange={(o) => !o && close()}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Save as account</DialogTitle>
-            <DialogDescription>Everything in this guest workspace moves into a new account on this Mac and is kept after you sign out.</DialogDescription>
+            <DialogTitle>{t('account.saveGuestTitle')}</DialogTitle>
+            <DialogDescription>{t('account.saveGuestBody')}</DialogDescription>
           </DialogHeader>
-          {open === 'save-guest' && <AccountForm submitLabel="Save account" onSubmit={(input) => window.auth.saveGuestAsAccount(input)} />}
+          {open === 'save-guest' && <AccountForm submitLabel={t('account.saveAccount')} onSubmit={(input) => window.auth.saveGuestAsAccount(input)} />}
         </DialogContent>
       </Dialog>
 
@@ -89,15 +90,13 @@ export function AccountDialogs() {
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <TriangleAlert className="size-4 text-amber-500" />
-              End guest session?
+              {t('account.endGuestTitle')}
             </DialogTitle>
-            <DialogDescription>
-              Guest workspaces are temporary. Signing out permanently deletes every card, whiteboard, file and setting you created as a guest.
-            </DialogDescription>
+            <DialogDescription>{t('account.endGuestBody')}</DialogDescription>
           </DialogHeader>
           <DialogFooter className="gap-2 sm:justify-between">
             <Button variant="outline" onClick={() => setDialog('save-guest')} disabled={ending}>
-              Save as account…
+              {t('account.saveGuest')}
             </Button>
             <Button
               variant="destructive"
@@ -108,7 +107,7 @@ export function AccountDialogs() {
               }}
             >
               {ending && <Spinner />}
-              Delete & sign out
+              {t('account.deleteSignOut')}
             </Button>
           </DialogFooter>
         </DialogContent>
