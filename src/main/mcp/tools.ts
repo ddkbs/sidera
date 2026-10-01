@@ -39,7 +39,17 @@ const errorText = (e: unknown) => fail(String(e instanceof Error ? e.message : e
 /** Builds an MCP server exposing Sidera's knowledge base. Every tool delegates to services. */
 export type ToolCallListener = (tool: string, args: Record<string, unknown>) => void
 
-export function createMcpServer(api: Services, version: string, onCall?: ToolCallListener): McpServer {
+export interface McpServerOptions {
+  /**
+   * May `add_file` import by local `path`? External MCP clients (Claude Desktop/Code, stdio) act for the user on their
+   * own machine, so yes; the in-app chat reads web search results and imported text, so a prompt injection could
+   * otherwise pull arbitrary local files onto a board — it passes false.
+   */
+  localPaths?: boolean
+}
+
+export function createMcpServer(api: Services, version: string, onCall?: ToolCallListener, options: McpServerOptions = {}): McpServer {
+  const { localPaths = true } = options
   /** Markdown → doc with [[Title]] resolved to card links (creates backlinks). */
   const toDoc = (markdown: string) =>
     linkWikiRefs(markdownToDoc(markdown), (title) => {
@@ -933,6 +943,7 @@ export function createMcpServer(api: Services, version: string, onCall?: ToolCal
       try {
         let file: FileRecord
         if (path !== undefined) {
+          if (!localPaths) return fail('Importing local files by path is not available in the in-app chat. Use url or data_base64, or drop the file onto the board.')
           const full = path.startsWith('~/') ? homedir() + path.slice(1) : path
           if (!isAbsolute(full)) return fail('path must be absolute')
           file = api.importFileFromPath(full)

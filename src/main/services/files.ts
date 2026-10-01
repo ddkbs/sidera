@@ -1,6 +1,6 @@
 // Storing imported files in the data folder's `files/` dir — shared by the file dialog / paste IPC handlers
 // (session.ts) and MCP (`add_file`). Plain Node, no Electron.
-import { copyFileSync, mkdirSync, statSync, writeFileSync } from 'node:fs'
+import { copyFileSync, mkdirSync, realpathSync, statSync, writeFileSync } from 'node:fs'
 import { basename, extname, join } from 'node:path'
 import { nanoid } from 'nanoid'
 import type { FileRecord } from '@shared/types'
@@ -35,12 +35,15 @@ export function storeFileFromPath(filesDir: string, path: string, register: Regi
   const ext = extname(path).toLowerCase()
   const mime = IMPORT_MIME[ext]
   if (!mime) throw new Error(`Unsupported file type: ${ext || basename(path)} (allowed: ${Object.keys(IMPORT_MIME).join(', ')})`)
-  const info = statSync(path)
+  // a symlink named x.txt must not smuggle in another file type: the resolved target needs an importable extension too
+  const real = realpathSync(path)
+  if (!IMPORT_MIME[extname(real).toLowerCase()]) throw new Error(`Unsupported file type: ${basename(real)}`)
+  const info = statSync(real)
   if (!info.isFile()) throw new Error(`Not a file: ${path}`)
   if (info.size > MAX_IMPORT_BYTES) throw new Error('File too large (max 25 MB)')
   mkdirSync(filesDir, { recursive: true })
   const dest = join(filesDir, nanoid() + ext)
-  copyFileSync(path, dest)
+  copyFileSync(real, dest)
   return register({ name: basename(path), mime, path: dest, size: info.size })
 }
 

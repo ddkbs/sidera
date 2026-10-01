@@ -59,6 +59,8 @@ export interface IpadServerOptions {
 }
 
 const HELLO_TIMEOUT_MS = 10_000
+/** frame cap until the device has authenticated: hello / auth / pair messages are tiny, so strangers can't make us buffer megabytes */
+const PREAUTH_FRAME_BYTES = 8 * 1024
 const IDLE_TIMEOUT_MS = HEARTBEAT_MS * 4
 const MAX_CONNECTIONS = 8
 const MAX_CONNECTIONS_PER_IP = 4
@@ -352,7 +354,7 @@ export class IpadServer {
     if (this.blocked(ip)) return refuse('429 Too Many Requests')
     const fromIp = [...this.conns].filter((c) => c.ip === ip).length
     if (this.conns.size >= MAX_CONNECTIONS || fromIp >= MAX_CONNECTIONS_PER_IP) return refuse('503 Service Unavailable')
-    const ws = acceptWebSocket(req, socket, head, MAX_FRAME_BYTES)
+    const ws = acceptWebSocket(req, socket, head, PREAUTH_FRAME_BYTES)
     if (!ws) return
     const conn = new Conn(ws, ip)
     this.conns.add(conn)
@@ -424,6 +426,7 @@ export class IpadServer {
         }
         if (h.mode === 'device' && msg.type === 'auth') {
           conn.deviceId = h.id
+          ws.setMaxMessageBytes(MAX_FRAME_BYTES)
           conn.name = this.opts.devices.get(h.id)?.name ?? 'iPad'
           this.opts.devices.touch(h.id)
           conn.scope = this.board ? new BoardScope(this.opts.services, this.board.id) : null

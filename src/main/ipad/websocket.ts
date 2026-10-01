@@ -53,6 +53,11 @@ export class WsConnection implements SyncTransport {
     if (head?.length) this.onData(head)
   }
 
+  /** Changes the message size cap (tight before authentication, wide for an authenticated device). */
+  setMaxMessageBytes(n: number): void {
+    this.maxMessageBytes = n
+  }
+
   get isOpen(): boolean {
     return !this.closed
   }

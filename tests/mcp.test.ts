@@ -24,6 +24,18 @@ async function connect() {
 }
 
 describe('mcp', () => {
+  it('add_file refuses local paths for the in-app chat', async () => {
+    const api = createServices(openDatabase(':memory:'))
+    const wb = api.createWhiteboard({ name: 'B' })
+    const server = createMcpServer(api, 'test', undefined, { localPaths: false })
+    const client = new Client({ name: 'test', version: '1' })
+    const [a, b] = InMemoryTransport.createLinkedPair()
+    await Promise.all([server.connect(a), client.connect(b)])
+    const res = await client.callTool({ name: 'add_file', arguments: { whiteboard_id: wb.id, path: '/etc/hosts.txt' } })
+    expect(res.isError).toBe(true)
+    expect((res.content as { text: string }[])[0].text).toMatch(/not available in the in-app chat/)
+  })
+
   it('reports tool calls to the activity listener', async () => {
     const api = createServices(openDatabase(':memory:'))
     const calls: string[] = []
