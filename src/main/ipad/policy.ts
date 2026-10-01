@@ -178,6 +178,8 @@ export class BoardScope {
       }
       case 'listTags':
       case 'listProfiles':
+        // library-wide metadata stays on the Mac
+        return { args: [], post: () => [] }
       case 'getActiveProfile':
         return { args: [] }
 
