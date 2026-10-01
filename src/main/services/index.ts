@@ -42,6 +42,9 @@ import { buildBoardPreview, type PreviewSource } from '@shared/boardPreview'
 import type { DB } from '../db/client'
 import * as s from '../db/schema'
 import { layoutGroups } from './organize'
+import { contentMatchesMime, storeFileBytes, storeFileFromPath } from './files'
+import { buildShape, inkColor, INK_STROKE, styledShape, type ShapeKind, type ShapeStyle } from '@shared/shapes'
+import { seedInk, type SeedStroke } from '@shared/inkSeed'
 
 type Electronish = 'importFiles' | 'importFileData' | 'getFileUrl' | 'openFile' | 'getMcpInfo' | 'exportMarkdown' | 'importMarkdown' | 'fetchLinkPreview' | 'clipUrl'
 export type ServiceMethods = {
@@ -59,6 +62,51 @@ export type Services = ServiceMethods & {
   notify(scope: DbChangeScope): void
   /** Hard-delete soft-deleted cards/whiteboards older than `olderThan` ms. */
   purgeDeleted(olderThan: number): void
+
+  // ---- files (need `filesDir`) ----
+  /** Copy a file from disk into the data folder (importable extensions only, 25 MB). */
+  importFileFromPath(path: string): FileRecord
+  /** Store raw bytes in the data folder (allow-listed mimes, 25 MB, content must match the mime). */
+  importFileBytes(input: { name?: string; mime: string; bytes: Buffer }): FileRecord
+
+  // ---- whiteboard editing used by MCP (the renderer edits objects directly + keeps its own undo) ----
+  /** Move / resize / rotate / recolour / restack objects and merge data keys; returns the updated objects. */
+  editObjects(edits: ObjectEdit[]): WhiteboardObject[]
+  /** Remove objects (text box cards are soft-deleted with their placement) and connections. */
+  deleteObjects(input: { objectIds?: string[]; connectionIds?: string[] }): { objects: number; connections: number }
+  /** Copy objects on their board (text boxes get their own card; connections between copied objects come along). */
+  duplicateObjects(ids: string[], offset?: { x: number; y: number }): WhiteboardObject[]
+  /** A native Excalidraw shape as a frameless sketch (like the Shapes insert menu). */
+  addShape(input: { whiteboardId: string; shape: ShapeKind; x: number; y: number; width?: number; height?: number } & ShapeStyle): WhiteboardObject
+  /** Pen ink from strokes given in board coordinates (frameless sketch, like pen mode). */
+  addInk(input: { whiteboardId: string; strokes: SeedStroke[] }): WhiteboardObject
+  /** A web link preview card (http/https only); the renderer fetches the preview. */
+  addLink(input: { whiteboardId: string; url: string; x: number; y: number; width?: number; height?: number }): WhiteboardObject
+  /** Place an imported file (image, PDF, …) on a board. */
+  addFileObject(input: { whiteboardId: string; fileId: string; x: number; y: number; width?: number; height?: number }): WhiteboardObject
+  /** A section frame around the given objects (the "Group" action). */
+  groupObjects(input: { whiteboardId: string; objectIds: string[]; title?: string; color?: string }): WhiteboardObject
+}
+
+/** One edit of `editObjects`. `color` goes to the card for cards/text boxes and recolours the ink of frameless sketches. */
+export interface ObjectEdit {
+  id: string
+  x?: number
+  y?: number
+  width?: number
+  height?: number
+  /** degrees (text boxes, images/files, sketches/shapes) */
+  rotation?: number
+  color?: string | null
+  /** bring to front / send to back */
+  order?: 'front' | 'back'
+  /** keys merged into the object's data (undefined/null values remove a key) */
+  data?: Record<string, unknown>
+}
+
+export interface ServiceOptions {
+  /** where imported files are stored (the data folder's `files/`); file imports throw without it */
+  filesDir?: string
 }
 
 const DEFAULT_SIZES: Record<string, [number, number]> = {
@@ -122,7 +170,8 @@ export function defaultProfileName(): string {
 export function createServices(
   db: DB,
   onChange: (scope: DbChangeScope) => void = () => {},
-  profileStore: ActiveProfileStore = memoryProfileStore()
+  profileStore: ActiveProfileStore = memoryProfileStore(),
+  options: ServiceOptions = {}
 ): Services {
   const sql = db.$client
   const tx = <T>(fn: () => T): T => sql.transaction(fn)()
@@ -435,6 +484,10 @@ export function createServices(
 
   const getCardRow = (id: string) => db.select().from(s.cards).where(eq(s.cards.id, id)).get()
 
+  const requireBoard = (id: string): void => {
+    const row = db.select({ id: s.whiteboards.id, deletedAt: s.whiteboards.deletedAt }).from(s.whiteboards).where(eq(s.whiteboards.id, id)).get()
+    if (!row || row.deletedAt) throw new Error(`Whiteboard not found: ${id}`)
+  }
   const requireCard = (id: string): Card => {
     const r = getCardRow(id)
     if (!r) throw new Error(`Card not found: ${id}`)
@@ -1479,6 +1532,184 @@ export function createServices(
         sql.prepare(`DELETE FROM whiteboards WHERE deleted_at IS NOT NULL AND deleted_at < ?`).run(cutoff)
       })
     },
+    // ---------- files ----------
+    importFileFromPath(path) {
+      if (!options.filesDir) throw new Error('File import is not available here')
+      return storeFileFromPath(options.filesDir, path, api.registerFile)
+    },
+    importFileBytes({ name, mime, bytes }) {
+      if (!options.filesDir) throw new Error('File import is not available here')
+      if (!contentMatchesMime(mime, bytes)) throw new Error(`The data is not a valid ${mime} file`)
+      return storeFileBytes(options.filesDir, { name, mime, bytes }, api.registerFile)
+    },
+
+    // ---------- whiteboard editing (MCP) ----------
+    editObjects(edits) {
+      const patches: Parameters<typeof api.updateObjects>[0] = []
+      const boards = new Set<string>()
+      tx(() => {
+        for (const e of edits) {
+          const obj = api.getObject(e.id)
+          if (!obj) throw new Error(`Object not found: ${e.id}`)
+          boards.add(obj.whiteboardId)
+          const patch: Parameters<typeof api.updateObjects>[0][number] = { id: e.id }
+          for (const k of ['x', 'y', 'width', 'height'] as const) {
+            const v = e[k]
+            if (v === undefined) continue
+            if (!Number.isFinite(v)) throw new Error(`${k} must be a number`)
+            patch[k] = k === 'width' || k === 'height' ? Math.max(10, v) : v
+          }
+          let data: Record<string, unknown> | null = null
+          const setData = (key: string, value: unknown): void => {
+            data ??= { ...obj.data }
+            if (value === undefined || value === null) delete data[key]
+            else data[key] = value
+          }
+          for (const [k, v] of Object.entries(e.data ?? {})) setData(k, v)
+          if (e.rotation !== undefined) {
+            const deg = ((e.rotation % 360) + 360) % 360
+            setData('rotation', deg ? Math.round(deg * 100) / 100 : null)
+          }
+          if (e.color !== undefined) {
+            if (obj.kind === 'card' && obj.refId) api.updateCard({ id: obj.refId, color: e.color })
+            else {
+              patch.color = e.color
+              const elements = (data ?? obj.data).elements
+              if (obj.kind === 'sketch' && (data ?? obj.data).frameless && Array.isArray(elements)) {
+                const stroke = inkColor(e.color) ?? INK_STROKE.black
+                setData('elements', (elements as Record<string, unknown>[]).map((el) => ({ ...el, strokeColor: stroke })))
+              }
+            }
+          }
+          if (e.order) {
+            const zs = sql.prepare('SELECT MIN(z) AS lo, MAX(z) AS hi FROM whiteboard_objects WHERE whiteboard_id = ?').get(obj.whiteboardId) as { lo: number; hi: number }
+            patch.z = e.order === 'front' ? zs.hi + 1 : zs.lo - 1
+          }
+          if (data) patch.data = data
+          patches.push(patch)
+        }
+        api.updateObjects(patches)
+        for (const b of boards) db.update(s.whiteboards).set({ updatedAt: now() }).where(eq(s.whiteboards.id, b)).run()
+      })
+      onChange('whiteboards')
+      return edits.map((e) => api.getObject(e.id)!)
+    },
+
+    deleteObjects({ objectIds = [], connectionIds = [] }) {
+      const objects = objectIds.map((id) => api.getObject(id)).filter((o): o is WhiteboardObject => !!o)
+      const blockIds = objects.filter((o) => o.kind === 'card' && o.refId).map((o) => o.refId!)
+      const blocks = blockIds.length
+        ? db.select({ id: s.cards.id }).from(s.cards).where(and(inArray(s.cards.id, blockIds), eq(s.cards.kind, 'block'))).all().map((r) => r.id)
+        : []
+      const conns = connectionIds.length ? db.select({ id: s.connections.id }).from(s.connections).where(inArray(s.connections.id, connectionIds)).all().length : 0
+      tx(() => {
+        // text boxes live and die with their placement: their card is soft-deleted (restorable) like in the app
+        if (blocks.length) db.update(s.cards).set({ deletedAt: now() }).where(inArray(s.cards.id, blocks)).run()
+        if (objects.length) db.delete(s.whiteboardObjects).where(inArray(s.whiteboardObjects.id, objects.map((o) => o.id))).run()
+        if (connectionIds.length) db.delete(s.connections).where(inArray(s.connections.id, connectionIds)).run()
+      })
+      onChange(blocks.length ? 'all' : 'whiteboards')
+      return { objects: objects.length, connections: conns }
+    },
+
+    duplicateObjects(ids, offset = { x: 40, y: 40 }) {
+      const sources = ids.map((id) => {
+        const o = api.getObject(id)
+        if (!o) throw new Error(`Object not found: ${id}`)
+        return o
+      })
+      const idMap = new Map<string, string>()
+      const created = tx(() => {
+        const out = sources.map((o) => {
+          let refId = o.refId
+          if (o.kind === 'card' && o.refId) {
+            const card = db.select().from(s.cards).where(eq(s.cards.id, o.refId)).get()
+            // text boxes belong to one spot: a copy gets its own block card (regular cards are referenced)
+            if (card?.kind === 'block') {
+              const copy = api.createCard({ kind: 'block', content: json<DocJSON>(card.content, emptyDoc()) })
+              if (card.color) api.updateCard({ id: copy.id, color: card.color })
+              refId = copy.id
+            }
+          }
+          const obj = api.addObject({ whiteboardId: o.whiteboardId, kind: o.kind, refId, x: o.x + offset.x, y: o.y + offset.y, width: o.width, height: o.height, color: o.color, data: o.data })
+          idMap.set(o.id, obj.id)
+          return obj
+        })
+        // charts that follow a copied table follow the copy
+        for (const o of out) {
+          const src = (o.data as Partial<ChartData>).source
+          if (o.kind === 'chart' && src?.tableId && idMap.has(src.tableId))
+            db.update(s.whiteboardObjects).set({ data: JSON.stringify({ ...o.data, source: { ...src, tableId: idMap.get(src.tableId) } }) }).where(eq(s.whiteboardObjects.id, o.id)).run()
+        }
+        const boardIds = [...new Set(sources.map((o) => o.whiteboardId))]
+        const conns = db.select().from(s.connections).where(inArray(s.connections.whiteboardId, boardIds)).all()
+        for (const c of conns) {
+          const sourceId = idMap.get(c.sourceId)
+          const targetId = idMap.get(c.targetId)
+          if (sourceId && targetId) db.insert(s.connections).values({ ...c, id: nanoid(), sourceId, targetId }).run()
+        }
+        return out.map((o) => api.getObject(o.id)!)
+      })
+      onChange('all')
+      return created
+    },
+
+    addShape({ whiteboardId, shape, x, y, width, height, ...style }) {
+      requireBoard(whiteboardId)
+      const { elements, width: w, height: h } = styledShape(buildShape(shape), { width, height }, style)
+      return api.addObject({ whiteboardId, kind: 'sketch', x, y, width: w, height: h, data: { elements, files: {}, frameless: true } })
+    },
+
+    addInk({ whiteboardId, strokes }) {
+      requireBoard(whiteboardId)
+      const clean = strokes
+        .map((st) => ({ ...st, points: st.points.filter((p) => Array.isArray(p) && Number.isFinite(p[0]) && Number.isFinite(p[1])) }))
+        .filter((st) => st.points.length > 0)
+        .map((st) => ({ ...st, color: inkColor(st.color) ?? INK_STROKE.black }))
+      if (!clean.length) throw new Error('Ink needs at least one stroke with points')
+      const ink = seedInk(clean, `ink-${nanoid(8)}`)
+      return api.addObject({ whiteboardId, kind: 'sketch', ...ink.box, data: { elements: ink.elements, files: {}, frameless: true } })
+    },
+
+    addLink({ whiteboardId, url, x, y, width, height }) {
+      requireBoard(whiteboardId)
+      let parsed: URL
+      try {
+        parsed = new URL(url.trim())
+      } catch {
+        throw new Error(`Not a valid URL: ${url}`)
+      }
+      if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') throw new Error('Only http(s) links can be added')
+      return api.addObject({ whiteboardId, kind: 'link', x, y, width, height, data: { url: parsed.href } })
+    },
+
+    addFileObject({ whiteboardId, fileId, x, y, width, height }) {
+      requireBoard(whiteboardId)
+      const file = api.getFile(fileId)
+      if (!file) throw new Error(`File not found: ${fileId}`)
+      return api.addObject({ whiteboardId, kind: 'file', refId: file.id, x, y, width, height, data: { name: file.name, mime: file.mime } })
+    },
+
+    groupObjects({ whiteboardId, objectIds, title, color }) {
+      const objs = objectIds.map((id) => api.getObject(id)).filter((o): o is WhiteboardObject => !!o && o.whiteboardId === whiteboardId)
+      if (!objs.length) throw new Error('None of the objects are on this whiteboard')
+      const minX = Math.min(...objs.map((o) => o.x))
+      const minY = Math.min(...objs.map((o) => o.y))
+      const maxX = Math.max(...objs.map((o) => o.x + o.width))
+      const maxY = Math.max(...objs.map((o) => o.y + o.height))
+      const pad = 40
+      return api.addObject({
+        whiteboardId,
+        kind: 'section',
+        x: minX - pad,
+        y: minY - pad - 8,
+        width: maxX - minX + pad * 2,
+        height: maxY - minY + pad * 2 + 8,
+        color: color ?? 'blue',
+        data: { title: title?.trim() || 'Section' }
+      })
+    },
+
     notify(scope) {
       onChange(scope)
     },

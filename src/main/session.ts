@@ -1,6 +1,6 @@
 import { mkdirSync } from 'node:fs'
 import type { Server } from 'node:http'
-import { copyFile, mkdir, readFile, stat, writeFile } from 'node:fs/promises'
+import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import { basename, dirname, extname, isAbsolute, join, relative } from 'node:path'
 import { dialog, shell, type BrowserWindow } from 'electron'
 import { nanoid } from 'nanoid'
@@ -19,31 +19,12 @@ import { DB_FILENAME, migrateDbFilename, openDatabase, type DB } from './db/clie
 import { stdioLaunchSpec } from './integrations'
 import { startHttpMcp } from './mcp/server'
 import { createServices, type Services } from './services'
+import { IMPORT_MIME } from './services/files'
 import { exportCards, importCards } from './services/markdown'
 import { seedWelcome } from './services/seed'
 import { SettingsStore } from './settings'
 import { downloadImage, fetchLinkPreview, fetchPageForClip } from './web'
 
-const MIME: Record<string, string> = {
-  '.pdf': 'application/pdf',
-  '.png': 'image/png',
-  '.jpg': 'image/jpeg',
-  '.jpeg': 'image/jpeg',
-  '.gif': 'image/gif',
-  '.webp': 'image/webp',
-  '.svg': 'image/svg+xml',
-  '.md': 'text/markdown',
-  '.txt': 'text/plain'
-}
-// importFileData (paste/drop of raw bytes, e.g. a clipboard image) accepts the same mimes as importFiles plus a few more image types
-const EXT_BY_MIME: Record<string, string> = {
-  ...Object.fromEntries(Object.entries(MIME).map(([ext, mime]) => [mime, ext])),
-  'image/bmp': '.bmp',
-  'image/heic': '.heic',
-  'image/heif': '.heif'
-}
-const DATA_MIME_ALLOWLIST = new Set([...Object.values(MIME), 'image/bmp', 'image/heic', 'image/heif'])
-const MAX_IMPORT_BYTES = 25 * 1024 * 1024
 const OPENABLE_EXTS = new Set(['.pdf', '.png', '.jpg', '.jpeg', '.gif', '.webp', '.bmp', '.heic', '.heif', '.md', '.txt'])
 
 export interface SessionOptions {
@@ -99,7 +80,7 @@ export class Session {
         if (this.settings.get().activeProfileId === id) return
         this.send(SETTINGS_CHANGED, this.settings.set({ activeProfileId: id }))
       }
-    })
+    }, { filesDir: this.filesDir })
     // deleted cards/whiteboards stay restorable (undo) for 30 days
     this.services.purgeDeleted(30 * 24 * 60 * 60 * 1000)
     this.keys = new KeyStore(this.dataDir)
@@ -218,33 +199,19 @@ export class Session {
     return {
       ...services,
       async importFiles(paths) {
-        let filePaths = (paths ?? []).filter((p) => MIME[extname(p).toLowerCase()])
+        let filePaths = (paths ?? []).filter((p) => IMPORT_MIME[extname(p).toLowerCase()])
         if (!paths) {
           const res = await showOpen({
             properties: ['openFile', 'multiSelections'],
-            filters: [{ name: 'Documents & images', extensions: Object.keys(MIME).map((e) => e.slice(1)) }]
+            filters: [{ name: 'Documents & images', extensions: Object.keys(IMPORT_MIME).map((e) => e.slice(1)) }]
           })
           if (res.canceled) return []
           filePaths = res.filePaths
         }
-        return Promise.all(
-          filePaths.map(async (p) => {
-            const ext = extname(p).toLowerCase()
-            const dest = join(filesDir, nanoid() + ext)
-            await copyFile(p, dest)
-            const { size } = await stat(dest)
-            return services.registerFile({ name: basename(p), mime: MIME[ext] ?? 'application/octet-stream', path: dest, size })
-          })
-        )
+        return filePaths.map((p) => services.importFileFromPath(p))
       },
       async importFileData({ name, mime, dataBase64 }) {
-        if (!DATA_MIME_ALLOWLIST.has(mime)) throw new Error(`Unsupported file type: ${mime}`)
-        const buf = Buffer.from(dataBase64, 'base64')
-        if (buf.length > MAX_IMPORT_BYTES) throw new Error('File too large (max 25 MB)')
-        const ext = extname(name || '').toLowerCase() || EXT_BY_MIME[mime] || ''
-        const dest = join(filesDir, nanoid() + ext)
-        await writeFile(dest, buf)
-        return services.registerFile({ name: name?.trim() || `pasted${ext}`, mime, path: dest, size: buf.length })
+        return services.importFileBytes({ name, mime, bytes: Buffer.from(dataBase64, 'base64') })
       },
       async getFileUrl(id) {
         return services.getFile(id) ? fileUrl(id) : null
