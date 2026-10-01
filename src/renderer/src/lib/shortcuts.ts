@@ -37,7 +37,6 @@ export const COMMANDS: CommandDef[] = [
   { id: 'tool.card', scope: 'whiteboard', label: 'Card tool', group: 'Whiteboard tools', binding: 'C' },
   { id: 'tool.import', scope: 'whiteboard', label: 'Import file', group: 'Whiteboard tools', binding: 'U' },
   { id: 'tool.connector', scope: 'whiteboard', label: 'Connector tool', group: 'Whiteboard tools', binding: 'A' },
-  { id: 'tool.text', scope: 'whiteboard', label: 'Heading tool', group: 'Whiteboard tools', binding: 'H' },
   { id: 'tool.section', scope: 'whiteboard', label: 'Section tool', group: 'Whiteboard tools', binding: 'S' },
   { id: 'tool.search', scope: 'whiteboard', label: 'Add existing card', group: 'Whiteboard tools', binding: 'F' },
   { id: 'tool.pen', scope: 'whiteboard', label: 'Pen (draw on the whiteboard)', group: 'Whiteboard tools', binding: 'P' },

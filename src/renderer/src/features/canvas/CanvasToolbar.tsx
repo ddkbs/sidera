@@ -1,4 +1,4 @@
-import { ArrowUpRight, BoxSelect, Ellipsis, MousePointer2, PenTool, Search, SquarePlus, TextBlock, Type, Upload } from '@/components/icons'
+import { ArrowUpRight, BoxSelect, Ellipsis, MousePointer2, PenTool, Search, SquarePlus, TextBlock, Upload } from '@/components/icons'
 import { motion } from 'motion/react'
 import type { ReactNode } from 'react'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
@@ -16,7 +16,6 @@ export const TOOLS: { id: CanvasTool; label: string; icon: ReactNode; primary?: 
   { id: 'block', label: 'Text block', icon: <TextBlock />, primary: true },
   { id: 'card', label: 'Card', icon: <SquarePlus />, primary: true },
   { id: 'connector', label: 'Connector', icon: <ArrowUpRight />, primary: true },
-  { id: 'text', label: 'Heading', icon: <Type />, primary: true },
   { id: 'section', label: 'Section', icon: <BoxSelect />, primary: true },
   { id: 'pen', label: 'Pen', icon: <PenTool />, primary: true },
   { id: 'import', label: 'Import file', icon: <Upload /> },

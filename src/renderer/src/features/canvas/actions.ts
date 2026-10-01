@@ -35,7 +35,6 @@ import {
   Table2,
   Tablet,
   TextBlock,
-  Type,
   Upload,
   Workflow,
   type AppIcon
@@ -73,7 +72,6 @@ export const INSERT_ITEMS: { action: CanvasAction; label: string; icon: AppIcon 
   { action: 'text-block', label: 'Text block', icon: TextBlock },
   { action: 'card', label: 'Card', icon: SquarePlus },
   { action: 'existing-card', label: 'Existing card…', icon: Search },
-  { action: 'text', label: 'Heading', icon: Type },
   { action: 'section', label: 'Section', icon: BoxSelect },
   { action: 'connector', label: 'Connector', icon: ArrowUpRight },
   { action: 'sketch', label: 'Sketch', icon: PenTool },

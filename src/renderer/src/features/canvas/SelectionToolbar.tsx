@@ -74,7 +74,7 @@ const size = (n: ObjectNode, axis: 'width' | 'height'): number =>
  */
 export function SelectionToolbar({ selected, actions }: { selected: ObjectNode[]; actions: SelectionActions }) {
   const { x: vx, y: vy, zoom } = useViewport()
-  if (!selected.length) return null
+  if (!selected.length || selected.some((n) => (n.data as { editing?: boolean }).editing)) return null
   const box = bounds(selected.map((n) => ({ id: n.id, x: n.position.x, y: n.position.y, width: size(n, 'width'), height: size(n, 'height') })))
   const left = (box.x + box.width / 2) * zoom + vx
   const top = box.y * zoom + vy - 12

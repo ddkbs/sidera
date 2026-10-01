@@ -1,3 +1,4 @@
+import { useReactFlow } from '@xyflow/react'
 import type { NodeProps } from '@xyflow/react'
 import { memo, useEffect, useRef, useState } from 'react'
 import { docToText } from '@shared/doc'
@@ -61,6 +62,10 @@ export const TextBlockNode = memo(function TextBlockNode({ id, data, selected, h
     !!data.autoEdit
   )
 
+  // while typing, the board's selection toolbar would cover the text-formatting bubble menu → it hides on this flag
+  const rf = useReactFlow()
+  useEffect(() => rf.updateNodeData(id, { editing }), [rf, id, editing])
+
   const content = useRef<HTMLDivElement>(null)
   useAutoHeight(id, content, height, 36)
 
@@ -81,7 +86,7 @@ export const TextBlockNode = memo(function TextBlockNode({ id, data, selected, h
           }}
           className={cn(
             'group relative h-full w-full rounded-lg text-foreground transition-[box-shadow,background-color]',
-            style === 'framed' ? 'border bg-card shadow-[0_1px_2px_rgba(0,0,0,0.04)]' : 'bg-canvas hover:ring-1 hover:ring-border',
+            style === 'framed' && 'border bg-card shadow-[0_1px_2px_rgba(0,0,0,0.04)]',
             selected && !editing && 'ring-2 ring-brand/60 hover:ring-brand/60',
             editing && 'ring-2 ring-brand/80 hover:ring-brand/80',
             editing ? 'nodrag nopan nowheel cursor-text' : 'cursor-default'
