@@ -17,6 +17,7 @@ import { CSS } from '@dnd-kit/utilities'
 import { Plus } from '@/components/icons'
 import { useEffect, useState } from 'react'
 import { color, color as paletteColor } from '@/lib/colors'
+import { t } from '@/lib/i18n'
 import { cn } from '@/lib/utils'
 import { useAppDispatch } from '@/store'
 import { useCreateCardMutation, useGetKanbanQuery, useMoveKanbanItemMutation, useUpdatePropertyMutation } from '@/store/api'
@@ -87,7 +88,7 @@ export function KanbanBoard({ tagId, filter }: { tagId: string; filter: string }
     void move({ cardId, propertyId, optionId, index })
     if (prev && (prev.optionId !== optionId || prev.index !== index))
       record({
-        label: `Move “${active?.title || 'card'}”`,
+        label: t('undo.moveCard', { title: active?.title || t('kanban.card') }),
         undo: () => window.api.moveKanbanItem({ cardId, propertyId, ...prev }),
         redo: () => window.api.moveKanbanItem({ cardId, propertyId, optionId, index })
       })
@@ -112,7 +113,7 @@ export function KanbanBoard({ tagId, filter }: { tagId: string; filter: string }
             <Column key={key} id={key}>
               <div className="flex items-center gap-2 px-1 pb-2">
                 <span className="rounded-md px-1.5 py-0.5 text-xs font-medium" style={{ background: c.bg, color: c.fg }}>
-                  {column.option?.name ?? `No ${board.property.name.toLowerCase()}`}
+                  {column.option?.name ?? t('kanban.noValue', { name: board.property.name })}
                 </span>
                 <span className="text-xs text-muted-foreground">{cards.length}</span>
                 <button
@@ -124,7 +125,7 @@ export function KanbanBoard({ tagId, filter }: { tagId: string; filter: string }
                       dispatch(openCard(r.data.id))
                     }
                   }}
-                  aria-label="Add card"
+                  aria-label={t('kanban.addCard')}
                 >
                   <Plus className="size-3.5" />
                 </button>
@@ -145,7 +146,7 @@ export function KanbanBoard({ tagId, filter }: { tagId: string; filter: string }
               onClick={() => setNewColumn('')}
               className="flex h-9 w-full items-center gap-2 rounded-xl px-3 text-sm text-muted-foreground transition hover:bg-muted/60 hover:text-foreground"
             >
-              <Plus className="size-4" /> Add column
+              <Plus className="size-4" /> {t('kanban.addColumn')}
             </button>
           ) : (
             <form
@@ -165,7 +166,7 @@ export function KanbanBoard({ tagId, filter }: { tagId: string; filter: string }
                 value={newColumn}
                 onChange={(e) => setNewColumn(e.target.value)}
                 onBlur={(e) => e.currentTarget.form?.requestSubmit()}
-                placeholder="Column name"
+                placeholder={t('kanban.columnName')}
                 className="h-9 w-full rounded-xl border bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-ring/30"
               />
             </form>
@@ -205,7 +206,7 @@ function KanbanCard({ card, className }: { card: CardSummary; className?: string
     >
       <div className="flex items-start gap-1.5 font-medium">
         <CardIcon icon={card.icon} className="mt-0.5 size-4 text-[14px]" />
-        <span>{card.title || <span className="text-muted-foreground">Untitled</span>}</span>
+        <span>{card.title || <span className="text-muted-foreground">{t('common.untitled')}</span>}</span>
       </div>
       {card.excerpt && <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">{card.excerpt}</p>}
     </div>

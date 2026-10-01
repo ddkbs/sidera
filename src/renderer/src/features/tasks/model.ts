@@ -1,5 +1,6 @@
 // Pure task view logic (filter / sort / group / labels) — no React, unit tested.
 import { addDays, matchesDue } from '@shared/tasks'
+import { labelMap, locale, t } from '../../lib/i18n'
 import type { Task, TaskDueFilter, TaskPriority, TaskStatus } from '@shared/types'
 
 export type TaskViewMode = 'list' | 'board'
@@ -17,14 +18,20 @@ export interface TaskFilters {
 export const EMPTY_FILTERS: TaskFilters = { statuses: [], assignee: 'any', priorities: [], due: 'any', query: '' }
 
 export const STATUS_ORDER: TaskStatus[] = ['in_progress', 'todo', 'done']
-export const STATUS_LABEL: Record<TaskStatus, string> = { todo: 'Todo', in_progress: 'In Progress', done: 'Done' }
+export const STATUS_LABEL = labelMap<TaskStatus>({ todo: 'task.status.todo', in_progress: 'task.status.inProgress', done: 'task.status.done' })
 /** PALETTE keys (lib/colors) */
 export const STATUS_COLOR: Record<TaskStatus, string> = { todo: 'gray', in_progress: 'yellow', done: 'blue' }
 
 export const PRIORITY_ORDER: TaskPriority[] = ['urgent', 'high', 'medium', 'low', 'none']
-export const PRIORITY_LABEL: Record<TaskPriority, string> = { none: 'No priority', low: 'Low', medium: 'Medium', high: 'High', urgent: 'Urgent' }
+export const PRIORITY_LABEL = labelMap<TaskPriority>({
+  none: 'task.priority.none',
+  low: 'task.priority.low',
+  medium: 'task.priority.medium',
+  high: 'task.priority.high',
+  urgent: 'task.priority.urgent'
+})
 
-export const DUE_LABEL: Record<TaskDueFilter, string> = { overdue: 'Overdue', today: 'Due today', week: 'Due this week' }
+export const DUE_LABEL = labelMap<TaskDueFilter>({ overdue: 'task.due.overdue', today: 'task.due.today', week: 'task.due.week' })
 
 export const nextStatus = (s: TaskStatus): TaskStatus => (s === 'todo' ? 'in_progress' : s === 'in_progress' ? 'done' : 'todo')
 
@@ -71,7 +78,7 @@ export interface TaskGroup {
 
 export function groupTasks(tasks: Task[], by: GroupBy, meId: string | null = null): TaskGroup[] {
   const sorted = sortTasks(tasks)
-  if (by === 'none') return [{ key: 'all', label: 'All tasks', kind: 'none', value: null, tasks: sorted }]
+  if (by === 'none') return [{ key: 'all', label: t('task.allTasks'), kind: 'none', value: null, tasks: sorted }]
   if (by === 'status')
     return STATUS_ORDER.map((s) => ({ key: s, label: STATUS_LABEL[s], kind: by, value: s, tasks: sorted.filter((t) => t.status === s) })).filter(
       (g) => g.tasks.length
@@ -81,9 +88,10 @@ export function groupTasks(tasks: Task[], by: GroupBy, meId: string | null = nul
       (g) => g.tasks.length
     )
   const map = new Map<string, TaskGroup>()
+  const unassigned = () => t('task.unassigned')
   for (const t of sorted) {
     const [key, label, value] =
-      by === 'card' ? [t.cardId, t.cardTitle || 'Untitled', t.cardId] : t.assignee ? [t.assignee.id, t.assignee.name, t.assignee.id] : ['none', 'Unassigned', null]
+      by === 'card' ? [t.cardId, t.cardTitle || 'Untitled', t.cardId] : t.assignee ? [t.assignee.id, t.assignee.name, t.assignee.id] : ['none', unassigned(), null]
     let g = map.get(key)
     if (!g) map.set(key, (g = { key, label, kind: by, value, tasks: [] }))
     g.tasks.push(t)
@@ -102,25 +110,25 @@ export function describeDue(due: string, today: string, done = false): { label: 
   const date = new Date(y, m - 1, d)
   const tone: DueTone = done ? 'done' : due < today ? 'overdue' : due === today ? 'today' : due <= addDays(today, 6) ? 'soon' : 'later'
   let label: string
-  if (due === today) label = 'Today'
-  else if (due === addDays(today, 1)) label = 'Tomorrow'
-  else if (due === addDays(today, -1)) label = 'Yesterday'
-  else if (due > today && due <= addDays(today, 6)) label = date.toLocaleDateString('en-US', { weekday: 'short' })
-  else if (y === Number(today.slice(0, 4))) label = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
-  else label = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+  if (due === today) label = t('task.due.todayShort')
+  else if (due === addDays(today, 1)) label = t('task.due.tomorrow')
+  else if (due === addDays(today, -1)) label = t('task.due.yesterday')
+  else if (due > today && due <= addDays(today, 6)) label = date.toLocaleDateString(locale(), { weekday: 'short' })
+  else if (y === Number(today.slice(0, 4))) label = date.toLocaleDateString(locale(), { month: 'short', day: 'numeric' })
+  else label = date.toLocaleDateString(locale(), { month: 'short', day: 'numeric', year: 'numeric' })
   return { label, tone }
 }
 
 /** "just now", "5m", "3h", "2d", then a short date. */
 export function relativeTime(ms: number, nowMs = Date.now()): string {
   const s = Math.max(0, Math.round((nowMs - ms) / 1000))
-  if (s < 45) return 'just now'
+  if (s < 45) return t('time.justNow')
   const m = Math.round(s / 60)
-  if (m < 60) return `${m}m ago`
+  if (m < 60) return t('time.minAgo', { n: m })
   const h = Math.round(m / 60)
-  if (h < 24) return `${h}h ago`
+  if (h < 24) return t('time.hAgo', { n: h })
   const d = Math.round(h / 24)
-  if (d < 7) return `${d}d ago`
+  if (d < 7) return t('time.dAgo', { n: d })
   const date = new Date(ms)
-  return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', ...(date.getFullYear() !== new Date(nowMs).getFullYear() && { year: 'numeric' }) })
+  return date.toLocaleDateString(locale(), { month: 'short', day: 'numeric', ...(date.getFullYear() !== new Date(nowMs).getFullYear() && { year: 'numeric' }) })
 }

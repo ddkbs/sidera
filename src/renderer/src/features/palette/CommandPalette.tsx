@@ -23,6 +23,7 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '
 import { Input } from '@/components/ui/input'
 import { toast } from 'sonner'
 import { color } from '@/lib/colors'
+import { t } from '@/lib/i18n'
 import { api } from '@/store/api'
 import { updateSettings } from '@/store/settings'
 import { useEffect, useState } from 'react'
@@ -51,8 +52,8 @@ export function CommandPalette() {
   const { data: currentBoard } = useGetWhiteboardQuery(view.type === 'whiteboard' ? view.id : '', { skip: view.type !== 'whiteboard' })
 
   useEffect(() => {
-    const t = setTimeout(() => setDebounced(q), 80)
-    return () => clearTimeout(t)
+    const timer = setTimeout(() => setDebounced(q), 80)
+    return () => clearTimeout(timer)
   }, [q])
   useEffect(() => {
     if (!open) setQ('')
@@ -65,16 +66,16 @@ export function CommandPalette() {
     void fn()
   }
   const text = q.trim()
-  const tagHits = text ? tags.filter((t) => t.name.toLowerCase().includes(text.toLowerCase())) : []
+  const tagHits = text ? tags.filter((tag) => tag.name.toLowerCase().includes(text.toLowerCase())) : []
 
   return (
     <>
       <CommandDialog open={open} onOpenChange={(o) => dispatch(setPaletteOpen(o))} shouldFilter={false} className="sm:max-w-xl">
-        <CommandInput placeholder="Search cards, whiteboards, or run a command…" value={q} onValueChange={setQ} />
+        <CommandInput placeholder={t('palette.placeholder')} value={q} onValueChange={setQ} />
         <CommandList className="max-h-[420px]">
-          <CommandEmpty>No results</CommandEmpty>
+          <CommandEmpty>{t('palette.noResults')}</CommandEmpty>
           {hits.length > 0 && (
-            <CommandGroup heading={text ? 'Results' : 'Recent'}>
+            <CommandGroup heading={text ? t('palette.results') : t('palette.recent')}>
               {hits.map((h) => (
                 <CommandItem
                   key={h.kind + h.id}
@@ -89,7 +90,7 @@ export function CommandPalette() {
                     <FileText className="text-muted-foreground" />
                   )}
                   <div className="min-w-0">
-                    <div className="truncate">{h.title || 'Untitled'}</div>
+                    <div className="truncate">{h.title || t('common.untitled')}</div>
                     {h.kind === 'card' && h.snippet && <div className="truncate text-xs text-muted-foreground">{h.snippet}</div>}
                   </div>
                 </CommandItem>
@@ -97,28 +98,28 @@ export function CommandPalette() {
             </CommandGroup>
           )}
           {tagHits.length > 0 && (
-            <CommandGroup heading="Tags">
-              {tagHits.map((t) => (
+            <CommandGroup heading={t('palette.tags')}>
+              {tagHits.map((tag) => (
                 <CommandItem
-                  key={t.id}
-                  value={`tag-${t.id}`}
-                  onSelect={run(() => dispatch(navigate({ type: 'library', tagId: t.id, mode: view.type === 'library' ? view.mode : 'table' })))}
+                  key={tag.id}
+                  value={`tag-${tag.id}`}
+                  onSelect={run(() => dispatch(navigate({ type: 'library', tagId: tag.id, mode: view.type === 'library' ? view.mode : 'table' })))}
                 >
-                  <Hash style={{ color: color(t.color).fg }} /> {t.name}
+                  <Hash style={{ color: color(tag.color).fg }} /> {tag.name}
                 </CommandItem>
               ))}
             </CommandGroup>
           )}
           <CommandSeparator />
-          <CommandGroup heading="Actions">
-            {view.type === 'whiteboard' && (!text || /text|block|note|write/i.test(text)) && (
+          <CommandGroup heading={t('palette.actions')}>
+            {view.type === 'whiteboard' && (!text || /text|block|note|write|notiz|schreib/i.test(text)) && (
               <CommandItem value="new-text-block" onSelect={run(() => canvasAction('text'))}>
-                <Type /> New text box <CommandShortcut>⌘N</CommandShortcut>
+                <Type /> {t('cmd.canvas.newTextBlock')} <CommandShortcut>⌘N</CommandShortcut>
               </CommandItem>
             )}
-            {view.type === 'whiteboard' && (!text || /table|grid|data/i.test(text)) && (
+            {view.type === 'whiteboard' && (!text || /table|grid|data|tabelle|daten/i.test(text)) && (
               <CommandItem value="new-table" onSelect={run(() => canvasAction('table'))}>
-                <Table2 /> New table
+                <Table2 /> {t('palette.newTable')}
               </CommandItem>
             )}
             <CommandItem
@@ -128,37 +129,37 @@ export function CommandPalette() {
                 if ('data' in r && r.data) dispatch(openCard(r.data.id))
               })}
             >
-              <Plus /> {text ? `New card “${text}”` : 'New card'}
+              <Plus /> {text ? t('palette.newCardNamed', { name: text }) : t('palette.newCard')}
             </CommandItem>
             <CommandItem
               value="new-whiteboard"
               onSelect={run(async () => {
                 const r = await createWhiteboard({
-                  name: text || 'Untitled whiteboard'
+                  name: text || t('board.untitled')
                 })
                 if ('data' in r && r.data) dispatch(navigate({ type: 'whiteboard', id: r.data.id }))
               })}
             >
-              <LayoutDashboard /> {text ? `New whiteboard “${text}”` : 'New whiteboard'}
+              <LayoutDashboard /> {text ? t('palette.newBoardNamed', { name: text }) : t('board.new')}
             </CommandItem>
-            {view.type === 'whiteboard' && (!text || /ipad|draw|pencil|sketch|tablet/i.test(text)) && (
+            {view.type === 'whiteboard' && (!text || /ipad|draw|pencil|sketch|tablet|zeichn|skizz/i.test(text)) && (
               <CommandItem value="draw-on-ipad" onSelect={run(() => window.dispatchEvent(new Event(SIDERA_DRAW_OPEN_EVENT)))}>
-                <Tablet /> Draw on iPad…
+                <Tablet /> {t('palette.drawOnIpad')}
               </CommandItem>
             )}
             {!text && (
               <>
                 <CommandItem value="home" onSelect={run(() => dispatch(navigate({ type: 'home' })))}>
-                  <Home /> Go to Home
+                  <Home /> {t('palette.goHome')}
                 </CommandItem>
                 <CommandItem value="tasks" onSelect={run(() => dispatch(navigate({ type: 'tasks' })))}>
-                  <ListChecks /> Open tasks
+                  <ListChecks /> {t('cmd.nav.tasks')}
                 </CommandItem>
                 <CommandItem value="library" onSelect={run(() => dispatch(navigate({ type: 'library', tagId: null, mode: 'table' })))}>
-                  <BookOpen /> Open card library
+                  <BookOpen /> {t('palette.openLibrary')}
                 </CommandItem>
                 <CommandItem value="sidebar" onSelect={run(() => dispatch(toggleSidebar()))}>
-                  <PanelLeft /> Toggle sidebar <CommandShortcut>⌘\</CommandShortcut>
+                  <PanelLeft /> {t('cmd.sidebar.toggle')} <CommandShortcut>⌘\</CommandShortcut>
                 </CommandItem>
                 <CommandItem
                   value="theme"
@@ -170,19 +171,19 @@ export function CommandPalette() {
                     )
                   )}
                 >
-                  <Moon /> Toggle dark mode
+                  <Moon /> {t('palette.toggleDark')}
                 </CommandItem>
                 <CommandItem
                   value="export"
                   onSelect={run(async () => {
                     const r = await window.api.exportMarkdown()
                     if (r)
-                      toast.success(`Exported ${r.count} files`, {
+                      toast.success(t('settings.data.exported', { count: r.count }), {
                         description: r.dir
                       })
                   })}
                 >
-                  <Download /> Export all cards as Markdown
+                  <Download /> {t('palette.exportAll')}
                 </CommandItem>
                 <CommandItem
                   value="import"
@@ -190,11 +191,11 @@ export function CommandPalette() {
                     const r = await window.api.importMarkdown()
                     if (r.count) {
                       dispatch(api.util.invalidateTags(['CardList', 'Tag']))
-                      toast.success(`Imported ${r.count} cards`)
+                      toast.success(t('settings.data.imported', { count: r.count }))
                     }
                   })}
                 >
-                  <Upload /> Import Markdown files
+                  <Upload /> {t('palette.importMd')}
                 </CommandItem>
                 <CommandItem
                   value="clip"
@@ -203,16 +204,16 @@ export function CommandPalette() {
                     setClipOpen(true)
                   })}
                 >
-                  <Bookmark /> Clip web page…
+                  <Bookmark /> {t('palette.clipEllipsis')}
                 </CommandItem>
                 <CommandItem value="mcp" onSelect={run(() => dispatch(openSettings('mcp')))}>
-                  <Sparkles /> Connect AI via MCP
+                  <Sparkles /> {t('palette.connectMcp')}
                 </CommandItem>
                 <CommandItem value="take-the-tour" onSelect={run(() => onboarding.startTour())}>
-                  <Compass /> Take the tour again
+                  <Compass /> {t('palette.tourAgain')}
                 </CommandItem>
                 <CommandItem value="welcome-screens" onSelect={run(() => onboarding.showWelcome())}>
-                  <Sparkles /> Show welcome screens
+                  <Sparkles /> {t('palette.showWelcome')}
                 </CommandItem>
                 {view.type === 'whiteboard' && currentBoard && (
                   <CommandItem
@@ -220,19 +221,13 @@ export function CommandPalette() {
                     onSelect={run(async () => {
                       const hasKey = await window.chat.hasKey()
                       if (!hasKey) {
-                        toast('Add an Anthropic API key to organize with the built-in assistant', {
-                          description: 'Or ask Claude Desktop/Code to do it via the "organize-board" MCP prompt.'
-                        })
+                        toast(t('board.organizeNoKey'), { description: t('board.organizeNoKeyHint') })
                         return
                       }
-                      dispatch(
-                        queueChatMessage(
-                          `Organize the whiteboard "${currentBoard.whiteboard.name}" (id ${currentBoard.whiteboard.id}) into meaningful sections.`
-                        )
-                      )
+                      dispatch(queueChatMessage(t('board.organizePrompt', { name: currentBoard.whiteboard.name, id: currentBoard.whiteboard.id })))
                     })}
                   >
-                    <Sparkles /> Organize this whiteboard with AI
+                    <Sparkles /> {t('palette.organizeThis')}
                   </CommandItem>
                 )}
               </>
@@ -243,7 +238,7 @@ export function CommandPalette() {
       <Dialog open={clipOpen} onOpenChange={setClipOpen}>
         <DialogContent className="sm:max-w-sm">
           <DialogHeader>
-            <DialogTitle>Clip web page</DialogTitle>
+            <DialogTitle>{t('palette.clipTitle')}</DialogTitle>
           </DialogHeader>
           <form
             onSubmit={async (e) => {
@@ -254,20 +249,20 @@ export function CommandPalette() {
               setClipOpen(false)
               const res = await clipUrl({ url })
               if ('data' in res && res.data) {
-                toast.success(`Saved “${res.data.title || 'Untitled'}”`, {
+                toast.success(t('palette.clipSaved', { title: res.data.title || t('common.untitled') }), {
                   action: {
-                    label: 'Open',
+                    label: t('common.open'),
                     onClick: () => dispatch(openCard(res.data!.id))
                   }
                 })
               } else {
-                toast.error('Could not fetch that page')
+                toast.error(t('palette.clipFailed'))
               }
             }}
           >
             <Input autoFocus placeholder="https://example.com/article" value={clipUrlText} onChange={(e) => setClipUrlText(e.target.value)} />
             <DialogFooter className="mt-4">
-              <Button type="submit">Clip</Button>
+              <Button type="submit">{t('palette.clip')}</Button>
             </DialogFooter>
           </form>
         </DialogContent>

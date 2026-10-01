@@ -20,6 +20,7 @@ import { Calendar } from '@/components/ui/calendar'
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { ProfileAvatar } from '@/features/profile/ProfileAvatar'
+import { t, type MessageKey } from '@/lib/i18n'
 import { recordTaskPatch } from '@/lib/undo-actions'
 import { cn } from '@/lib/utils'
 import { useGetActiveProfileQuery, useListProfilesQuery, useSearchQuery, useUpdateTaskMutation } from '@/store/api'
@@ -68,7 +69,13 @@ export function DueLabel({ due, done, className, withIcon = true }: { due: strin
 
 // ---------- mutation + undo ----------
 
-const UNDO_LABEL: Record<string, string> = { status: 'Change status', priority: 'Change priority', assigneeId: 'Change assignee', dueDate: 'Change due date', text: 'Rename task' }
+const UNDO_LABEL: Record<string, MessageKey> = {
+  status: 'undo.taskStatus',
+  priority: 'undo.taskPriority',
+  assigneeId: 'undo.taskAssignee',
+  dueDate: 'undo.taskDue',
+  text: 'undo.taskRename'
+}
 
 /** Update a task property with optimistic UI and an undo entry. */
 export function useTaskPatch() {
@@ -83,11 +90,11 @@ export function useTaskPatch() {
     if (JSON.stringify(before) === JSON.stringify(patch)) return true
     const res = await update({ cardId: task.cardId, taskId: task.taskId, ...patch })
     if ('error' in res) {
-      toast.error(`Could not update task: ${String(res.error)}`)
+      toast.error(t('task.updateFailed', { error: String(res.error) }))
       return false
     }
     const keys = Object.keys(patch)
-    recordTaskPatch(task.cardId, task.taskId, keys.length === 1 ? UNDO_LABEL[keys[0]] : 'Update task', before, patch)
+    recordTaskPatch(task.cardId, task.taskId, t(keys.length === 1 ? UNDO_LABEL[keys[0]] : 'undo.taskUpdate'), before, patch)
     return true
   }
 }
@@ -124,7 +131,7 @@ export function StatusPicker({ value, onChange, children, align = 'start', open,
       <PopoverTrigger asChild>{children}</PopoverTrigger>
       <PopoverContent align={align} className="w-52 p-0" onClick={(e) => e.stopPropagation()}>
         <Command>
-          <CommandInput placeholder="Change status…" />
+          <CommandInput placeholder={t('task.changeStatus')} />
           <CommandList>
             <CommandGroup>
               {(['todo', 'in_progress', 'done'] as TaskStatus[]).map((s) => (
@@ -147,7 +154,7 @@ export function PriorityPicker({ value, onChange, children, align = 'start', ope
       <PopoverTrigger asChild>{children}</PopoverTrigger>
       <PopoverContent align={align} className="w-52 p-0" onClick={(e) => e.stopPropagation()}>
         <Command>
-          <CommandInput placeholder="Set priority…" />
+          <CommandInput placeholder={t('task.setPriority')} />
           <CommandList>
             <CommandGroup>
               {[...PRIORITY_ORDER.slice(0, 4), 'none' as const].map((p) => (
@@ -173,18 +180,18 @@ export function AssigneePicker({ value, onChange, children, align = 'start', ope
       <PopoverTrigger asChild>{children}</PopoverTrigger>
       <PopoverContent align={align} className="w-60 p-0" onClick={(e) => e.stopPropagation()}>
         <Command>
-          <CommandInput placeholder="Assign to…" />
+          <CommandInput placeholder={t('task.assignTo')} />
           <CommandList>
-            <CommandEmpty>No people found</CommandEmpty>
+            <CommandEmpty>{t('task.noPeople')}</CommandEmpty>
             <CommandGroup>
-              <PickerItem value="No assignee" selected={value === null} onSelect={() => (setOpen(false), onChange(null))}>
-                <UserCircle className="size-5 text-muted-foreground" /> No assignee
+              <PickerItem value={t('task.noAssignee')} selected={value === null} onSelect={() => (setOpen(false), onChange(null))}>
+                <UserCircle className="size-5 text-muted-foreground" /> {t('task.noAssignee')}
               </PickerItem>
               {ordered.map((p) => (
                 <PickerItem key={p.id} value={`${p.name} ${p.email ?? ''}`} selected={value === p.id} onSelect={() => (setOpen(false), onChange(p.id))}>
                   <ProfileAvatar profile={p} size="xs" />
                   <span className="truncate">{p.name}</span>
-                  {p.id === me?.id && <span className="text-xs text-muted-foreground">you</span>}
+                  {p.id === me?.id && <span className="text-xs text-muted-foreground">{t('task.you')}</span>}
                 </PickerItem>
               ))}
             </CommandGroup>
@@ -210,9 +217,9 @@ export function DuePicker({ value, onChange, children, align = 'start', open, on
   }
   const nextMonday = addDays(today, ((8 - new Date().getDay()) % 7) || 7)
   const quick: [string, string][] = [
-    ['Today', today],
-    ['Tomorrow', addDays(today, 1)],
-    ['Next week', nextMonday]
+    [t('task.due.todayShort'), today],
+    [t('task.due.tomorrow'), addDays(today, 1)],
+    [t('task.due.nextWeek'), nextMonday]
   ]
   return (
     <Popover open={isOpen} onOpenChange={setOpen}>
@@ -230,7 +237,7 @@ export function DuePicker({ value, onChange, children, align = 'start', open, on
           ))}
           {value && (
             <button onClick={() => pick(null)} className="ml-auto rounded-md px-2 py-1 text-xs text-muted-foreground transition hover:bg-accent hover:text-foreground">
-              Clear
+              {t('task.clear')}
             </button>
           )}
         </div>
@@ -247,30 +254,30 @@ export function CardPicker({ value, onChange, children, align = 'start' }: Picke
   const [open, setOpen] = useState(false)
   const [query, setQuery] = useState('')
   const { data: hits = [] } = useSearchQuery(query, { skip: !open })
-  const pick = (t: CardTarget) => {
+  const pick = (target: CardTarget) => {
     setOpen(false)
-    onChange(t)
+    onChange(target)
   }
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>{children}</PopoverTrigger>
       <PopoverContent align={align} className="w-72 p-0">
         <Command shouldFilter={false}>
-          <CommandInput placeholder="Add to card…" value={query} onValueChange={setQuery} />
+          <CommandInput placeholder={t('task.addToCard')} value={query} onValueChange={setQuery} />
           <CommandList>
-            <CommandEmpty>No cards found</CommandEmpty>
+            <CommandEmpty>{t('task.noCards')}</CommandEmpty>
             <CommandGroup>
               <PickerItem value="__inbox" selected={value.id === null} onSelect={() => pick({ id: null, title: 'Inbox' })}>
-                <Inbox className="size-4 text-muted-foreground" /> Inbox
+                <Inbox className="size-4 text-muted-foreground" /> {t('task.inbox')}
               </PickerItem>
             </CommandGroup>
-            <CommandGroup heading="Cards">
+            <CommandGroup heading={t('task.cards')}>
               {hits
                 .filter((h) => h.kind === 'card' && h.title !== 'Inbox')
                 .map((h) => (
                   <PickerItem key={h.id} value={h.id} selected={value.id === h.id} onSelect={() => pick({ id: h.id, title: h.title })}>
                     <FileText className="size-4 text-muted-foreground" />
-                    <span className="truncate">{h.title || 'Untitled'}</span>
+                    <span className="truncate">{h.title || t('common.untitled')}</span>
                   </PickerItem>
                 ))}
             </CommandGroup>

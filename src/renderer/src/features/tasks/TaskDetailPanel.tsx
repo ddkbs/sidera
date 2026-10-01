@@ -20,6 +20,7 @@ import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { ProfileAvatar } from '@/features/profile/ProfileAvatar'
+import { locale, t, tRich } from '@/lib/i18n'
 import { useCommands } from '@/lib/shortcuts'
 import { cn } from '@/lib/utils'
 import { useAppDispatch } from '@/store'
@@ -34,7 +35,7 @@ import {
 } from '@/store/api'
 import { openCard, openPdf } from '@/store/ui'
 import type { FileRecord, Profile, ProfileRef, Task, TaskActivity, TaskComment, TaskPriority, TaskStatus } from '@shared/types'
-import { describeDue, PRIORITY_LABEL, relativeTime, STATUS_LABEL } from './model'
+import { PRIORITY_LABEL, relativeTime, STATUS_LABEL } from './model'
 import { AssigneeAvatar, AssigneePicker, DueLabel, DuePicker, PriorityIcon, PriorityPicker, StatusIcon, StatusPicker, useTaskPatch } from './TaskProperties'
 import { isoDate } from '@shared/tasks'
 
@@ -44,7 +45,7 @@ function formatSize(bytes: number): string {
   return `${(bytes / 1024 / 1024).toFixed(1)} MB`
 }
 
-const fullDate = (ms: number) => new Date(ms).toLocaleString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' })
+const fullDate = (ms: number) => new Date(ms).toLocaleString(locale(), { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' })
 
 /** Right-side panel: editable title, properties, and an activity timeline (comments + property changes). */
 export function TaskDetailPanel({ task, onClose }: { task: Task; onClose: () => void }) {
@@ -97,13 +98,13 @@ export function TaskDetailPanel({ task, onClose }: { task: Task; onClose: () => 
         <button
           onClick={() => dispatch(openCard(task.cardId))}
           className="flex min-w-0 items-center gap-1.5 rounded-md px-2 py-1 text-xs text-muted-foreground transition hover:bg-accent hover:text-foreground"
-          title="Open card"
+          title={t('task.openCard')}
         >
           {isInbox ? <Inbox className="size-3.5 shrink-0" /> : <FileText className="size-3.5 shrink-0" />}
-          <span className="truncate">{task.cardTitle || 'Untitled'}</span>
+          <span className="truncate">{isInbox ? t('task.inbox') : task.cardTitle || t('common.untitled')}</span>
         </button>
         <span className="text-xs text-muted-foreground/60">/</span>
-        <span className="truncate px-1 text-xs text-muted-foreground">Task</span>
+        <span className="truncate px-1 text-xs text-muted-foreground">{t('task.task')}</span>
         <div className="flex-1" />
         <Tooltip>
           <TooltipTrigger asChild>
@@ -111,9 +112,9 @@ export function TaskDetailPanel({ task, onClose }: { task: Task; onClose: () => 
               <ExternalLink className="size-4" />
             </Button>
           </TooltipTrigger>
-          <TooltipContent>Open in card</TooltipContent>
+          <TooltipContent>{t('task.openInCard')}</TooltipContent>
         </Tooltip>
-        <Button variant="ghost" size="icon" className="size-7" onClick={onClose} aria-label="Close">
+        <Button variant="ghost" size="icon" className="size-7" onClick={onClose} aria-label={t('common.close')}>
           <X className="size-4" />
         </Button>
       </div>
@@ -122,7 +123,7 @@ export function TaskDetailPanel({ task, onClose }: { task: Task; onClose: () => 
         {/* title */}
         <div className="flex items-start gap-2.5 px-5 pt-5">
           <StatusPicker value={task.status} onChange={(v) => void patch(task, { status: v })}>
-            <button className="mt-1 grid size-6 shrink-0 place-items-center rounded-md transition hover:bg-accent" aria-label="Status">
+            <button className="mt-1 grid size-6 shrink-0 place-items-center rounded-md transition hover:bg-accent" aria-label={t('task.status')}>
               <StatusIcon status={task.status} className="size-[18px]" />
             </button>
           </StatusPicker>
@@ -131,36 +132,36 @@ export function TaskDetailPanel({ task, onClose }: { task: Task; onClose: () => 
 
         {/* properties */}
         <div className="mx-5 mt-4 mb-2 grid grid-cols-[104px_1fr] items-center gap-y-0.5 text-sm">
-          <PropLabel>Status</PropLabel>
+          <PropLabel>{t('task.status')}</PropLabel>
           <StatusPicker value={task.status} onChange={(v) => void patch(task, { status: v })}>
             <PropValue>
               <StatusIcon status={task.status} /> {STATUS_LABEL[task.status as TaskStatus]}
             </PropValue>
           </StatusPicker>
 
-          <PropLabel>Priority</PropLabel>
+          <PropLabel>{t('task.priority')}</PropLabel>
           <PriorityPicker value={task.priority} onChange={(v) => void patch(task, { priority: v })}>
             <PropValue muted={task.priority === 'none'}>
-              <PriorityIcon priority={task.priority} /> {task.priority === 'none' ? 'Set priority' : PRIORITY_LABEL[task.priority as TaskPriority]}
+              <PriorityIcon priority={task.priority} /> {task.priority === 'none' ? t('task.setPriorityShort') : PRIORITY_LABEL[task.priority as TaskPriority]}
             </PropValue>
           </PriorityPicker>
 
-          <PropLabel>Assignee</PropLabel>
+          <PropLabel>{t('task.assignee')}</PropLabel>
           <AssigneePicker value={task.assignee?.id ?? null} onChange={(v) => void patch(task, { assigneeId: v })}>
             <PropValue muted={!task.assignee}>
               <AssigneeAvatar profile={task.assignee} />
               {task.assignee ? (
                 <span className="truncate">
                   {task.assignee.name}
-                  {task.assignee.id === me?.id && <span className="ml-1 text-muted-foreground">(you)</span>}
+                  {task.assignee.id === me?.id && <span className="ml-1 text-muted-foreground">({t('task.you')})</span>}
                 </span>
               ) : (
-                'Unassigned'
+                t('task.unassigned')
               )}
             </PropValue>
           </AssigneePicker>
 
-          <PropLabel>Due date</PropLabel>
+          <PropLabel>{t('task.dueDate')}</PropLabel>
           <div className="flex items-center gap-1">
             <DuePicker value={task.dueDate} onChange={(v) => void patch(task, { dueDate: v })}>
               <PropValue muted={!task.dueDate}>
@@ -171,22 +172,22 @@ export function TaskDetailPanel({ task, onClose }: { task: Task; onClose: () => 
                   </>
                 ) : (
                   <>
-                    <CalendarIcon className="size-4" /> No due date
+                    <CalendarIcon className="size-4" /> {t('task.noDue')}
                   </>
                 )}
               </PropValue>
             </DuePicker>
           </div>
 
-          <PropLabel>Card</PropLabel>
+          <PropLabel>{t('task.card')}</PropLabel>
           <PropValue onClick={() => dispatch(openCard(task.cardId))}>
             {isInbox ? <Inbox className="size-4 text-muted-foreground" /> : <FileText className="size-4 text-muted-foreground" />}
-            <span className="truncate">{task.cardTitle || 'Untitled'}</span>
+            <span className="truncate">{isInbox ? t('task.inbox') : task.cardTitle || t('common.untitled')}</span>
           </PropValue>
 
           {task.createdBy && task.createdAt && (
             <>
-              <PropLabel>Created</PropLabel>
+              <PropLabel>{t('task.createdLabel')}</PropLabel>
               <div className="flex h-8 items-center gap-2 px-2 text-sm text-muted-foreground">
                 <ProfileAvatar profile={task.createdBy} size="xs" />
                 <span className="truncate">
@@ -200,15 +201,11 @@ export function TaskDetailPanel({ task, onClose }: { task: Task; onClose: () => 
         {/* activity */}
         <div className="mt-3 border-t px-5 pt-4 pb-4">
           <div className="mb-3 flex items-center gap-2">
-            <h3 className="text-sm font-semibold">Activity</h3>
-            {comments.length > 0 && (
-              <span className="text-xs text-muted-foreground tabular-nums">
-                {comments.length} comment{comments.length === 1 ? '' : 's'}
-              </span>
-            )}
+            <h3 className="text-sm font-semibold">{t('task.activity')}</h3>
+            {comments.length > 0 && <span className="text-xs text-muted-foreground tabular-nums">{t('task.comments', { count: comments.length })}</span>}
           </div>
           {timeline.length === 0 ? (
-            <p className="py-6 text-center text-sm text-muted-foreground">No activity yet — start the conversation below.</p>
+            <p className="py-6 text-center text-sm text-muted-foreground">{t('task.noActivity')}</p>
           ) : (
             <ol className="relative">
               <span className="absolute top-3 bottom-3 left-[11px] w-px bg-border" aria-hidden />
@@ -232,7 +229,7 @@ export function TaskDetailPanel({ task, onClose }: { task: Task; onClose: () => 
 const longDate = (iso: string) => {
   const [y, m, d] = iso.split('-').map(Number)
   const date = new Date(y, m - 1, d)
-  return date.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', ...(y !== new Date().getFullYear() && { year: 'numeric' }) })
+  return date.toLocaleDateString(locale(), { weekday: 'short', month: 'short', day: 'numeric', ...(y !== new Date().getFullYear() && { year: 'numeric' }) })
 }
 
 function PropLabel({ children }: { children: ReactNode }) {
@@ -299,7 +296,7 @@ function TitleEditor({ value, done, onSave }: { value: string; done: boolean; on
           requestAnimationFrame(() => ref.current?.blur())
         }
       }}
-      placeholder="Task title"
+      placeholder={t('task.titlePlaceholder')}
       className={cn(
         'min-w-0 flex-1 resize-none overflow-hidden rounded-md bg-transparent py-0.5 text-xl leading-snug font-semibold tracking-tight outline-none placeholder:text-muted-foreground/60 focus:bg-muted/40',
         done && 'text-muted-foreground'
@@ -311,29 +308,31 @@ function TitleEditor({ value, done, onSave }: { value: string; done: boolean; on
 // ---------- timeline ----------
 
 function describeActivity(a: TaskActivity, profiles: Profile[]): ReactNode {
-  const name = (id: string | null) => (id ? (profiles.find((p) => p.id === id)?.name ?? 'a removed profile') : null)
+  const name = (id: string | null) => (id ? (profiles.find((p) => p.id === id)?.name ?? t('task.act.removedProfile')) : null)
   const strong = (s: ReactNode) => <span className="font-medium text-foreground">{s}</span>
   switch (a.kind) {
     case 'created':
-      return <>created the task</>
+      return t('task.act.created')
     case 'status':
-      return (
-        <>
-          changed status to{' '}
+      return tRich('task.act.status', {
+        status: (
           <span className="inline-flex items-center gap-1 align-middle font-medium text-foreground">
             <StatusIcon status={(a.to ?? 'todo') as TaskStatus} className="size-3.5" />
             {STATUS_LABEL[(a.to ?? 'todo') as TaskStatus]}
           </span>
-        </>
-      )
+        )
+      })
     case 'priority':
-      return a.to === 'none' ? <>removed the priority</> : <>set priority to {strong(PRIORITY_LABEL[(a.to ?? 'none') as TaskPriority])}</>
+      return a.to === 'none' ? t('task.act.priorityRemoved') : tRich('task.act.priority', { priority: strong(PRIORITY_LABEL[(a.to ?? 'none') as TaskPriority]) })
     case 'assignee':
-      return a.to ? <>assigned the task to {strong(name(a.to))}</> : <>unassigned {strong(name(a.from) ?? 'the task')}</>
+      if (a.to) return tRich('task.act.assigned', { name: strong(name(a.to)) })
+      return a.from ? tRich('task.act.unassigned', { name: strong(name(a.from)) }) : t('task.act.unassignedTask')
     case 'due':
-      return a.to ? <>set the due date to {strong(describeDue(a.to, isoDate()).label === 'Today' ? 'today' : longDate(a.to))}</> : <>removed the due date</>
+      return a.to
+        ? tRich('task.act.due', { date: strong(a.to === isoDate() ? t('task.act.today') : longDate(a.to)) })
+        : t('task.act.dueRemoved')
     case 'title':
-      return <>renamed the task to {strong(`“${a.to}”`)}</>
+      return tRich('task.act.title', { title: strong(t('task.act.quoted', { title: a.to ?? '' })) })
   }
 }
 
@@ -344,7 +343,7 @@ function ActivityItem({ activity, profiles }: { activity: TaskActivity; profiles
         {activity.actor ? <ProfileAvatar profile={activity.actor} size="xs" className="size-[18px] text-[8px]" /> : <UserCircle className="size-4" />}
       </span>
       <span className="min-w-0 flex-1 leading-snug">
-        <span className="font-medium text-foreground">{activity.actor?.name ?? 'Someone'}</span> {describeActivity(activity, profiles)}
+        <span className="font-medium text-foreground">{activity.actor?.name ?? t('task.someone')}</span> {describeActivity(activity, profiles)}
         <span className="mx-1.5 text-muted-foreground/50">·</span>
         <TimeAgo ms={activity.createdAt} className="text-xs" />
       </span>
@@ -375,14 +374,14 @@ function CommentItem({ comment, mine }: { comment: TaskComment; mine: boolean })
       </span>
       <div className="min-w-0 flex-1 rounded-lg border bg-background px-3 py-2 shadow-xs">
         <div className="flex h-5 items-center gap-1.5 text-xs">
-          <span className="truncate text-[13px] font-semibold">{comment.author?.name ?? 'Deleted profile'}</span>
+          <span className="truncate text-[13px] font-semibold">{comment.author?.name ?? t('task.deletedProfile')}</span>
           <TimeAgo ms={comment.createdAt} className="shrink-0 text-muted-foreground" />
           {edited && (
             <Tooltip>
               <TooltipTrigger asChild>
-                <span className="shrink-0 cursor-default text-muted-foreground/80">(edited)</span>
+                <span className="shrink-0 cursor-default text-muted-foreground/80">{t('task.edited')}</span>
               </TooltipTrigger>
-              <TooltipContent>Edited {fullDate(comment.updatedAt)}</TooltipContent>
+              <TooltipContent>{t('home.edited', { time: fullDate(comment.updatedAt) })}</TooltipContent>
             </Tooltip>
           )}
           {mine && !editing && (
@@ -390,14 +389,14 @@ function CommentItem({ comment, mine }: { comment: TaskComment; mine: boolean })
               <DropdownMenuTrigger asChild>
                 <button
                   className="ml-auto grid size-6 place-items-center rounded-md text-muted-foreground opacity-0 transition group-hover/comment:opacity-100 hover:bg-accent hover:text-foreground data-[state=open]:opacity-100"
-                  aria-label="Comment actions"
+                  aria-label={t('task.commentActions')}
                 >
                   <MoreHorizontal className="size-4" />
                 </button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-36">
                 <DropdownMenuItem onSelect={() => setEditing(true)}>
-                  <Pencil /> Edit
+                  <Pencil /> {t('common.edit')}
                 </DropdownMenuItem>
                 <DropdownMenuItem
                   variant="destructive"
@@ -406,7 +405,7 @@ function CommentItem({ comment, mine }: { comment: TaskComment; mine: boolean })
                     if ('error' in res) toast.error(String(res.error))
                   }}
                 >
-                  <Trash2 /> Delete
+                  <Trash2 /> {t('common.delete')}
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
@@ -438,10 +437,10 @@ function CommentItem({ comment, mine }: { comment: TaskComment; mine: boolean })
                   setText(comment.body)
                 }}
               >
-                Cancel
+                {t('common.cancel')}
               </Button>
               <Button size="xs" onClick={() => void save()}>
-                Save
+                {t('common.save')}
               </Button>
             </div>
           </div>
@@ -494,10 +493,10 @@ function FileChip({ file }: { file: FileRecord }) {
       onClick={() =>
         isPdf
           ? dispatch(openPdf({ fileId: file.id, name: file.name }))
-          : void window.api.openFile(file.id).catch((e: unknown) => toast.error(`Could not open ${file.name}: ${e instanceof Error ? e.message : String(e)}`))
+          : void window.api.openFile(file.id).catch((e: unknown) => toast.error(t('file.openFailed', { name: file.name, error: e instanceof Error ? e.message : String(e) })))
       }
       className="flex max-w-60 items-center gap-2 rounded-md border bg-muted/40 py-1.5 pr-2.5 pl-2 text-left transition hover:bg-accent"
-      title={isPdf ? `Read ${file.name}` : `Open ${file.name}`}
+      title={isPdf ? t('file.read', { name: file.name }) : t('file.open', { name: file.name })}
     >
       <span className="grid size-7 shrink-0 place-items-center rounded bg-background">
         <File className="size-4 text-muted-foreground" />
@@ -534,7 +533,7 @@ function Composer({ cardId, taskId, me, onSent }: { cardId: string; taskId: stri
     if (!value && pending.length === 0) return
     const res = await addComment({ cardId, taskId, body: value, fileIds: pending.map((f) => f.id) })
     if ('error' in res) {
-      toast.error('Could not add comment')
+      toast.error(t('task.commentFailed'))
       return
     }
     setBody('')
@@ -572,7 +571,7 @@ function Composer({ cardId, taskId, me, onSent }: { cardId: string; taskId: stri
     if (paths.length) {
       const recs = await window.api.importFiles(paths)
       if (recs.length) setPending((p) => [...p, ...recs])
-      if (recs.length < paths.length) toast.error('Some files have an unsupported type')
+      if (recs.length < paths.length) toast.error(t('file.unsupportedSome'))
     }
     for (const { f } of withPath.filter((x) => !x.path && x.f.type.startsWith('image/'))) await importBlob(f, f.name)
   }
@@ -603,7 +602,7 @@ function Composer({ cardId, taskId, me, onSent }: { cardId: string; taskId: stri
                 <span key={f.id} className="flex h-6 items-center gap-1 rounded-md border bg-muted pr-0.5 pl-1.5 text-xs">
                   <Paperclip className="size-3 text-muted-foreground" />
                   <span className="max-w-32 truncate">{f.name}</span>
-                  <button onClick={() => setPending((p) => p.filter((x) => x.id !== f.id))} className="grid size-5 place-items-center rounded text-muted-foreground hover:bg-background hover:text-foreground" aria-label={`Remove ${f.name}`}>
+                  <button onClick={() => setPending((p) => p.filter((x) => x.id !== f.id))} className="grid size-5 place-items-center rounded text-muted-foreground hover:bg-background hover:text-foreground" aria-label={t('file.remove', { name: f.name })}>
                     <X className="size-3" />
                   </button>
                 </span>
@@ -625,21 +624,21 @@ function Composer({ cardId, taskId, me, onSent }: { cardId: string; taskId: stri
                 e.currentTarget.blur()
               }
             }}
-            placeholder={dragOver ? 'Drop files to attach' : 'Leave a comment…'}
+            placeholder={dragOver ? t('task.dropFiles') : t('task.commentPlaceholder')}
             rows={1}
             className="block max-h-40 min-h-9 w-full resize-none bg-transparent px-3 pt-2 pb-1 text-sm outline-none placeholder:text-muted-foreground"
           />
           <div className="flex items-center gap-1 px-1.5 pb-1.5">
             <Tooltip>
               <TooltipTrigger asChild>
-                <button onClick={() => void pickFiles()} className="grid size-7 place-items-center rounded-md text-muted-foreground transition hover:bg-accent hover:text-foreground" aria-label="Attach files">
+                <button onClick={() => void pickFiles()} className="grid size-7 place-items-center rounded-md text-muted-foreground transition hover:bg-accent hover:text-foreground" aria-label={t('task.attach')}>
                   <Paperclip className="size-4" />
                 </button>
               </TooltipTrigger>
-              <TooltipContent>Attach files — or paste / drop images</TooltipContent>
+              <TooltipContent>{t('task.attachHint')}</TooltipContent>
             </Tooltip>
-            <span className="ml-auto pr-1 text-[11px] text-muted-foreground">⌘↩ to send</span>
-            <Button size="icon" className="size-7" disabled={!canSend} onClick={() => void send()} aria-label="Send comment">
+            <span className="ml-auto pr-1 text-[11px] text-muted-foreground">{t('task.sendHint')}</span>
+            <Button size="icon" className="size-7" disabled={!canSend} onClick={() => void send()} aria-label={t('task.send')}>
               <Send className="size-3.5" />
             </Button>
           </div>

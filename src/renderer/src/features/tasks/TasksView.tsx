@@ -19,6 +19,7 @@ import {
 import { Kbd } from '@/components/ui/kbd'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { ProfileAvatar } from '@/features/profile/ProfileAvatar'
+import { labelMap, t, useLang } from '@/lib/i18n'
 import { formatBinding, useBinding, useCommands } from '@/lib/shortcuts'
 import { cn } from '@/lib/utils'
 import { useGetActiveProfileQuery, useListProfilesQuery, useListTasksQuery } from '@/store/api'
@@ -65,7 +66,7 @@ const loadPrefs = (): Prefs => {
   }
 }
 
-const GROUP_LABEL: Record<GroupBy, string> = { status: 'Status', card: 'Card', assignee: 'Assignee', priority: 'Priority', none: 'No grouping' }
+const GROUP_LABEL = labelMap<GroupBy>({ status: 'task.status', card: 'task.card', assignee: 'task.assignee', priority: 'task.priority', none: 'task.noGrouping' })
 
 export function TasksView() {
   const { data: tasks = [], isLoading } = useListTasksQuery({ status: 'all' })
@@ -77,6 +78,7 @@ export function TasksView() {
   const [openKey, setOpenKey] = useState<string | null>(null)
   const [newTask, setNewTask] = useState<NewTaskDefaults | null>(null)
   const newKey = useBinding('tasks.new')
+  const lang = useLang()
 
   useEffect(() => {
     try {
@@ -92,7 +94,8 @@ export function TasksView() {
   const today = isoDate()
 
   const visible = useMemo(() => filterTasks(tasks, filters, me?.id ?? null, today), [tasks, JSON.stringify(filters), me?.id, today])
-  const groups = useMemo(() => groupTasks(visible, prefs.groupBy, me?.id ?? null), [visible, prefs.groupBy, me?.id])
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- group labels follow the UI language
+  const groups = useMemo(() => groupTasks(visible, prefs.groupBy, me?.id ?? null), [visible, prefs.groupBy, me?.id, lang])
   const collapsed = useMemo(() => new Set(prefs.collapsed), [prefs.collapsed])
 
   /** Keyboard order = what's on screen. */
@@ -153,17 +156,15 @@ export function TasksView() {
           <ListChecks className="size-4" />
         </div>
         <div className="min-w-0">
-          <h1 className="text-lg leading-tight font-semibold tracking-tight">Tasks</h1>
-          <p className="text-xs text-muted-foreground tabular-nums">
-            {openCount} open · {doneCount} done
-          </p>
+          <h1 className="text-lg leading-tight font-semibold tracking-tight">{t('sidebar.tasks')}</h1>
+          <p className="text-xs text-muted-foreground tabular-nums">{t('task.counts', { open: openCount, done: doneCount })}</p>
         </div>
         <div className="flex-1" />
-        <div className="flex h-8 items-center rounded-lg border bg-muted/50 p-0.5" role="tablist" aria-label="View">
+        <div className="flex h-8 items-center rounded-lg border bg-muted/50 p-0.5" role="tablist" aria-label={t('task.view')}>
           {(
             [
-              ['list', 'List', Rows],
-              ['board', 'Board', Columns3]
+              ['list', t('library.list'), Rows],
+              ['board', t('task.board'), Columns3]
             ] as const
           ).map(([mode, label, Icon]) => (
             <button
@@ -184,11 +185,11 @@ export function TasksView() {
         <Tooltip>
           <TooltipTrigger asChild>
             <Button size="sm" onClick={() => setNewTask({})}>
-              <Plus className="size-4" /> New task
+              <Plus className="size-4" /> {t('cmd.tasks.new')}
             </Button>
           </TooltipTrigger>
           <TooltipContent>
-            New task <Kbd>{formatBinding(newKey)}</Kbd>
+            {t('cmd.tasks.new')} <Kbd>{formatBinding(newKey)}</Kbd>
           </TooltipContent>
         </Tooltip>
       </div>
@@ -201,29 +202,29 @@ export function TasksView() {
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             onKeyDown={(e) => e.key === 'Escape' && (setQuery(''), e.currentTarget.blur())}
-            placeholder="Search tasks"
+            placeholder={t('task.search')}
             className="h-7 w-48 rounded-md border bg-background pr-2 pl-7 text-xs shadow-xs outline-none placeholder:text-muted-foreground focus:ring-2 focus:ring-ring/20"
           />
         </div>
         <QuickFilter active={filters.assignee === 'me'} onClick={() => setFilters({ assignee: filters.assignee === 'me' ? 'any' : 'me' })}>
           {me && <ProfileAvatar profile={me} size="xs" className="size-4 text-[8px]" />}
-          Assigned to me
+          {t('task.assignedToMe')}
         </QuickFilter>
         <QuickFilter active={filters.due === 'overdue'} onClick={() => setFilters({ due: filters.due === 'overdue' ? 'any' : 'overdue' })}>
-          <CalendarIcon className="size-3.5" /> Overdue
+          <CalendarIcon className="size-3.5" /> {t('task.due.overdue')}
         </QuickFilter>
 
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <button className={cn(chip, nFilters > 0 && 'border-primary/30 bg-primary/5 text-foreground')}>
-              <Filter className="size-3.5" /> Filter
+              <Filter className="size-3.5" /> {t('task.filter')}
               {nFilters > 0 && <span className="grid h-4 min-w-4 place-items-center rounded-full bg-primary px-1 text-[10px] text-primary-foreground tabular-nums">{nFilters}</span>}
             </button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="start" className="w-52">
             <DropdownMenuSub>
               <DropdownMenuSubTrigger>
-                <StatusIcon status="in_progress" /> Status
+                <StatusIcon status="in_progress" /> {t('task.status')}
               </DropdownMenuSubTrigger>
               <DropdownMenuSubContent className="w-48">
                 {STATUS_ORDER.map((s) => (
@@ -240,13 +241,13 @@ export function TasksView() {
             </DropdownMenuSub>
             <DropdownMenuSub>
               <DropdownMenuSubTrigger>
-                <UserCircle /> Assignee
+                <UserCircle /> {t('task.assignee')}
               </DropdownMenuSubTrigger>
               <DropdownMenuSubContent className="w-56">
                 <DropdownMenuRadioGroup value={filters.assignee} onValueChange={(v) => setFilters({ assignee: v })}>
-                  <DropdownMenuRadioItem value="any">Anyone</DropdownMenuRadioItem>
-                  <DropdownMenuRadioItem value="me">Assigned to me</DropdownMenuRadioItem>
-                  <DropdownMenuRadioItem value="none">Unassigned</DropdownMenuRadioItem>
+                  <DropdownMenuRadioItem value="any">{t('task.anyone')}</DropdownMenuRadioItem>
+                  <DropdownMenuRadioItem value="me">{t('task.assignedToMe')}</DropdownMenuRadioItem>
+                  <DropdownMenuRadioItem value="none">{t('task.unassigned')}</DropdownMenuRadioItem>
                   {profiles.length > 1 && <DropdownMenuSeparator />}
                   {profiles.length > 1 &&
                     profiles.map((p) => (
@@ -259,7 +260,7 @@ export function TasksView() {
             </DropdownMenuSub>
             <DropdownMenuSub>
               <DropdownMenuSubTrigger>
-                <PriorityIcon priority="high" /> Priority
+                <PriorityIcon priority="high" /> {t('task.priority')}
               </DropdownMenuSubTrigger>
               <DropdownMenuSubContent className="w-48">
                 {PRIORITY_ORDER.map((p) => (
@@ -276,11 +277,11 @@ export function TasksView() {
             </DropdownMenuSub>
             <DropdownMenuSub>
               <DropdownMenuSubTrigger>
-                <CalendarIcon /> Due date
+                <CalendarIcon /> {t('task.dueDate')}
               </DropdownMenuSubTrigger>
               <DropdownMenuSubContent className="w-44">
                 <DropdownMenuRadioGroup value={filters.due} onValueChange={(v) => setFilters({ due: v as TaskDueFilter | 'any' })}>
-                  <DropdownMenuRadioItem value="any">Any time</DropdownMenuRadioItem>
+                  <DropdownMenuRadioItem value="any">{t('task.anyTime')}</DropdownMenuRadioItem>
                   {(['overdue', 'today', 'week'] as TaskDueFilter[]).map((d) => (
                     <DropdownMenuRadioItem key={d} value={d}>
                       {DUE_LABEL[d]}
@@ -293,7 +294,7 @@ export function TasksView() {
               <>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onSelect={() => setFilters(EMPTY_FILTERS)} className="text-muted-foreground">
-                  <X /> Clear filters
+                  <X /> {t('task.clearFilters')}
                 </DropdownMenuItem>
               </>
             )}
@@ -308,11 +309,11 @@ export function TasksView() {
             <DropdownMenuTrigger asChild>
               <button className={chip}>
                 <Layers className="size-3.5" />
-                <span className="text-muted-foreground">Group:</span> {GROUP_LABEL[prefs.groupBy]}
+                <span className="text-muted-foreground">{t('task.group')}</span> {GROUP_LABEL[prefs.groupBy]}
               </button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-44">
-              <DropdownMenuLabel className="text-xs text-muted-foreground">Group by</DropdownMenuLabel>
+              <DropdownMenuLabel className="text-xs text-muted-foreground">{t('task.groupBy')}</DropdownMenuLabel>
               <DropdownMenuRadioGroup value={prefs.groupBy} onValueChange={(v) => update({ groupBy: v as GroupBy })}>
                 {(['status', 'card', 'assignee', 'priority', 'none'] as GroupBy[]).map((g) => (
                   <DropdownMenuRadioItem key={g} value={g}>
@@ -355,7 +356,7 @@ export function TasksView() {
         open={newTask !== null}
         onOpenChange={(o) => !o && setNewTask(null)}
         defaults={newTask ?? undefined}
-        onCreated={(t) => setSelectedKey(taskKey(t))}
+        onCreated={(created) => setSelectedKey(taskKey(created))}
       />
     </div>
   )
@@ -389,12 +390,14 @@ function ActiveFilterChips({
   onChange: (f: Partial<TaskFilters>) => void
 }) {
   const chips: { key: string; label: string; clear: () => void }[] = []
-  if (filters.statuses.length) chips.push({ key: 's', label: `Status: ${filters.statuses.map((s) => STATUS_LABEL[s]).join(', ')}`, clear: () => onChange({ statuses: [] }) })
+  if (filters.statuses.length)
+    chips.push({ key: 's', label: `${t('task.status')}: ${filters.statuses.map((s) => STATUS_LABEL[s]).join(', ')}`, clear: () => onChange({ statuses: [] }) })
   if (filters.priorities.length)
-    chips.push({ key: 'p', label: `Priority: ${filters.priorities.map((p) => PRIORITY_LABEL[p as TaskPriority]).join(', ')}`, clear: () => onChange({ priorities: [] }) })
+    chips.push({ key: 'p', label: `${t('task.priority')}: ${filters.priorities.map((p) => PRIORITY_LABEL[p as TaskPriority]).join(', ')}`, clear: () => onChange({ priorities: [] }) })
   if (filters.assignee !== 'any' && filters.assignee !== 'me') {
-    const name = filters.assignee === 'none' ? 'Unassigned' : filters.assignee === meId ? 'Me' : (profiles.find((p) => p.id === filters.assignee)?.name ?? 'Someone')
-    chips.push({ key: 'a', label: `Assignee: ${name}`, clear: () => onChange({ assignee: 'any' }) })
+    const name =
+      filters.assignee === 'none' ? t('task.unassigned') : filters.assignee === meId ? t('task.me') : (profiles.find((p) => p.id === filters.assignee)?.name ?? t('task.someone'))
+    chips.push({ key: 'a', label: `${t('task.assignee')}: ${name}`, clear: () => onChange({ assignee: 'any' }) })
   }
   if (filters.due !== 'any' && filters.due !== 'overdue') chips.push({ key: 'd', label: DUE_LABEL[filters.due], clear: () => onChange({ due: 'any' }) })
   return (
@@ -402,7 +405,7 @@ function ActiveFilterChips({
       {chips.map((c) => (
         <span key={c.key} className="inline-flex h-7 items-center gap-1 rounded-md border border-primary/20 bg-primary/5 pr-1 pl-2 text-xs">
           {c.label}
-          <button onClick={c.clear} className="grid size-5 place-items-center rounded text-muted-foreground transition hover:bg-background hover:text-foreground" aria-label="Remove filter">
+          <button onClick={c.clear} className="grid size-5 place-items-center rounded text-muted-foreground transition hover:bg-background hover:text-foreground" aria-label={t('task.removeFilter')}>
             <X className="size-3" />
           </button>
         </span>
@@ -432,13 +435,14 @@ function EmptyState({ onNew, newKey }: { onNew: () => void; newKey: string }) {
             </div>
           ))}
         </div>
-        <h2 className="text-base font-semibold tracking-tight">Plan your work</h2>
+        <h2 className="text-base font-semibold tracking-tight">{t('task.emptyTitle')}</h2>
         <p className="mt-1.5 text-sm text-muted-foreground">
-          Tasks live as checkboxes inside your cards. Create one here, or type <code className="rounded bg-muted px-1 py-0.5 text-xs">[ ]</code> in any card — it shows up
-          in this list.
+          {t('task.emptyBefore')}
+          <code className="rounded bg-muted px-1 py-0.5 text-xs">[ ]</code>
+          {t('task.emptyAfter')}
         </p>
         <Button size="sm" className="mt-5" onClick={onNew}>
-          <Plus className="size-4" /> New task <Kbd className="ml-1 bg-primary-foreground/15 text-primary-foreground">{newKey}</Kbd>
+          <Plus className="size-4" /> {t('cmd.tasks.new')} <Kbd className="ml-1 bg-primary-foreground/15 text-primary-foreground">{newKey}</Kbd>
         </Button>
       </div>
     </div>
@@ -452,10 +456,10 @@ function NoMatches({ onClear }: { onClear: () => void }) {
         <div className="mb-4 grid size-11 place-items-center rounded-xl border bg-card shadow-xs">
           <Filter className="size-5 text-muted-foreground" />
         </div>
-        <h2 className="text-sm font-semibold">No tasks match</h2>
-        <p className="mt-1 text-sm text-muted-foreground">Try a different search or remove some filters.</p>
+        <h2 className="text-sm font-semibold">{t('task.noMatch')}</h2>
+        <p className="mt-1 text-sm text-muted-foreground">{t('task.noMatchHint')}</p>
         <Button size="sm" variant="outline" className="mt-4" onClick={onClear}>
-          Clear filters
+          {t('task.clearFilters')}
         </Button>
       </div>
     </div>

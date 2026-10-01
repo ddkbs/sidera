@@ -1,6 +1,7 @@
 import { DndContext, DragOverlay, PointerSensor, pointerWithin, useDraggable, useDroppable, useSensor, useSensors, type DragEndEvent } from '@dnd-kit/core'
 import { useState } from 'react'
 import { MessageSquare, Paperclip, Plus } from '@/components/icons'
+import { t } from '@/lib/i18n'
 import { cn } from '@/lib/utils'
 import type { Task, TaskStatus } from '@shared/types'
 import { STATUS_LABEL, sortTasks } from './model'
@@ -53,11 +54,11 @@ export function TaskBoard({
           const items = sortTasks(tasks.filter((t) => t.status === status))
           return (
             <Column key={status} status={status} count={items.length} onAdd={() => onAdd({ status })} dragging={!!active && active.status !== status}>
-              {items.map((t) => (
-                <DraggableCard key={taskKey(t)} task={t} selected={selectedKey === taskKey(t)} open={openKey === taskKey(t)} onOpen={() => onOpen(t)} />
+              {items.map((task) => (
+                <DraggableCard key={taskKey(task)} task={task} selected={selectedKey === taskKey(task)} open={openKey === taskKey(task)} onOpen={() => onOpen(task)} />
               ))}
               {items.length === 0 && (
-                <div className="grid h-20 place-items-center rounded-lg border border-dashed text-xs text-muted-foreground">{active ? 'Drop here' : 'No tasks'}</div>
+                <div className="grid h-20 place-items-center rounded-lg border border-dashed text-xs text-muted-foreground">{active ? t('task.dropHere') : t('task.none')}</div>
               )}
             </Column>
           )
@@ -85,7 +86,7 @@ function Column({ status, count, onAdd, dragging, children }: { status: TaskStat
         <StatusIcon status={status} />
         <span className="text-sm font-medium">{STATUS_LABEL[status]}</span>
         <span className="text-xs tabular-nums text-muted-foreground">{count}</span>
-        <button onClick={onAdd} className="ml-auto grid size-6 place-items-center rounded-md text-muted-foreground transition hover:bg-background hover:text-foreground" aria-label="New task">
+        <button onClick={onAdd} className="ml-auto grid size-6 place-items-center rounded-md text-muted-foreground transition hover:bg-background hover:text-foreground" aria-label={t('cmd.tasks.new')}>
           <Plus className="size-3.5" />
         </button>
       </div>
@@ -108,7 +109,7 @@ function BoardCard({ task, className }: { task: Task; className?: string }) {
   return (
     <div className={cn('cursor-grab rounded-lg border bg-card p-3 text-sm shadow-xs transition hover:border-foreground/15 hover:shadow-sm active:cursor-grabbing', className)}>
       <div className="flex items-start gap-2">
-        <span className={cn('min-w-0 flex-1 leading-snug', done && 'text-muted-foreground line-through decoration-muted-foreground/50')}>{task.text || 'Untitled task'}</span>
+        <span className={cn('min-w-0 flex-1 leading-snug', done && 'text-muted-foreground line-through decoration-muted-foreground/50')}>{task.text || t('task.untitled')}</span>
         <AssigneeAvatar profile={task.assignee} className="mt-px" />
       </div>
       <div className="mt-2.5 flex flex-wrap items-center gap-x-2.5 gap-y-1.5 text-muted-foreground">

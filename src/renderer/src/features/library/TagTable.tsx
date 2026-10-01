@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/input'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { color } from '@/lib/colors'
+import { formatDate, t, type MessageKey } from '@/lib/i18n'
 import { useAppDispatch } from '@/store'
 import { useCreatePropertyMutation, useListCardsQuery, useListPropertiesQuery, useSetPropertyValueMutation } from '@/store/api'
 import { openCard } from '@/store/ui'
@@ -19,6 +20,13 @@ const TYPE_ICON: Record<PropertyType, React.ReactNode> = {
   number: <HashIcon className="size-3.5" />,
   date: <Calendar className="size-3.5" />,
   checkbox: <CheckSquare className="size-3.5" />
+}
+export const PROPERTY_TYPE_LABEL: Record<PropertyType, MessageKey> = {
+  select: 'property.type.select',
+  text: 'property.type.text',
+  number: 'property.type.number',
+  date: 'property.type.date',
+  checkbox: 'property.type.checkbox'
 }
 const NONE = '__none'
 
@@ -38,16 +46,16 @@ export function TagTable({ tagId, filter }: { tagId: string; filter: string }) {
       <div ref={parent} className="min-h-0 flex-1 overflow-auto">
         <div className="min-w-fit">
           <div className="sticky top-0 z-10 grid border-b bg-background text-xs font-medium text-muted-foreground" style={{ gridTemplateColumns: template }}>
-            <div className="px-3 py-2">Title</div>
+            <div className="px-3 py-2">{t('library.colTitle')}</div>
             {props.map((p) => (
               <div key={p.id} className="flex items-center gap-1.5 border-l px-3 py-2">
                 {TYPE_ICON[p.type]} {p.name}
               </div>
             ))}
-            <div className="border-l px-3 py-2 text-right">Updated</div>
+            <div className="border-l px-3 py-2 text-right">{t('library.colUpdated')}</div>
             <AddProperty tagId={tagId} />
           </div>
-          {rows.length === 0 && <div className="py-16 text-center text-sm text-muted-foreground">No cards with this tag yet</div>}
+          {rows.length === 0 && <div className="py-16 text-center text-sm text-muted-foreground">{t('library.noTagged')}</div>}
           <div style={{ height: virtual.getTotalSize() }} className="relative">
             {virtual.getVirtualItems().map((item) => {
               const card = rows[item.index]
@@ -59,14 +67,14 @@ export function TagTable({ tagId, filter }: { tagId: string; filter: string }) {
                 >
                   <button onClick={() => dispatch(openCard(card.id))} className="truncate px-3 text-left font-medium hover:underline">
                     <CardIcon icon={card.icon} className="mr-1.5 inline-grid size-4 align-[-3px] text-[14px]" />
-                    {card.title || <span className="text-muted-foreground">Untitled</span>}
+                    {card.title || <span className="text-muted-foreground">{t('common.untitled')}</span>}
                   </button>
                   {props.map((p) => (
                     <div key={p.id} className="h-full min-w-0 border-l">
                       <Cell card={card} property={p} />
                     </div>
                   ))}
-                  <div className="border-l px-3 text-right text-xs text-muted-foreground">{new Date(card.updatedAt).toLocaleDateString()}</div>
+                  <div className="border-l px-3 text-right text-xs text-muted-foreground">{formatDate(card.updatedAt)}</div>
                   <div />
                 </div>
               )
@@ -91,7 +99,7 @@ function Cell({ card, property }: { card: CardSummary; property: TagProperty }) 
         </SelectTrigger>
         <SelectContent>
           <SelectItem value={NONE}>
-            <span className="text-muted-foreground">Empty</span>
+            <span className="text-muted-foreground">{t('folder.empty')}</span>
           </SelectItem>
           {property.options.map((o) => (
             <SelectItem key={o.id} value={o.id}>
@@ -136,7 +144,7 @@ function AddProperty({ tagId }: { tagId: string }) {
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
-        <button className="grid place-items-center border-l text-muted-foreground transition hover:bg-accent hover:text-foreground" aria-label="Add property">
+        <button className="grid place-items-center border-l text-muted-foreground transition hover:bg-accent hover:text-foreground" aria-label={t('property.add')}>
           <Plus className="size-3.5" />
         </button>
       </PopoverTrigger>
@@ -161,23 +169,23 @@ function AddProperty({ tagId }: { tagId: string }) {
             setOpen(false)
           }}
         >
-          <p className="text-sm font-medium">New property</p>
-          <Input autoFocus placeholder="Name" value={name} onChange={(e) => setName(e.target.value)} />
+          <p className="text-sm font-medium">{t('property.new')}</p>
+          <Input autoFocus placeholder={t('account.name')} value={name} onChange={(e) => setName(e.target.value)} />
           <Select value={type} onValueChange={(v) => setType(v as PropertyType)}>
             <SelectTrigger className="w-full">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              {(Object.keys(TYPE_ICON) as PropertyType[]).map((t) => (
-                <SelectItem key={t} value={t}>
-                  {TYPE_ICON[t]} <span className="capitalize">{t}</span>
+              {(Object.keys(TYPE_ICON) as PropertyType[]).map((pt) => (
+                <SelectItem key={pt} value={pt}>
+                  {TYPE_ICON[pt]} <span>{t(PROPERTY_TYPE_LABEL[pt])}</span>
                 </SelectItem>
               ))}
             </SelectContent>
           </Select>
-          {type === 'select' && <Input placeholder="Options, comma separated" value={options} onChange={(e) => setOptions(e.target.value)} />}
+          {type === 'select' && <Input placeholder={t('property.options')} value={options} onChange={(e) => setOptions(e.target.value)} />}
           <Button type="submit" size="sm" className="w-full">
-            Add property
+            {t('property.add')}
           </Button>
         </form>
       </PopoverContent>

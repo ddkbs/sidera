@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog'
 import { Kbd } from '@/components/ui/kbd'
 import { ProfileAvatar } from '@/features/profile/ProfileAvatar'
+import { t } from '@/lib/i18n'
 import { addTaskUndoable } from '@/lib/undo-actions'
 import { cn } from '@/lib/utils'
 import { useAddTaskMutation, useListProfilesQuery } from '@/store/api'
@@ -24,8 +25,8 @@ export interface NewTaskDefaults {
 const TARGET_KEY = storageKey('sidera.tasks.target')
 const loadTarget = (): CardTarget => {
   try {
-    const t = JSON.parse(localStorage.getItem(TARGET_KEY) ?? 'null') as CardTarget | null
-    return t && 'id' in t ? t : { id: null, title: 'Inbox' }
+    const target = JSON.parse(localStorage.getItem(TARGET_KEY) ?? 'null') as CardTarget | null
+    return target && 'id' in target ? target : { id: null, title: 'Inbox' }
   } catch {
     return { id: null, title: 'Inbox' }
   }
@@ -58,10 +59,10 @@ export function NewTaskDialog({ open, onOpenChange, defaults, onCreated }: { ope
     setCard(defaults?.card ?? loadTarget())
   }, [open, defaults])
 
-  const chooseCard = (t: CardTarget) => {
-    setCard(t)
+  const chooseCard = (target: CardTarget) => {
+    setCard(target)
     try {
-      localStorage.setItem(TARGET_KEY, JSON.stringify(t))
+      localStorage.setItem(TARGET_KEY, JSON.stringify(target))
     } catch {
       /* ignore */
     }
@@ -81,11 +82,11 @@ export function NewTaskDialog({ open, onOpenChange, defaults, onCreated }: { ope
     }, card.id ?? undefined)
     setBusy(false)
     if (!created) {
-      toast.error(`Could not create task${error ? `: ${error}` : ''}`)
+      toast.error(error ? t('task.createFailedError', { error }) : t('task.createFailed'))
       if (card.id) chooseCard({ id: null, title: 'Inbox' })
       return
     }
-    toast.success('Task created', { duration: 1500 })
+    toast.success(t('task.created'), { duration: 1500 })
     onCreated?.(created)
     if (more) {
       setText('')
@@ -100,13 +101,13 @@ export function NewTaskDialog({ open, onOpenChange, defaults, onCreated }: { ope
           <CardPicker value={card} onChange={chooseCard}>
             <button className="inline-flex h-6 max-w-60 items-center gap-1.5 rounded-md bg-muted px-2 font-medium text-foreground/80 transition hover:bg-accent">
               {card.id ? <FileText className="size-3.5 shrink-0" /> : <Inbox className="size-3.5 shrink-0" />}
-              <span className="truncate">{card.title || 'Untitled'}</span>
+              <span className="truncate">{card.id === null ? t('task.inbox') : card.title || t('common.untitled')}</span>
               <ChevronDown className="size-3 shrink-0 opacity-60" />
             </button>
           </CardPicker>
           <span>›</span>
-          <DialogTitle className="text-xs font-normal text-muted-foreground">New task</DialogTitle>
-          <DialogDescription className="sr-only">Create a task. It is added as a checkbox to the chosen card.</DialogDescription>
+          <DialogTitle className="text-xs font-normal text-muted-foreground">{t('cmd.tasks.new')}</DialogTitle>
+          <DialogDescription className="sr-only">{t('task.newHint')}</DialogDescription>
         </div>
         <textarea
           ref={input}
@@ -120,7 +121,7 @@ export function NewTaskDialog({ open, onOpenChange, defaults, onCreated }: { ope
               void submit()
             }
           }}
-          placeholder="Task title"
+          placeholder={t('task.titlePlaceholder')}
           className="w-full resize-none bg-transparent px-4 pt-3 pb-2 text-lg font-medium tracking-tight outline-none placeholder:text-muted-foreground/60"
         />
         <div className="flex flex-wrap items-center gap-1.5 px-4 pb-4">
@@ -133,13 +134,13 @@ export function NewTaskDialog({ open, onOpenChange, defaults, onCreated }: { ope
           <PriorityPicker value={priority} onChange={setPriority}>
             <button className={pill}>
               <PriorityIcon priority={priority} className="size-3.5" />
-              {priority === 'none' ? 'Priority' : PRIORITY_LABEL[priority]}
+              {priority === 'none' ? t('task.priority') : PRIORITY_LABEL[priority]}
             </button>
           </PriorityPicker>
           <AssigneePicker value={assigneeId} onChange={setAssigneeId}>
             <button className={pill}>
               {assignee ? <ProfileAvatar profile={assignee} size="xs" className="-ml-0.5 size-4 text-[8px]" /> : null}
-              <span className={cn('truncate', !assignee && 'text-muted-foreground')}>{assignee?.name ?? 'Assignee'}</span>
+              <span className={cn('truncate', !assignee && 'text-muted-foreground')}>{assignee?.name ?? t('task.assignee')}</span>
             </button>
           </AssigneePicker>
           <DuePicker value={dueDate} onChange={setDueDate}>
@@ -149,7 +150,7 @@ export function NewTaskDialog({ open, onOpenChange, defaults, onCreated }: { ope
               ) : (
                 <>
                   <CalendarIcon className="size-3.5 text-muted-foreground" />
-                  <span className="text-muted-foreground">Due date</span>
+                  <span className="text-muted-foreground">{t('task.dueDate')}</span>
                 </>
               )}
             </button>
@@ -158,14 +159,14 @@ export function NewTaskDialog({ open, onOpenChange, defaults, onCreated }: { ope
         <div className="flex items-center gap-3 border-t bg-muted/30 px-4 py-2.5">
           <label className="flex cursor-pointer items-center gap-2 text-xs text-muted-foreground select-none">
             <input type="checkbox" checked={more} onChange={(e) => setMore(e.target.checked)} className="accent-primary" />
-            Create more
+            {t('task.createMore')}
           </label>
           <div className="flex-1" />
           <Button variant="ghost" size="sm" onClick={() => onOpenChange(false)}>
-            Cancel
+            {t('common.cancel')}
           </Button>
           <Button size="sm" disabled={!text.trim() || busy} onClick={() => void submit()}>
-            Create task <Kbd className="bg-primary-foreground/15 text-primary-foreground">↩</Kbd>
+            {t('task.create')} <Kbd className="bg-primary-foreground/15 text-primary-foreground">↩</Kbd>
           </Button>
         </div>
       </DialogContent>

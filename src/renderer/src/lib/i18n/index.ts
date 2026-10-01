@@ -1,4 +1,4 @@
-import { useSyncExternalStore } from 'react'
+import { createElement, Fragment, useSyncExternalStore, type ReactNode } from 'react'
 import { LOCALES, resolveLang, type Lang } from '@shared/i18n'
 import { de } from './de'
 import { en, type Message, type MessageKey } from './en'
@@ -26,7 +26,8 @@ let current: Lang = initialLang()
 const listeners = new Set<() => void>()
 
 function systemLocales(): readonly string[] {
-  return typeof navigator === 'undefined' ? [] : navigator.languages ?? [navigator.language]
+  // no window = unit tests in Node: stay on the source language regardless of the machine's locale
+  return typeof window === 'undefined' ? [] : (navigator.languages ?? [navigator.language])
 }
 
 function initialLang(): Lang {
@@ -79,6 +80,17 @@ export function t(key: MessageKey, vars?: Vars): string {
   return format(current, DICTS[current][key] ?? en[key], vars)
 }
 
+/** Like `t`, but `{name}` placeholders can be React nodes (bold names, icons) placed where the language wants them. */
+export function tRich(key: MessageKey, nodes: Record<string, ReactNode>, vars?: Vars): ReactNode[] {
+  return t(key, vars)
+    .split(/(\{\w+\})/)
+    .filter(Boolean)
+    .map((part, i) => {
+      const name = /^\{(\w+)\}$/.exec(part)?.[1]
+      return name && name in nodes ? createElement(Fragment, { key: i }, nodes[name]) : part
+    })
+}
+
 function subscribe(l: () => void): () => void {
   listeners.add(l)
   return () => listeners.delete(l)
@@ -93,6 +105,16 @@ export function useLang(): Lang {
 export function useT(): typeof t {
   useLang()
   return t
+}
+
+/**
+ * A record whose values are translated on every read, e.g. `STATUS_LABEL[s]` — lets constant label
+ * tables keep their shape while following the current language.
+ */
+export function labelMap<K extends string>(keys: Record<K, MessageKey>): Readonly<Record<K, string>> {
+  const out = {} as Record<K, string>
+  for (const k of Object.keys(keys) as K[]) Object.defineProperty(out, k, { enumerable: true, get: () => t(keys[k]) })
+  return out
 }
 
 /** Date in the UI language (defaults to a short date like "Mar 4, 2026" / "4. März 2026"). */
