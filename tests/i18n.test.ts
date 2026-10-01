@@ -3,6 +3,7 @@ import { resolveLang } from '../src/shared/i18n'
 import { format, getLang, setLang, t } from '../src/renderer/src/lib/i18n'
 import { de } from '../src/renderer/src/lib/i18n/de'
 import { en } from '../src/renderer/src/lib/i18n/en'
+import { authError } from '../src/renderer/src/lib/i18n/authErrors'
 
 describe('i18n', () => {
   it('resolves the language from the setting, else the system locale', () => {
@@ -26,6 +27,15 @@ describe('i18n', () => {
     expect(t('common.cancel')).toBe('Abbrechen')
     setLang('en')
     expect(t('common.cancel')).toBe('Cancel')
+    setLang(before)
+  })
+
+  it('translates known auth errors from main', () => {
+    const before = getLang()
+    setLang('de')
+    expect(authError('Wrong password')).toBe('Falsches Passwort')
+    expect(authError('An account named “Ada” already exists')).toBe('Ein Konto namens „Ada“ existiert bereits')
+    expect(authError('Something else')).toBe('Something else')
     setLang(before)
   })
 

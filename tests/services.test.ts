@@ -2,6 +2,9 @@ import { beforeEach, describe, expect, it } from 'vitest'
 import { openDatabase } from '../src/main/db/client'
 import { createServices, type Services } from '../src/main/services'
 import { MENTION_NODE } from '@shared/doc'
+import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 
 let api: Services
 beforeEach(() => {
@@ -488,5 +491,92 @@ describe('tables', () => {
     svc.updateTable(t.id, { rows: [] })
     expect(svc.getObject(chart.id)!.data.rows).toEqual([['2025', '1']])
     expect(() => svc.chartFromTable({ tableId: chart.id })).toThrow(/Table not found/)
+  })
+})
+
+describe('board editing for MCP', () => {
+  const board = () => api.createWhiteboard({ name: 'Edit' }).id
+
+  it('moves, rotates, restacks and recolours objects where each kind keeps its colour', () => {
+    const wb = board()
+    const { card, object: box } = api.addTextBlock({ whiteboardId: wb, x: 0, y: 0, markdown: 'Hello' })
+    const shape = api.addShape({ whiteboardId: wb, shape: 'rectangle', x: 0, y: 0 })
+    const section = api.addObject({ whiteboardId: wb, kind: 'section', x: 0, y: 0, data: { title: 'A' } })
+    api.editObjects([
+      { id: box.id, x: 50, rotation: 370, color: 'red', order: 'back' },
+      { id: shape.id, color: 'blue' },
+      { id: section.id, data: { title: 'B' }, color: 'green' }
+    ])
+    const movedBox = api.getObject(box.id)!
+    expect(movedBox).toMatchObject({ x: 50, y: 0, data: { style: 'plain', rotation: 10 } })
+    expect(movedBox.z).toBeLessThan(section.z)
+    expect(api.getCard(card.id)!.color).toBe('red')
+    const els = api.getObject(shape.id)!.data.elements as { strokeColor: string }[]
+    expect(els.every((e) => e.strokeColor === '#1971c2')).toBe(true)
+    expect(api.getObject(section.id)).toMatchObject({ color: 'green', data: { title: 'B' } })
+    expect(() => api.editObjects([{ id: 'nope', x: 1 }])).toThrow(/not found/)
+  })
+
+  it('deletes objects + connectors, soft-deleting text box cards only', () => {
+    const wb = board()
+    const { card: block, object: box } = api.addTextBlock({ whiteboardId: wb, x: 0, y: 0, markdown: 'Note' })
+    const card = api.createCard({ title: 'Keep me' })
+    const placed = api.addObject({ whiteboardId: wb, kind: 'card', refId: card.id, x: 400, y: 0 })
+    const link = api.addLink({ whiteboardId: wb, url: 'https://example.com', x: 0, y: 300 })
+    const c1 = api.addConnection({ whiteboardId: wb, sourceId: box.id, targetId: placed.id })
+    const c2 = api.addConnection({ whiteboardId: wb, sourceId: placed.id, targetId: link.id })
+    expect(api.deleteObjects({ objectIds: [box.id, placed.id] })).toEqual({ objects: 2, connections: 0 })
+    const detail = api.getWhiteboard(wb)!
+    expect(detail.objects.map((o) => o.id)).toEqual([link.id])
+    expect(detail.connections.map((c) => c.id)).not.toContain(c1.id)
+    expect(detail.connections.map((c) => c.id)).not.toContain(c2.id)
+    expect(api.getCard(card.id)).not.toBeNull()
+    expect(api.search('Note', 10, { kind: 'all' }).map((h) => h.id)).not.toContain(block.id)
+    api.restoreCard(block.id)
+    expect(api.getCard(block.id)!.title).toBe('Note')
+  })
+
+  it('duplicates objects: text boxes get their own card, inner connectors come along', () => {
+    const wb = board()
+    const { card, object: box } = api.addTextBlock({ whiteboardId: wb, x: 0, y: 0, markdown: 'Original' })
+    const shape = api.addShape({ whiteboardId: wb, shape: 'ellipse', x: 300, y: 0 })
+    api.addConnection({ whiteboardId: wb, sourceId: box.id, targetId: shape.id, label: 'to' })
+    const [boxCopy, shapeCopy] = api.duplicateObjects([box.id, shape.id], { x: 0, y: 200 })
+    expect(boxCopy.refId).not.toBe(card.id)
+    expect(api.getCard(boxCopy.refId!)).toMatchObject({ kind: 'block', title: 'Original' })
+    expect(shapeCopy).toMatchObject({ x: 300, y: 200 })
+    const conns = api.getWhiteboard(wb)!.connections
+    expect(conns.find((c) => c.sourceId === boxCopy.id && c.targetId === shapeCopy.id)?.label).toBe('to')
+  })
+
+  it('adds styled shapes, ink, links and section groups', () => {
+    const wb = board()
+    const shape = api.addShape({ whiteboardId: wb, shape: 'line', x: 10, y: 20, width: 300, height: 60, strokeColor: '#ff0000', strokeWidth: 4 })
+    expect(shape).toMatchObject({ kind: 'sketch', x: 10, y: 20, width: 300, height: 60, data: { frameless: true } })
+    const line = (shape.data.elements as { points: number[][]; strokeColor: string; strokeWidth: number }[])[0]
+    expect(line).toMatchObject({ strokeColor: '#ff0000', strokeWidth: 4, points: [[0, 60], [300, 0]] })
+    const ink = api.addInk({ whiteboardId: wb, strokes: [{ points: [[0, 0], [100, 0]], color: 'red' }] })
+    expect(ink.width).toBeGreaterThan(100)
+    expect((ink.data.elements as { type: string; strokeColor: string }[])[0]).toMatchObject({ type: 'freedraw', strokeColor: '#e03131' })
+    expect(() => api.addInk({ whiteboardId: wb, strokes: [{ points: [] }] })).toThrow()
+    expect(() => api.addLink({ whiteboardId: wb, url: 'javascript:alert(1)', x: 0, y: 0 })).toThrow(/http/)
+    const section = api.groupObjects({ whiteboardId: wb, objectIds: [shape.id], title: 'Group' })
+    expect(section).toMatchObject({ kind: 'section', x: -30, y: -28, width: 380, height: 148, data: { title: 'Group' } })
+    expect(() => api.addShape({ whiteboardId: 'missing', shape: 'star', x: 0, y: 0 })).toThrow(/Whiteboard not found/)
+  })
+
+  it('imports files only with a files dir, an allowed type and matching content', () => {
+    expect(() => api.importFileBytes({ mime: 'image/png', bytes: Buffer.from([0x89, 0x50, 0x4e, 0x47]) })).toThrow(/not available/)
+    const dir = mkdtempSync(join(tmpdir(), 'sidera-files-'))
+    const svc = createServices(openDatabase(':memory:'), () => {}, undefined, { filesDir: dir })
+    const png = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a])
+    const f = svc.importFileBytes({ name: 'pic.png', mime: 'image/png', bytes: png })
+    expect(readFileSync(f.path)).toEqual(png)
+    expect(() => svc.importFileBytes({ mime: 'image/png', bytes: Buffer.from('<svg/>') })).toThrow(/not a valid/)
+    expect(() => svc.importFileBytes({ mime: 'text/html', bytes: Buffer.from('<p>') })).toThrow(/Unsupported/)
+    writeFileSync(join(dir, 'script.sh'), 'echo')
+    expect(() => svc.importFileFromPath(join(dir, 'script.sh'))).toThrow(/Unsupported/)
+    const wb = svc.createWhiteboard({ name: 'Files' })
+    expect(svc.addFileObject({ whiteboardId: wb.id, fileId: f.id, x: 0, y: 0 })).toMatchObject({ kind: 'file', refId: f.id, data: { name: 'pic.png', mime: 'image/png' } })
   })
 })

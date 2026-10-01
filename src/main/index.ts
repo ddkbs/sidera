@@ -320,7 +320,7 @@ async function bootstrap(): Promise<void> {
   // Kept so cards/whiteboards saved before the CanvasCL → Sidera rename still resolve their image URLs.
   protocol.handle(LEGACY_FILE_PROTOCOL, handleFileProtocol)
 
-  registerIpc(() => requireSession().handlers)
+  registerIpc(() => requireSession().handlers, (name) => session?.noteRendererCall(name))
   registerAuthIpc()
 
   const chat = (): Session['chat'] => requireSession().chat
@@ -355,13 +355,24 @@ async function bootstrap(): Promise<void> {
     return listOpenAiModels(keys().resolve(provider), resolveBaseUrl(provider, baseUrl))
   })
 
-  // Sidera Draw (iPad companion). Only the main window may open a LAN session.
+  // Sidera for iPad. Only the main window may open the LAN server or pair / revoke devices.
   const fromMain = (e: Electron.IpcMainInvokeEvent): boolean => !!win && !win.isDestroyed() && e.sender === win.webContents
-  ipcMain.handle('draw:start', (e, whiteboardId: unknown, address?: unknown) => {
-    if (!fromMain(e) || typeof whiteboardId !== 'string' || whiteboardId.length > 64) throw new Error('Invalid request')
-    return requireSession().draw.start(whiteboardId, typeof address === 'string' ? address : undefined)
+  const mainOnly = (e: Electron.IpcMainInvokeEvent): void => {
+    if (!fromMain(e)) throw new Error('Invalid request')
+  }
+  ipcMain.handle('ipad:status', () => requireSession().ipad.status())
+  ipcMain.handle('ipad:share', (e, whiteboardId: unknown) => {
+    mainOnly(e)
+    if (typeof whiteboardId !== 'string' || whiteboardId.length > 64) throw new Error('Invalid request')
+    return requireSession().ipad.share(whiteboardId)
   })
-  ipcMain.handle('draw:cancel', (e) => (fromMain(e) ? session?.draw.close('cancelled') : undefined))
+  ipcMain.handle('ipad:stop', (e) => (mainOnly(e), session?.ipad.stop()))
+  ipcMain.handle('ipad:pair', (e) => (mainOnly(e), requireSession().ipad.pair()))
+  ipcMain.handle('ipad:revoke', (e, id: unknown) => {
+    mainOnly(e)
+    if (typeof id !== 'string' || id.length > 64) throw new Error('Invalid request')
+    requireSession().ipad.revoke(id)
+  })
 
   // Signed out there is no capture target: open the main window (sign-in screen) instead.
   ipcMain.handle('app:openCapture', () => (session ? showCaptureWindow() : showMain()))

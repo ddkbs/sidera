@@ -11,6 +11,7 @@ import { color, colorName } from '@/lib/colors'
 import { t } from '@/lib/i18n'
 import { cn } from '@/lib/utils'
 import { ProfileAvatar } from '@/features/profile/ProfileAvatar'
+import { authError } from '@/lib/i18n/authErrors'
 
 export function Spinner({ className }: { className?: string }) {
   return <span aria-hidden className={cn('inline-block size-3.5 animate-spin rounded-full border-[1.5px] border-current border-t-transparent', className)} />
@@ -96,7 +97,7 @@ export function AccountForm({
     // on success the window reloads into the new session — stay busy until then
     if (!res.ok) {
       setBusy(false)
-      setError(res.error)
+      setError(authError(res.error))
     }
   }
 

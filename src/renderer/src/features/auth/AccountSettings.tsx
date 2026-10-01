@@ -11,6 +11,7 @@ import { ProfileAvatar } from '@/features/profile/ProfileAvatar'
 import { t } from '@/lib/i18n'
 import { ColorPicker, FormError, Spinner } from './AccountForm'
 import { openSaveGuestDialog, refreshAuthSession, signOut, useAuthSession } from './AccountDialogs'
+import { authError } from '@/lib/i18n/authErrors'
 
 function Row({ title, description, children }: { title: string; description?: ReactNode; children: ReactNode }) {
   return (
@@ -27,7 +28,7 @@ function Row({ title, description, children }: { title: string; description?: Re
 const report = async (p: Promise<AuthResult>, success: string): Promise<boolean> => {
   const res = await p
   if (!res.ok) {
-    toast.error(res.error)
+    toast.error(authError(res.error))
     return false
   }
   await refreshAuthSession()
@@ -154,7 +155,7 @@ function PasswordForm({ mode, hasPassword, onDone }: { mode: 'set' | 'remove'; h
     setBusy(true)
     const res = await window.auth.updateAccount({ password: mode === 'set' ? next : null, currentPassword: current || undefined })
     setBusy(false)
-    if (!res.ok) return setError(res.error)
+    if (!res.ok) return setError(authError(res.error))
     await refreshAuthSession()
     toast.success(mode === 'set' ? t('account.passwordSaved') : t('account.passwordRemoved'))
     onDone()
@@ -205,7 +206,7 @@ function DeleteAccountButton({ id, name, hasPassword }: { id: string; name: stri
     // success: main closes the session and reloads this window to the sign-in screen
     if (!res.ok) {
       setBusy(false)
-      setError(res.error)
+      setError(authError(res.error))
     }
   }
   return (

@@ -7,6 +7,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { t } from '@/lib/i18n'
 import { AccountForm, Spinner } from './AccountForm'
 import { PRESELECT_KEY } from './SignInScreen'
+import { authError } from '@/lib/i18n/authErrors'
 
 // ─── session snapshot (window.auth.session is fixed per page load; account edits update it here) ──────
 
@@ -53,7 +54,7 @@ export async function switchToAccount(a: PublicAccount): Promise<void> {
     return void window.auth.signOut()
   }
   const res = await window.auth.signIn(a.id)
-  if (!res.ok) toast.error(res.error)
+  if (!res.ok) toast.error(authError(res.error))
 }
 
 export function useOtherAccounts(enabled: boolean): PublicAccount[] {

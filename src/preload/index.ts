@@ -2,7 +2,7 @@ import { contextBridge, ipcRenderer, webUtils } from 'electron'
 import { SETTINGS_CHANGED, type AppSettings } from '@shared/settings'
 import type { AiProviderId } from '@shared/ai'
 import type { AuthBridge, SessionInfo } from '@shared/auth'
-import { SIDERA_DRAW_EVENT, type DrawBridge, type DrawEvent } from '@shared/draw'
+import { IPAD_STATUS_EVENT, type IpadBridge, type IpadStatus } from '@shared/ipad'
 import {
   API_METHODS,
   CHAT_EVENT,
@@ -82,13 +82,16 @@ const appBridge: AppBridge = {
   isFullScreen: () => ipcRenderer.invoke('app:isFullScreen')
 }
 
-const draw: DrawBridge = {
-  start: (whiteboardId, address) => ipcRenderer.invoke('draw:start', whiteboardId, address),
-  cancel: () => ipcRenderer.invoke('draw:cancel'),
-  onEvent(cb) {
-    const listener = (_: unknown, e: DrawEvent): void => cb(e)
-    ipcRenderer.on(SIDERA_DRAW_EVENT, listener)
-    return () => ipcRenderer.removeListener(SIDERA_DRAW_EVENT, listener)
+const ipad: IpadBridge = {
+  status: () => ipcRenderer.invoke('ipad:status'),
+  share: (whiteboardId) => ipcRenderer.invoke('ipad:share', whiteboardId),
+  stop: () => ipcRenderer.invoke('ipad:stop'),
+  pair: () => ipcRenderer.invoke('ipad:pair'),
+  revokeDevice: (id) => ipcRenderer.invoke('ipad:revoke', id),
+  onStatus(cb) {
+    const listener = (_: unknown, s: IpadStatus): void => cb(s)
+    ipcRenderer.on(IPAD_STATUS_EVENT, listener)
+    return () => ipcRenderer.removeListener(IPAD_STATUS_EVENT, listener)
   }
 }
 
@@ -113,7 +116,7 @@ contextBridge.exposeInMainWorld('auth', auth)
 contextBridge.exposeInMainWorld('api', api)
 contextBridge.exposeInMainWorld('app', appBridge)
 contextBridge.exposeInMainWorld('chat', chat)
-contextBridge.exposeInMainWorld('draw', draw)
+contextBridge.exposeInMainWorld('ipad', ipad)
 contextBridge.exposeInMainWorld('events', events)
 contextBridge.exposeInMainWorld('platform', process.platform)
 contextBridge.exposeInMainWorld('files', { pathFor: (f: File) => webUtils.getPathForFile(f) })

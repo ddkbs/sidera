@@ -1,50 +1,32 @@
 import { mkdirSync } from 'node:fs'
 import type { Server } from 'node:http'
-import { copyFile, mkdir, readFile, stat, writeFile } from 'node:fs/promises'
+import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import { basename, dirname, extname, isAbsolute, join, relative } from 'node:path'
-import { app, dialog, shell, type BrowserWindow } from 'electron'
+import { app, dialog, safeStorage, shell, type BrowserWindow } from 'electron'
 import { nanoid } from 'nanoid'
-import { DB_CHANGED, MCP_ACTIVITY, type CanvasApi, type DbChangeScope } from '@shared/api'
+import { DB_CHANGED, MCP_ACTIVITY, type ApiMethod, type CanvasApi, type DbChangeScope } from '@shared/api'
 import type { AiProviderId } from '@shared/ai'
 import type { SessionKind } from '@shared/auth'
 import { APP_NAME } from '@shared/brand'
 import { fileUrl } from '@shared/fileProtocol'
 import { withSourceHeader } from '@shared/html'
 import { resolveLang, type Lang } from '@shared/i18n'
-import { SETTINGS_CHANGED } from '@shared/settings'
+import { IPAD_STATUS_EVENT } from '@shared/ipad'
+import { SETTINGS_CHANGED, type AppSettings } from '@shared/settings'
+import { mirroredSettings, writeScopes } from '@shared/sync/protocol'
 import { ChatAgent } from './ai/chat'
-import { companionHtml } from './draw/companion'
-import { DrawController } from './draw/controller'
+import { IpadController } from './ipad/controller'
 import { KeyStore } from './ai/keys'
 import { DB_FILENAME, migrateDbFilename, openDatabase, type DB } from './db/client'
 import { stdioLaunchSpec } from './integrations'
 import { startHttpMcp } from './mcp/server'
 import { createServices, type Services } from './services'
+import { IMPORT_MIME } from './services/files'
 import { exportCards, importCards } from './services/markdown'
 import { relocalizeWelcome, seedWelcome } from './services/seed'
 import { SettingsStore } from './settings'
 import { downloadImage, fetchLinkPreview, fetchPageForClip } from './web'
 
-const MIME: Record<string, string> = {
-  '.pdf': 'application/pdf',
-  '.png': 'image/png',
-  '.jpg': 'image/jpeg',
-  '.jpeg': 'image/jpeg',
-  '.gif': 'image/gif',
-  '.webp': 'image/webp',
-  '.svg': 'image/svg+xml',
-  '.md': 'text/markdown',
-  '.txt': 'text/plain'
-}
-// importFileData (paste/drop of raw bytes, e.g. a clipboard image) accepts the same mimes as importFiles plus a few more image types
-const EXT_BY_MIME: Record<string, string> = {
-  ...Object.fromEntries(Object.entries(MIME).map(([ext, mime]) => [mime, ext])),
-  'image/bmp': '.bmp',
-  'image/heic': '.heic',
-  'image/heif': '.heif'
-}
-const DATA_MIME_ALLOWLIST = new Set([...Object.values(MIME), 'image/bmp', 'image/heic', 'image/heif'])
-const MAX_IMPORT_BYTES = 25 * 1024 * 1024
 const OPENABLE_EXTS = new Set(['.pdf', '.png', '.jpg', '.jpeg', '.gif', '.webp', '.bmp', '.heic', '.heif', '.md', '.txt'])
 
 export interface SessionOptions {
@@ -74,8 +56,8 @@ export class Session {
   readonly services: Services
   readonly chat: ChatAgent
   readonly handlers: Handlers
-  /** Sidera Draw (iPad companion): a short-lived LAN server, separate from MCP */
-  readonly draw: DrawController
+  /** Sidera for iPad: paired devices + the LAN server while a board is shared (separate from MCP) */
+  readonly ipad: IpadController
   /** whiteboard seeded on first open — the window opens it once */
   welcomeBoardId: string | null = null
   /** the welcome board seeded in this run (relocalized when the language is picked during onboarding) */
@@ -85,6 +67,9 @@ export class Session {
   private mcpServer: Server | null = null
   private changeTimer: NodeJS.Timeout | null = null
   private pending = new Set<DbChangeScope>()
+  /** desktop-renderer writes the services don't announce (e.g. drags): only the iPad needs to hear about them */
+  private ipadPending = new Set<DbChangeScope>()
+  private ipadTimer: NodeJS.Timeout | null = null
   private watcher: NodeJS.Timeout | null = null
   private closed = false
 
@@ -102,13 +87,22 @@ export class Session {
         if (this.settings.get().activeProfileId === id) return
         this.send(SETTINGS_CHANGED, this.settings.set({ activeProfileId: id }))
       }
-    })
+    }, { filesDir: this.filesDir })
     // deleted cards/whiteboards stay restorable (undo) for 30 days
     this.services.purgeDeleted(30 * 24 * 60 * 60 * 1000)
     this.keys = new KeyStore(this.dataDir)
     this.chat = new ChatAgent(this.services, opts.version, () => this.activeAiConfig(), (tool, args) => this.reportActivity(tool, args))
     this.handlers = this.buildHandlers()
-    this.draw = new DrawController(companionHtml, (channel, e) => this.send(channel, e))
+    this.ipad = new IpadController({
+      dataDir: this.dataDir,
+      services: this.services,
+      box: safeStorage.isEncryptionAvailable() ? { encrypt: (t) => safeStorage.encryptString(t), decrypt: (b) => safeStorage.decryptString(b) } : null,
+      call: async (method, args) => (this.handlers[method] as (...a: unknown[]) => unknown)(...args),
+      readFile: (id) => this.readFileForDevice(id),
+      settings: () => mirroredSettings(this.settings.get(), this.uiLang()),
+      onWrite: (scopes) => scopes.forEach((sc) => this.emit(sc)),
+      sendStatus: (st) => this.send(IPAD_STATUS_EVENT, st)
+    })
 
     if (opts.interactive !== false) {
       // Detect writes from other processes (e.g. `--mcp-stdio` instances) and refresh the UI
@@ -126,6 +120,7 @@ export class Session {
         this.welcomeBoardId = id
         this.seededWelcome = { id, lang }
       }
+      void this.ipad.autostart()
     }
   }
 
@@ -148,6 +143,8 @@ export class Session {
 
   send(channel: string, payload: unknown): void {
     if (this.closed) return
+    // (ipad is created after the services, which may already announce a profile)
+    if (channel === SETTINGS_CHANGED) this.ipad?.pushSettings(mirroredSettings(payload as AppSettings, this.uiLang()))
     const w = this.opts.window()
     if (w && !w.isDestroyed()) w.webContents.send(channel, payload)
   }
@@ -157,10 +154,35 @@ export class Session {
     this.pending.add(scope)
     if (this.changeTimer) return
     this.changeTimer = setTimeout(() => {
-      this.send(DB_CHANGED, [...this.pending])
+      const scopes = [...this.pending]
+      this.send(DB_CHANGED, scopes)
+      this.ipad.notifyChanged(scopes)
       this.pending.clear()
       this.changeTimer = null
     }, 30)
+  }
+
+  /** After every desktop-renderer API call (IPC): writes reach a connected iPad even when the services stay quiet. */
+  noteRendererCall(method: ApiMethod): void {
+    const scopes = this.closed ? null : writeScopes(method)
+    if (!scopes) return
+    scopes.forEach((sc) => this.ipadPending.add(sc))
+    if (this.ipadTimer) return
+    this.ipadTimer = setTimeout(() => {
+      this.ipadTimer = null
+      const list = [...this.ipadPending]
+      this.ipadPending.clear()
+      if (!this.closed) this.ipad.notifyChanged(list)
+    }, 30)
+  }
+
+  /** Bytes of an imported file for the iPad (looked up by id; must live in the files dir). */
+  private async readFileForDevice(id: string): Promise<{ mime: string; bytes: Buffer } | null> {
+    const file = this.services.getFile(id)
+    if (!file) return null
+    const rel = relative(this.filesDir, file.path)
+    if (!rel || rel.startsWith('..') || isAbsolute(rel)) return null
+    return { mime: file.mime, bytes: await readFile(file.path) }
   }
 
   reportActivity(tool: string, args: Record<string, unknown>): void {
@@ -226,9 +248,10 @@ export class Session {
     this.chat.stop()
     if (this.watcher) clearInterval(this.watcher)
     if (this.changeTimer) clearTimeout(this.changeTimer)
-    this.watcher = this.changeTimer = null
+    if (this.ipadTimer) clearTimeout(this.ipadTimer)
+    this.watcher = this.changeTimer = this.ipadTimer = null
     this.pending.clear()
-    const stopped = Promise.all([this.stopMcp(), this.draw.close('signed-out')]).then(() => undefined)
+    const stopped = Promise.all([this.stopMcp(), this.ipad.shutdown('signed-out')]).then(() => undefined)
     this.db.$client.close()
     return stopped
   }
@@ -243,33 +266,19 @@ export class Session {
     return {
       ...services,
       async importFiles(paths) {
-        let filePaths = (paths ?? []).filter((p) => MIME[extname(p).toLowerCase()])
+        let filePaths = (paths ?? []).filter((p) => IMPORT_MIME[extname(p).toLowerCase()])
         if (!paths) {
           const res = await showOpen({
             properties: ['openFile', 'multiSelections'],
-            filters: [{ name: 'Documents & images', extensions: Object.keys(MIME).map((e) => e.slice(1)) }]
+            filters: [{ name: 'Documents & images', extensions: Object.keys(IMPORT_MIME).map((e) => e.slice(1)) }]
           })
           if (res.canceled) return []
           filePaths = res.filePaths
         }
-        return Promise.all(
-          filePaths.map(async (p) => {
-            const ext = extname(p).toLowerCase()
-            const dest = join(filesDir, nanoid() + ext)
-            await copyFile(p, dest)
-            const { size } = await stat(dest)
-            return services.registerFile({ name: basename(p), mime: MIME[ext] ?? 'application/octet-stream', path: dest, size })
-          })
-        )
+        return filePaths.map((p) => services.importFileFromPath(p))
       },
       async importFileData({ name, mime, dataBase64 }) {
-        if (!DATA_MIME_ALLOWLIST.has(mime)) throw new Error(`Unsupported file type: ${mime}`)
-        const buf = Buffer.from(dataBase64, 'base64')
-        if (buf.length > MAX_IMPORT_BYTES) throw new Error('File too large (max 25 MB)')
-        const ext = extname(name || '').toLowerCase() || EXT_BY_MIME[mime] || ''
-        const dest = join(filesDir, nanoid() + ext)
-        await writeFile(dest, buf)
-        return services.registerFile({ name: name?.trim() || `pasted${ext}`, mime, path: dest, size: buf.length })
+        return services.importFileBytes({ name, mime, bytes: Buffer.from(dataBase64, 'base64') })
       },
       async getFileUrl(id) {
         return services.getFile(id) ? fileUrl(id) : null

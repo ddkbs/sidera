@@ -1,17 +1,19 @@
 /**
- * Image import for the Sidera Draw companion: decode whatever the iPad hands us (Photos, camera, Files, paste,
- * drag & drop — Safari decodes HEIC), then always RE-ENCODE through a canvas. That downscales (long edge ≤ 2048 px),
- * bakes in the EXIF orientation and drops every metadata block (EXIF / GPS / maker notes), so only pixels are sent.
- * Also a tiny IndexedDB store so inserted images survive a reload of the tab (sessionStorage is far too small).
+ * Image import on Sidera for iPad: decode whatever the iPad hands us (Photos, camera, Files — Safari decodes HEIC),
+ * then always RE-ENCODE through a canvas. That downscales (long edge ≤ 2048 px), bakes in the EXIF orientation and
+ * drops every metadata block (EXIF / GPS / maker notes), so only pixels leave the device. The Mac validates again
+ * (`validateUpload`: mime, magic bytes, size).
  */
-import { DRAW_LIMITS, type DrawImageMime } from '../shared/drawProtocol'
+type ImageMime = 'image/png' | 'image/jpeg' | 'image/webp'
+/** stay well below the Mac's upload cap */
+const MAX_IMAGE_BYTES = 6 * 1024 * 1024
 
 export const MAX_IMAGE_EDGE = 2048
 /** transparent images stay PNG only below this size (otherwise WebP, which keeps alpha, or a flattened JPEG) */
 const SMALL_PNG_BYTES = 1.5 * 1024 * 1024
 
 export interface EncodedImage {
-  mime: DrawImageMime
+  mime: ImageMime
   /** standard base64, no data: prefix */
   data: string
   width: number
@@ -119,7 +121,7 @@ export async function encodeImage(file: Blob): Promise<EncodedImage> {
         if (png && png.size <= SMALL_PNG_BYTES) blob = png
         else {
           const webp = await toBlob(canvas, 'image/webp', 0.9)
-          blob = webp?.type === 'image/webp' ? webp : png && png.size <= DRAW_LIMITS.maxImageBytes ? png : null
+          blob = webp?.type === 'image/webp' ? webp : png && png.size <= MAX_IMAGE_BYTES ? png : null
         }
       }
       if (!blob) {
@@ -127,8 +129,8 @@ export async function encodeImage(file: Blob): Promise<EncodedImage> {
         const webp = alpha ? null : await toBlob(canvas, 'image/webp', quality)
         blob = webp?.type === 'image/webp' ? webp : await toBlob(alpha ? draw(canvas, w, h, '#ffffff') : canvas, 'image/jpeg', quality)
       }
-      if (blob && blob.size <= DRAW_LIMITS.maxImageBytes && (blob.type === 'image/png' || blob.type === 'image/jpeg' || blob.type === 'image/webp')) {
-        return { mime: blob.type, data: await blobToBase64(blob), width: w, height: h, source: canvas }
+      if (blob && blob.size <= MAX_IMAGE_BYTES && (blob.type === 'image/png' || blob.type === 'image/jpeg' || blob.type === 'image/webp')) {
+        return { mime: blob.type as ImageMime, data: await blobToBase64(blob), width: w, height: h, source: canvas }
       }
       edge = Math.round(edge * 0.75)
       quality = Math.max(0.6, quality - 0.08)
@@ -136,96 +138,5 @@ export async function encodeImage(file: Blob): Promise<EncodedImage> {
     throw new Error('image too large')
   } finally {
     d.release()
-  }
-}
-
-/** Turns stored base64 back into something drawable. */
-export async function imageFromBase64(mime: string, data: string): Promise<HTMLImageElement> {
-  const img = new Image()
-  img.src = `data:${mime};base64,${data}`
-  await img.decode()
-  return img
-}
-
-// ─── IndexedDB persistence ──────────────────────────────────────────────────────────────────────────
-
-interface Row {
-  key: string
-  session: string
-  mime: DrawImageMime
-  data: string
-  t: number
-}
-
-const DB_NAME = 'sidera-draw'
-const STORE = 'images'
-/** rows of other (long finished) sessions are dropped after this */
-const MAX_AGE_MS = 24 * 60 * 60 * 1000
-
-let dbPromise: Promise<IDBDatabase | null> | null = null
-function db(): Promise<IDBDatabase | null> {
-  dbPromise ??= new Promise((resolve) => {
-    try {
-      const req = indexedDB.open(DB_NAME, 1)
-      req.onupgradeneeded = () => req.result.createObjectStore(STORE, { keyPath: 'key' })
-      req.onsuccess = () => resolve(req.result)
-      req.onerror = () => resolve(null)
-      req.onblocked = () => resolve(null)
-    } catch {
-      resolve(null)
-    }
-  })
-  return dbPromise
-}
-
-function run<T>(mode: IDBTransactionMode, fn: (store: IDBObjectStore) => IDBRequest<T> | void): Promise<T | undefined> {
-  return db().then(
-    (d) =>
-      new Promise<T | undefined>((resolve, reject) => {
-        if (!d) return reject(new Error('no indexeddb'))
-        const tx = d.transaction(STORE, mode)
-        const req = fn(tx.objectStore(STORE))
-        tx.oncomplete = () => resolve(req ? req.result : undefined)
-        tx.onerror = () => reject(tx.error ?? new Error('indexeddb error'))
-        tx.onabort = () => reject(tx.error ?? new Error('indexeddb abort'))
-      })
-  )
-}
-
-export const imageStore = {
-  /** Resolves false when the image could not be stored (quota, private mode, no IndexedDB) — never throws. */
-  async put(session: string, id: string, mime: DrawImageMime, data: string): Promise<boolean> {
-    try {
-      await run('readwrite', (s) => s.put({ key: `${session}/${id}`, session, mime, data, t: Date.now() } satisfies Row))
-      return true
-    } catch {
-      return false
-    }
-  },
-  async get(session: string, id: string): Promise<{ mime: DrawImageMime; data: string } | null> {
-    try {
-      const row = (await run<Row>('readonly', (s) => s.get(`${session}/${id}`) as IDBRequest<Row>)) ?? null
-      return row ? { mime: row.mime, data: row.data } : null
-    } catch {
-      return null
-    }
-  },
-  /** Deletes this session's rows (after sending) and anything older than a day. */
-  async prune(session: string, all = false): Promise<void> {
-    try {
-      const cutoff = Date.now() - MAX_AGE_MS
-      await run('readwrite', (s) => {
-        const cur = s.openCursor()
-        cur.onsuccess = () => {
-          const c = cur.result
-          if (!c) return
-          const row = c.value as Row
-          if (row.t < cutoff || (all && row.session === session)) c.delete()
-          c.continue()
-        }
-      })
-    } catch {
-      /* best effort */
-    }
   }
 }

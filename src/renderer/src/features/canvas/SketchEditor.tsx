@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog'
 import { useAppSelector } from '@/store'
-import { renderSketchPreviews, type SketchPreviews } from '../draw/toExcalidraw'
+import { renderSketchPreviews, type SketchPreviews } from './sketchPreviews'
 import { t } from '@/lib/i18n'
 
 type Api = Parameters<NonNullable<React.ComponentProps<typeof Excalidraw>['excalidrawAPI']>>[0]

@@ -1,0 +1,23 @@
+/* Sidera for iPad: the board owns every touch (xyflow pans / pinch-zooms, Apple Pencil draws), never Safari. */
+html,
+body {
+  height: 100%;
+  overflow: hidden;
+  overscroll-behavior: none;
+  touch-action: none;
+  -webkit-text-size-adjust: 100%;
+  -webkit-tap-highlight-color: transparent;
+}
+.react-flow__pane,
+.react-flow__node {
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+}
+[contenteditable='true'],
+input,
+textarea {
+  -webkit-user-select: text;
+  user-select: text;
+  touch-action: manipulation;
+}

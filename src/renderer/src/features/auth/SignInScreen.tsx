@@ -11,6 +11,7 @@ import { cn } from '@/lib/utils'
 import { ProfileAvatar } from '@/features/profile/ProfileAvatar'
 import { AccountForm, FormError, Spinner } from './AccountForm'
 import { LogoTile } from '@/components/Logo'
+import { authError } from '@/lib/i18n/authErrors'
 
 /** Account to expand on the sign-in screen after "Switch account" → a password-protected account. */
 export const PRESELECT_KEY = 'sidera.auth.preselect'
@@ -157,7 +158,7 @@ function GuestButton({ className }: { className?: string }) {
     const res = await window.auth.continueAsGuest()
     if (!res.ok) {
       setBusy(false)
-      setError(res.error)
+      setError(authError(res.error))
     }
   }
   return (
@@ -192,7 +193,7 @@ function Picker({ accounts, onCreate }: { accounts: PublicAccount[]; onCreate: (
     const res = await window.auth.signIn(a.id, password, stay)
     if (!res.ok) {
       setBusy(null)
-      setError(res.error)
+      setError(authError(res.error))
     }
     return res
   }

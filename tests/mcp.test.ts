@@ -24,6 +24,18 @@ async function connect() {
 }
 
 describe('mcp', () => {
+  it('add_file refuses local paths for the in-app chat', async () => {
+    const api = createServices(openDatabase(':memory:'))
+    const wb = api.createWhiteboard({ name: 'B' })
+    const server = createMcpServer(api, 'test', undefined, { localPaths: false })
+    const client = new Client({ name: 'test', version: '1' })
+    const [a, b] = InMemoryTransport.createLinkedPair()
+    await Promise.all([server.connect(a), client.connect(b)])
+    const res = await client.callTool({ name: 'add_file', arguments: { whiteboard_id: wb.id, path: '/etc/hosts.txt' } })
+    expect(res.isError).toBe(true)
+    expect((res.content as { text: string }[])[0].text).toMatch(/not available in the in-app chat/)
+  })
+
   it('reports tool calls to the activity listener', async () => {
     const api = createServices(openDatabase(':memory:'))
     const calls: string[] = []
@@ -339,5 +351,48 @@ describe('mcp text blocks & tables', () => {
 
     const bad = await client.callTool({ name: 'update_table', arguments: { object_id: 'nope' } })
     expect(bad.isError).toBe(true)
+  })
+})
+
+describe('mcp whiteboard editing', () => {
+  it('builds and edits a board with shapes, ink, text boxes, links and connectors', async () => {
+    const { api, client, call } = await connect()
+    const wb = await call('create_whiteboard', { name: 'Edit me' })
+    const text = await call('add_text_block', { whiteboard_id: wb.id, markdown: '# Plan\nShip it', style: 'framed', font_size: 20, color: 'blue', x: 0, y: 0 })
+    const shape = await call('add_shape', { whiteboard_id: wb.id, shape: 'diamond', x: 400, y: 0, width: 200, height: 100, fill_color: 'yellow', rotation: 45 })
+    const ink = await call('add_ink', { whiteboard_id: wb.id, strokes: [{ points: [[0, 120], [200, 125]], color: 'red', width: 4.5 }] })
+    const link = await call('add_link', { whiteboard_id: wb.id, url: 'https://example.com/a' })
+    const conn = await call('connect_objects', { whiteboard_id: wb.id, source_object_id: text.object_id, target_object_id: shape.object_id, label: 'next', line_style: 'dashed' })
+    await call('update_connection', { connection_id: conn.connection_id, arrows: 'both', color: 'red' })
+
+    let board = await call('get_whiteboard', { whiteboard_id: wb.id })
+    const byId = (id: string) => board.objects.find((o: { id: string }) => o.id === id)
+    expect(byId(text.object_id)).toMatchObject({ card_kind: 'block', color: 'blue', markdown: '# Plan\n\nShip it', data: { style: 'framed', fontSize: 20 } })
+    expect(byId(shape.object_id)).toMatchObject({ width: 200, height: 100, data: { elements: 1, frameless: true, rotation: 45 } })
+    expect(byId(ink.object_id).kind).toBe('sketch')
+    expect(byId(link.object_id).data.url).toBe('https://example.com/a')
+    expect(board.connections[0]).toMatchObject({ label: 'next', lineStyle: 'dashed', arrows: 'both', color: 'red' })
+
+    await call('update_text_block', { object_id: text.object_id, markdown: 'More', mode: 'append', style: 'plain' })
+    expect((await call('get_object', { object_id: text.object_id })).markdown).toBe('# Plan\n\nShip it\n\nMore')
+    await call('update_objects', { objects: [{ object_id: shape.object_id, x: 500, color: 'green', order: 'back' }] })
+    expect(api.getObject(shape.object_id)).toMatchObject({ x: 500, color: 'green' })
+    const dup = await call('duplicate_objects', { object_ids: [text.object_id, shape.object_id] })
+    expect(dup.object_ids).toHaveLength(2)
+    const del = await call('delete_objects', { object_ids: [text.object_id], connection_ids: [] })
+    expect(del.deleted_objects).toBe(1)
+    board = await call('get_whiteboard', { whiteboard_id: wb.id })
+    expect(board.objects).toHaveLength(5)
+    expect(board.connections).toHaveLength(1) // the copied connector between the duplicates
+
+    const section = await call('add_section', { whiteboard_id: wb.id, title: 'Group', object_ids: dup.object_ids })
+    expect(api.getObject(section.object_id)!.kind).toBe('section')
+    await call('update_whiteboard', { whiteboard_id: wb.id, name: 'Edited', properties: [{ key: 'Owner', value: 'Ada' }] })
+    expect(api.getWhiteboard(wb.id)!.whiteboard).toMatchObject({ name: 'Edited', properties: [{ key: 'Owner', value: 'Ada' }] })
+
+    const bad = await client.callTool({ name: 'add_link', arguments: { whiteboard_id: wb.id, url: 'file:///etc/passwd' } })
+    expect(bad.isError).toBe(true)
+    const noFiles = await client.callTool({ name: 'add_file', arguments: { whiteboard_id: wb.id, data_base64: 'AAAA', mime: 'image/png' } })
+    expect(noFiles.isError).toBe(true)
   })
 })

@@ -54,7 +54,7 @@ export const COMMANDS: CommandDef[] = [
   { id: 'canvas.group', scope: 'whiteboard', label: 'cmd.canvas.group', group: 'Whiteboard editing', binding: 'Mod+G' },
   { id: 'canvas.textBigger', scope: 'whiteboard', label: 'cmd.canvas.textBigger', group: 'Whiteboard editing', binding: 'Mod+Shift+.' },
   { id: 'canvas.textSmaller', scope: 'whiteboard', label: 'cmd.canvas.textSmaller', group: 'Whiteboard editing', binding: 'Mod+Shift+,' },
-  { id: 'canvas.drawOnIpad', scope: 'whiteboard', label: 'cmd.canvas.drawOnIpad', group: 'Whiteboard editing', binding: 'Mod+Shift+D' },
+  { id: 'canvas.ipad', scope: 'whiteboard', label: 'cmd.canvas.ipad', group: 'Whiteboard editing', binding: 'Mod+Shift+D' },
   { id: 'tasks.new', scope: 'tasks', label: 'cmd.tasks.new', group: 'Tasks', binding: 'C' },
   { id: 'tasks.next', scope: 'tasks', label: 'cmd.tasks.next', group: 'Tasks', binding: 'Down' },
   { id: 'tasks.prev', scope: 'tasks', label: 'cmd.tasks.prev', group: 'Tasks', binding: 'Up' },

@@ -63,10 +63,10 @@ export const TOUR_STEPS: TourStep[] = [
     id: 'ipad',
     title: 'tour.ipad.title',
     body: 'tour.ipad.body',
-    target: 'canvas-insert',
-    placement: 'right',
+    target: 'canvas-ipad',
+    placement: 'bottom',
     needs: 'whiteboard',
-    shortcuts: ['canvas.drawOnIpad']
+    shortcuts: ['canvas.ipad']
   },
   {
     id: 'search',

@@ -1,4 +1,5 @@
 import { createElement, Fragment, useSyncExternalStore, type ReactNode } from 'react'
+import { de as dateFnsDe } from 'date-fns/locale/de'
 import { LOCALES, resolveLang, type Lang } from '@shared/i18n'
 import { de } from './de'
 import { en, type Message, type MessageKey } from './en'
@@ -116,6 +117,9 @@ export function labelMap<K extends string>(keys: Record<K, MessageKey>): Readonl
   for (const k of Object.keys(keys) as K[]) Object.defineProperty(out, k, { enumerable: true, get: () => t(keys[k]) })
   return out
 }
+
+/** date-fns locale of the UI language (undefined = date-fns' English default). */
+export const dateLocale = (): typeof dateFnsDe | undefined => (current === 'de' ? dateFnsDe : undefined)
 
 /** Date in the UI language (defaults to a short date like "Mar 4, 2026" / "4. März 2026"). */
 export function formatDate(ms: number | Date, opts: Intl.DateTimeFormatOptions = { dateStyle: 'medium' }): string {

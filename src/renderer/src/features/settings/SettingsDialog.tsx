@@ -5,7 +5,7 @@ import { APP_NAME } from '@shared/brand'
 import { AI_PROVIDERS, getProviderMeta, type AiProviderId } from '@shared/ai'
 import { LANG_NAMES, LANGS, type Lang } from '@shared/i18n'
 import type { FontPref, ThemePref } from '@shared/settings'
-import { AskAI, ArrowUpRight, Check, CircleCheck, Command, Download, File, Home, KeyRound, Palette, Pencil, RotateCcw, Server, Settings, Upload, User, UserCircle, UserPlus } from '@/components/icons'
+import { AskAI, ArrowUpRight, Check, CircleCheck, Command, Download, File, Home, KeyRound, Palette, Pencil, RotateCcw, Server, Settings, Tablet, Upload, User, UserCircle, UserPlus } from '@/components/icons'
 import { AccountSettings } from '@/features/auth/AccountSettings'
 import { LogoTile } from '@/components/Logo'
 import { Orb } from '@/components/Orb'
@@ -26,6 +26,7 @@ import { settingsLoaded, updateSettings } from '@/store/settings'
 import { openProfileDialog, setSettingsOpen, setSettingsSection } from '@/store/ui'
 import { ProfileAvatar } from '@/features/profile/ProfileAvatar'
 import { ShortcutsSettings } from './ShortcutsSettings'
+import { IpadSettings } from '@/features/ipad/IpadSettings'
 import { onboarding } from '@/features/onboarding/controller'
 
 const SECTIONS: readonly { id: string; label: MessageKey; Icon: typeof Settings }[] = [
@@ -37,6 +38,7 @@ const SECTIONS: readonly { id: string; label: MessageKey; Icon: typeof Settings 
   { id: 'shortcuts', label: 'settings.section.shortcuts', Icon: Command },
   { id: 'mcp', label: 'settings.section.mcp', Icon: Server },
   { id: 'ai', label: 'settings.section.ai', Icon: AskAI },
+  { id: 'ipad', label: 'settings.section.ipad', Icon: Tablet },
   { id: 'data', label: 'settings.section.data', Icon: File },
   { id: 'about', label: 'settings.section.about', Icon: Home }
 ]
@@ -75,6 +77,7 @@ export function SettingsDialog() {
           {current.id === 'shortcuts' && <ShortcutsSettings />}
           {current.id === 'mcp' && <McpSettings />}
           {current.id === 'ai' && <AiSettings />}
+          {current.id === 'ipad' && <IpadSettings />}
           {current.id === 'data' && <DataSettings />}
           {current.id === 'about' && <About />}
         </div>
