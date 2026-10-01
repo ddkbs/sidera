@@ -5,6 +5,7 @@ import type { LinkPreviewData } from '@shared/types'
 import { cn } from '@/lib/utils'
 import type { ObjectNode } from '../types'
 import { Handles, Resizer } from './NodeChrome'
+import { t, useLang } from '@/lib/i18n'
 
 /** Dispatched by the "Save as card" button; WhiteboardView clips the page and wires up the connection. */
 export const SAVE_LINK_EVENT = 'sidera:save-link'
@@ -12,6 +13,7 @@ export const SAVE_LINK_EVENT = 'sidera:save-link'
 export const SAVE_LINK_DONE_EVENT = 'sidera:save-link-done'
 
 export const LinkNode = memo(function LinkNode({ id, data, selected }: NodeProps<ObjectNode>) {
+  useLang()
   const stored = data.object.data as Partial<LinkPreviewData> & { url: string }
   const [preview, setPreview] = useState<Partial<LinkPreviewData>>(stored)
   const [saving, setSaving] = useState(false)
@@ -72,7 +74,7 @@ export const LinkNode = memo(function LinkNode({ id, data, selected }: NodeProps
             window.dispatchEvent(new CustomEvent(SAVE_LINK_EVENT, { detail: { nodeId: id, url: stored.url } }))
           }}
         >
-          <Bookmark className="size-3.5" /> {saving ? 'Saving…' : 'Save as card'}
+          <Bookmark className="size-3.5" /> {saving ? t('link.saving') : t('link.saveAsCard')}
         </button>
 
         {loading ? (

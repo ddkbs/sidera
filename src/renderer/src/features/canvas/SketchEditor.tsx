@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog'
 import { useAppSelector } from '@/store'
 import { renderSketchPreviews, type SketchPreviews } from '../draw/toExcalidraw'
+import { t } from '@/lib/i18n'
 
 type Api = Parameters<NonNullable<React.ComponentProps<typeof Excalidraw>['excalidrawAPI']>>[0]
 
@@ -50,13 +51,13 @@ export default function SketchEditor({ initial, onSave, onClose }: Props) {
     <Dialog open onOpenChange={(o) => !o && void save()}>
       <DialogContent showCloseButton={false} onAnimationEnd={() => api?.refresh()} className="flex h-[92vh] max-w-[96vw] flex-col gap-0 overflow-hidden p-0 sm:max-w-[96vw]">
         <div className="flex h-12 shrink-0 items-center gap-2 border-b px-4">
-          <DialogTitle className="text-sm">Sketch</DialogTitle>
+          <DialogTitle className="text-sm">{t('ink.sketch')}</DialogTitle>
           <div className="flex-1" />
           <Button variant="ghost" size="sm" onClick={onClose}>
-            Discard
+            {t('sketch.discard')}
           </Button>
           <Button size="sm" onClick={() => void save()}>
-            Done
+            {t('common.done')}
           </Button>
         </div>
         <div ref={host} className="min-h-0 flex-1">

@@ -4,6 +4,7 @@ import { cn } from '@/lib/utils'
 import { useAppDispatch } from '@/store'
 import { useGetWhiteboardQuery, useUpdateWhiteboardMutation } from '@/store/api'
 import { navigate } from '@/store/ui'
+import { t } from '@/lib/i18n'
 
 /** Floating breadcrumb pill on the canvas: parent boards + inline-editable title. */
 export function BoardBreadcrumb({ id }: { id: string }) {
@@ -41,7 +42,7 @@ function EditableTitle({ id, name }: { id: string; name: string }) {
   const [update] = useUpdateWhiteboardMutation()
   useEffect(() => setValue(name), [name])
   const commit = () => {
-    const next = value.trim() || 'Untitled whiteboard'
+    const next = value.trim() || t('board.untitled')
     if (next !== name) void update({ id, name: next })
     setValue(next)
   }

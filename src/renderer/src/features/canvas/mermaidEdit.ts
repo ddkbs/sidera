@@ -1,3 +1,4 @@
+import { t } from '../../lib/i18n'
 // Pure helpers to edit Mermaid flowchart source from the rendered diagram.
 
 const OPEN = ['(((', '((', '([', '[[', '[(', '[/', '[\\', '{{', '[', '(', '{', '>']
@@ -52,7 +53,7 @@ export function renameNode(source: string, id: string, label: string): string {
 }
 
 /** Append a new node connected from `fromId`; returns the new source and id. */
-export function addConnectedNode(source: string, fromId: string, label = 'New step'): { source: string; id: string } {
+export function addConnectedNode(source: string, fromId: string, label = t('flow.newStep')): { source: string; id: string } {
   let n = 1
   while (new RegExp(`(^|[^\\w])N${n}([^\\w]|$)`).test(source)) n++
   const id = `N${n}`

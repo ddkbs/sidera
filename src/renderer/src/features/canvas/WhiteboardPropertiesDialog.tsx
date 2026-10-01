@@ -6,6 +6,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { Input } from '@/components/ui/input'
 import { useGetWhiteboardQuery, useUpdateWhiteboardPropertiesMutation } from '@/store/api'
 import type { WhiteboardProperty } from '@shared/types'
+import { t } from '@/lib/i18n'
 
 /** Suggested keys shown as quick-add chips when they aren't already in use. */
 const SUGGESTED_KEYS = ['Autor', 'Published on', 'Datum', 'Topic']
@@ -47,22 +48,22 @@ export function WhiteboardPropertiesDialog({ whiteboardId, onClose }: Props) {
     <Dialog open={whiteboardId !== null} onOpenChange={(o) => !o && onClose()}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Properties</DialogTitle>
-          <DialogDescription>Free-form key/value metadata for this whiteboard.</DialogDescription>
+          <DialogTitle>{t('wbProps.title')}</DialogTitle>
+          <DialogDescription>{t('wbProps.description')}</DialogDescription>
         </DialogHeader>
 
         <div className="mt-2 flex flex-col gap-2">
           {rows.map((row) => (
             <div key={row.id} className="flex items-center gap-2">
               <Input
-                placeholder="Key"
+                placeholder={t('wbProps.key')}
                 className="w-2/5"
                 value={row.key}
                 onChange={(e) => patchRow(row.id, { key: e.target.value })}
                 onBlur={commit}
               />
               <Input
-                placeholder="Value"
+                placeholder={t('wbProps.value')}
                 className="flex-1"
                 value={row.value}
                 onChange={(e) => patchRow(row.id, { value: e.target.value })}
@@ -73,7 +74,7 @@ export function WhiteboardPropertiesDialog({ whiteboardId, onClose }: Props) {
               </Button>
             </div>
           ))}
-          {rows.length === 0 && <p className="text-sm text-muted-foreground">No properties yet.</p>}
+          {rows.length === 0 && <p className="text-sm text-muted-foreground">{t('wbProps.none')}</p>}
         </div>
 
         <div className="mt-1 flex flex-wrap items-center gap-2">

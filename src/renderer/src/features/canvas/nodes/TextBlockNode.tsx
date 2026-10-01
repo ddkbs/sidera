@@ -16,6 +16,7 @@ import { Handles } from './NodeChrome'
 import { useAutoHeight, WidthResizer } from './autoHeight'
 import { useEditMode } from './useEditMode'
 import { Rotatable } from './Rotatable'
+import { t, useLang } from '@/lib/i18n'
 
 export const blockStyle = (data: Record<string, unknown> | undefined): TextBlockStyle => (data?.style === 'framed' ? 'framed' : 'plain')
 
@@ -32,6 +33,7 @@ export const blockFontSize = (data: Record<string, unknown> | undefined): number
  * Leaving an empty box removes it again, so trying one out leaves nothing behind.
  */
 export const TextBlockNode = memo(function TextBlockNode({ id, data, selected, height }: NodeProps<ObjectNode>) {
+  useLang()
   const dispatch = useAppDispatch()
   const summary = data.card!
   const { data: card } = useGetCardQuery(summary.id)
@@ -103,8 +105,8 @@ export const TextBlockNode = memo(function TextBlockNode({ id, data, selected, h
               dispatch(openCard(summary.id))
             }}
             className="nodrag absolute top-1 -right-8 z-10 grid size-6 place-items-center rounded-md border bg-popover text-muted-foreground opacity-0 shadow-sm transition group-hover:opacity-100 hover:text-foreground"
-            aria-label="Open as card"
-            title="Open as card"
+            aria-label={t('sel.openAsCard')}
+            title={t('sel.openAsCard')}
           >
             <Expand className="size-3.5" />
           </button>
@@ -119,7 +121,7 @@ export const TextBlockNode = memo(function TextBlockNode({ id, data, selected, h
                 content={(!editing && local) || card.content}
                 editable={editing}
                 autofocus={editing}
-                placeholder="Type, or '/' for headings, lists, tables…"
+                placeholder={t('textBlock.placeholder')}
                 className="min-h-0"
                 onChange={(doc) => {
                   latest.current = doc

@@ -5,8 +5,11 @@ import { addChild, addSibling, flatten, layoutTree, outdent, parseTree, remove, 
 import { persist, type ObjectNode } from '../types'
 import { Handles, Resizer } from './NodeChrome'
 import { useEditMode } from './useEditMode'
+import { t, useLang } from '@/lib/i18n'
 
-const DEFAULT = 'Central idea\n  - Branch A\n    - Detail\n  - Branch B\n  - Branch C'
+/** Starter outline for a new mindmap, in the UI language. */
+const defaultOutline = (): string =>
+  `${t('mindmap.central')}\n  - ${t('mindmap.branch', { n: 'A' })}\n    - ${t('mindmap.detail')}\n  - ${t('mindmap.branch', { n: 'B' })}\n  - ${t('mindmap.branch', { n: 'C' })}`
 const PAD = 12
 
 /**
@@ -14,7 +17,8 @@ const PAD = 12
  * Shift+Tab = outdent, Backspace on an empty topic removes it. Click outside / Esc to finish.
  */
 export const MindmapNode = memo(function MindmapNode({ id, data, selected, width = 480, height = 320 }: NodeProps<ObjectNode>) {
-  const [tree, setTree] = useState<MindTree>(() => parseTree(String(data.object.data.source ?? DEFAULT)))
+  useLang()
+  const [tree, setTree] = useState<MindTree>(() => parseTree(String(data.object.data.source ?? defaultOutline())))
   const [focusId, setFocusId] = useState<string | null>(null)
   const latest = useRef(tree)
   latest.current = tree
@@ -30,7 +34,7 @@ export const MindmapNode = memo(function MindmapNode({ id, data, selected, width
   }, !!data.autoEdit)
 
   // adopt outline changes made elsewhere (e.g. MCP) while not editing
-  const externalSource = String(data.object.data.source ?? DEFAULT)
+  const externalSource = String(data.object.data.source ?? defaultOutline())
   useEffect(() => {
     if (!editing && externalSource !== serializeTree(latest.current)) setTree(parseTree(externalSource))
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -135,7 +139,7 @@ export const MindmapNode = memo(function MindmapNode({ id, data, selected, width
               key={n.id}
               ref={(el) => void (el ? inputs.current.set(n.id, el) : inputs.current.delete(n.id))}
               value={n.label}
-              placeholder="Topic"
+              placeholder={t('mindmap.topic')}
               onChange={(e) => setTree(rename(tree, n.id, e.target.value))}
               onKeyDown={(e) => onKey(e, n.id)}
               onFocus={() => setFocusId(n.id)}
@@ -149,7 +153,7 @@ export const MindmapNode = memo(function MindmapNode({ id, data, selected, width
             />
           ) : (
             <div key={n.id} data-topic onDoubleClick={(e) => (e.stopPropagation(), startEdit(n.id))} style={style} className={cn(cls, 'cursor-text truncate')}>
-              <span className="truncate">{n.label || <span className="opacity-50">Topic</span>}</span>
+              <span className="truncate">{n.label || <span className="opacity-50">{t('mindmap.topic')}</span>}</span>
             </div>
           )
         })}

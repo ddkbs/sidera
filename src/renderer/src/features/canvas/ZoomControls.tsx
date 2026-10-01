@@ -2,6 +2,7 @@ import { MiniMap, useReactFlow, useViewport } from '@xyflow/react'
 import { Map as MapIcon, Maximize, Minus, Plus } from '@/components/icons'
 import { useState } from 'react'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
+import { t } from '@/lib/i18n'
 import { cn } from '@/lib/utils'
 import { useAppSelector } from '@/store'
 
@@ -27,27 +28,27 @@ export function ZoomControls() {
       <div className="flex items-center gap-0.5 rounded-xl border bg-popover/95 p-1 shadow-lg backdrop-blur">
         <Tooltip>
           <TooltipTrigger asChild>
-            <button className={cn(btn, showMap && 'text-foreground')} onClick={() => setShowMap((s) => !s)} aria-label="Toggle minimap">
+            <button className={cn(btn, showMap && 'text-foreground')} onClick={() => setShowMap((s) => !s)} aria-label={t('zoom.toggleMinimap')}>
               <MapIcon className="size-4" />
             </button>
           </TooltipTrigger>
-          <TooltipContent>Minimap</TooltipContent>
+          <TooltipContent>{t('zoom.minimap')}</TooltipContent>
         </Tooltip>
         <div className="mx-0.5 h-4 w-px bg-border" />
-        <button className={btn} onClick={() => rf.zoomOut({ duration: 150 })} aria-label="Zoom out">
+        <button className={btn} onClick={() => rf.zoomOut({ duration: 150 })} aria-label={t('zoom.out')}>
           <Minus className="size-4" />
         </button>
         <button
           className="h-8 w-12 rounded-lg text-xs font-medium tabular-nums transition hover:bg-accent"
           onClick={() => rf.zoomTo(1, { duration: 200 })}
-          title="Reset to 100%"
+          title={t('zoom.reset100')}
         >
           {Math.round(zoom * 100)}%
         </button>
-        <button className={btn} onClick={() => rf.zoomIn({ duration: 150 })} aria-label="Zoom in">
+        <button className={btn} onClick={() => rf.zoomIn({ duration: 150 })} aria-label={t('zoom.in')}>
           <Plus className="size-4" />
         </button>
-        <button className={btn} onClick={() => rf.fitView({ duration: 300, padding: 0.15 })} aria-label="Fit view">
+        <button className={btn} onClick={() => rf.fitView({ duration: 300, padding: 0.15 })} aria-label={t('cmd.canvas.fit')}>
           <Maximize className="size-4" />
         </button>
       </div>

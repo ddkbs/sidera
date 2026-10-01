@@ -13,11 +13,13 @@ import { TagBadge } from '@/features/card/TagBadge'
 import { persist, type ObjectNode } from '../types'
 import { Handles, Resizer } from './NodeChrome'
 import { BLOCK_DEFAULT_SIZE } from '../textSize'
+import { t, useLang } from '@/lib/i18n'
 
 const MIN_H = 90
 const MAX_H = 520
 
 export const CardNode = memo(function CardNode({ id, data, selected }: NodeProps<ObjectNode>) {
+  useLang()
   const dispatch = useAppDispatch()
   const card = data.card
   const rf = useReactFlow()
@@ -98,7 +100,7 @@ export const CardNode = memo(function CardNode({ id, data, selected }: NodeProps
           <button
             onClick={() => dispatch(openCard(card.id))}
             className="nodrag absolute top-2 right-2 z-10 grid size-6 place-items-center rounded-md bg-card/80 text-muted-foreground opacity-0 transition group-hover:opacity-100 hover:bg-accent hover:text-foreground"
-            aria-label="Open card"
+            aria-label={t('task.openCard')}
           >
             <Expand className="size-3.5" />
           </button>
@@ -114,7 +116,7 @@ export const CardNode = memo(function CardNode({ id, data, selected }: NodeProps
             <div className="flex items-start gap-1.5 pr-6">
               <CardIcon icon={card.icon} className="mt-0.5 size-[18px] text-[16px]" />
               <div className="line-clamp-2 text-[15px] leading-snug font-semibold tracking-tight">
-                {card.title || <span className="text-muted-foreground">Untitled</span>}
+                {card.title || <span className="text-muted-foreground">{t('common.untitled')}</span>}
               </div>
             </div>
             {card.tags.length > 0 && (
@@ -155,9 +157,9 @@ function InlineEditor({ cardId }: { cardId: string }) {
         onBlur={() => {
           if (title === null || title === card.title) return
           update({ id: cardId, title })
-          recordCardPatch(cardId, 'Rename card', { title: card.title }, { title })
+          recordCardPatch(cardId, t('undo.renameCard'), { title: card.title }, { title })
         }}
-        placeholder="Untitled"
+        placeholder={t('common.untitled')}
         className="mb-1 bg-transparent pr-6 text-[15px] font-semibold tracking-tight outline-none"
       />
       <CardEditor

@@ -9,9 +9,11 @@ import { persist, type ObjectNode } from '../types'
 import { Handles, Resizer } from './NodeChrome'
 import { useEditMode } from './useEditMode'
 import { useEditorSide } from './useEditorSide'
+import { t, useLang } from '@/lib/i18n'
 
 /** Charts & structured diagrams. Double-click opens a table editor; changes save as you type. */
 export const ChartNode = memo(function ChartNode({ id, data, selected }: NodeProps<ObjectNode>) {
+  useLang()
   const [chart, setChart] = useState<ChartData>(() => normalizeChart(data.object.data as Partial<ChartData>))
   const latest = useRef(chart)
   latest.current = chart
@@ -53,7 +55,7 @@ export const ChartNode = memo(function ChartNode({ id, data, selected }: NodePro
           {chart.source && (
             <div className="flex items-center gap-2 rounded-lg border bg-popover px-3 py-2 text-xs text-muted-foreground shadow-sm">
               <Link2 className="size-3.5 shrink-0 text-brand" />
-              <span className="flex-1">The data follows its table — edit the table to change it.</span>
+              <span className="flex-1">{t('chartNode.follows')}</span>
               <button
                 onClick={() => {
                   const { source: _s, ...rest } = latest.current
@@ -61,7 +63,7 @@ export const ChartNode = memo(function ChartNode({ id, data, selected }: NodePro
                 }}
                 className="flex items-center gap-1 rounded-md px-1.5 py-0.5 font-medium text-foreground hover:bg-accent"
               >
-                <Unlink className="size-3.5" /> Unlink
+                <Unlink className="size-3.5" /> {t('chartNode.unlink')}
               </button>
             </div>
           )}
@@ -81,8 +83,8 @@ export const ChartNode = memo(function ChartNode({ id, data, selected }: NodePro
           <div className="mb-1.5 flex items-center gap-1.5">
             <div className="min-w-0 flex-1 truncate text-sm font-semibold">{chart.title}</div>
             {chart.source && (
-              <span title="Linked to a table: updates when the table changes" className="flex shrink-0 items-center gap-1 rounded-full bg-muted px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">
-                <Link2 className="size-3" /> Table
+              <span title={t('chartNode.linked')} className="flex shrink-0 items-center gap-1 rounded-full bg-muted px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">
+                <Link2 className="size-3" /> {t('library.table')}
               </span>
             )}
           </div>

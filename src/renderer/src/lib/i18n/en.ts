@@ -1052,6 +1052,88 @@ export const en = {
   'flow.direction': 'Direction',
   'flow.lines': 'Lines',
   'flow.syntax': 'Syntax reference ↗',
+  // table node
+  'tableNode.edit': 'Edit table',
+  'tableNode.column': 'Column {n}',
+  'tableNode.paste': 'Paste cells',
+  'tableNode.addColumn': 'Add column',
+  'tableNode.changeType': 'Change column type',
+  'tableNode.title': 'Table title',
+  'tableNode.columnOptions': 'Column options',
+  'tableNode.row': 'Row',
+  'tableNode.textColumn': 'Text column',
+  'tableNode.numberColumn': 'Number column',
+  'tableNode.colLeft': 'Insert column left',
+  'tableNode.colRight': 'Insert column right',
+
+  // find
+  'find.emptyTextBox': 'Empty text box',
+  'find.untitledCard': 'Untitled card',
+  'find.placeholder': 'Find on this whiteboard…',
+  'find.nothing': 'Nothing found',
+  'find.onBoard': 'On this whiteboard',
+
+  // zoom
+  'zoom.toggleMinimap': 'Toggle minimap',
+  'zoom.minimap': 'Minimap',
+  'zoom.reset100': 'Reset to 100%',
+  // mindmap
+  'mindmap.central': 'Central idea',
+  'mindmap.branch': 'Branch {n}',
+  'mindmap.detail': 'Detail',
+  'mindmap.topic': 'Topic',
+
+  // mermaid
+  'undo.flowStep': 'Add flowchart step',
+  'undo.flowRename': 'Rename flowchart box',
+  'undo.editDiagram': 'Edit diagram',
+  'mermaid.editFlowchart': 'Edit flowchart',
+
+  // whiteboard properties
+  'wbProps.title': 'Properties',
+  'wbProps.description': 'Free-form key/value metadata for this whiteboard.',
+  'wbProps.key': 'Key',
+  'wbProps.value': 'Value',
+  'wbProps.none': 'No properties yet.',
+
+  // add card
+  'addCard.title': 'Add card to whiteboard',
+  'addCard.placeholder': 'Search cards to add…',
+  'addCard.onBoard': 'On board',
+
+  // card drawer
+  'drawer.hint': 'Drag cards onto the whiteboard',
+  'drawer.search': 'Search cards…',
+  'drawer.none': 'No cards',
+
+  // node menu
+  'node.front': 'Bring to front',
+  'node.back': 'Send to back',
+  'node.deleteTextBox': 'Delete text box',
+  'node.deleteEverywhere': 'Delete card everywhere',
+
+  // sketch
+  'sketch.discard': 'Discard',
+  'sketch.doubleClick': 'Double-click to draw',
+
+  // chart node
+  'chartNode.follows': 'The data follows its table — edit the table to change it.',
+  'chartNode.unlink': 'Unlink',
+  'chartNode.linked': 'Linked to a table: updates when the table changes',
+
+  // link node
+  'link.saving': 'Saving…',
+  'link.saveAsCard': 'Save as card',
+
+  // rotate
+  'rotate.label': 'Rotate',
+  'rotate.hint': 'Rotate (Shift: 15° steps)',
+
+  // whiteboard node
+  'wbNode.open': 'Double-click to open',
+
+  // text block
+  'textBlock.placeholder': 'Type, or \'/\' for headings, lists, tables…',
 } satisfies Record<string, Message>
 
 export type MessageKey = keyof typeof en

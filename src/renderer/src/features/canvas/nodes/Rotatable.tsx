@@ -3,6 +3,7 @@ import { useRef, useState, type ReactNode } from 'react'
 import { RotateCcw } from '@/components/icons'
 import { record } from '@/lib/undo'
 import type { ObjectNode } from '../types'
+import { t } from '@/lib/i18n'
 
 const setRotation = (rf: ReturnType<typeof useReactFlow>, id: string, rotation: number, persist: boolean): void => {
   const n = rf.getNode(id) as ObjectNode | undefined
@@ -55,7 +56,7 @@ export function Rotatable({ id, rotation, selected, children }: { id: string; ro
       if (last === start) return
       setRotation(rf, id, last, true)
       rf.updateNode(id, { selected: true })
-      record({ label: 'Rotate', undo: () => setRotation(rf, id, start, true), redo: () => setRotation(rf, id, last, true) })
+      record({ label: t('rotate.label'), undo: () => setRotation(rf, id, start, true), redo: () => setRotation(rf, id, last, true) })
     }
     window.addEventListener('pointermove', move)
     window.addEventListener('pointerup', up)
@@ -69,8 +70,8 @@ export function Rotatable({ id, rotation, selected, children }: { id: string; ro
       {selected && (
         <button
           type="button"
-          aria-label="Rotate"
-          title="Rotate (Shift: 15° steps)"
+          aria-label={t('rotate.label')}
+          title={t('rotate.hint')}
           onPointerDown={onPointerDown}
           style={{ pointerEvents: 'all' }}
           className="nodrag nopan absolute -bottom-9 left-1/2 flex size-6 -translate-x-1/2 cursor-grab items-center justify-center rounded-full border bg-background text-muted-foreground shadow-sm hover:text-foreground active:cursor-grabbing"

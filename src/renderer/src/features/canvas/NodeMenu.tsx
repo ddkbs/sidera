@@ -11,6 +11,7 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { TEXT_SIZE_PRESETS, type TextSizePreset } from './textSize'
 import type { ObjectNode } from './types'
+import { t } from '@/lib/i18n'
 
 export type NodeMenuAction =
   | 'open'
@@ -48,45 +49,45 @@ export function NodeMenu({ menu, onClose, onAction }: Props) {
       <DropdownMenuContent align="start" className="w-60">
         {node?.type === 'card' && (
           <DropdownMenuItem onClick={act('open')}>
-            <Expand /> {block ? 'Open as card' : 'Open card'}
+            <Expand /> {block ? t('sel.openAsCard') : t('task.openCard')}
           </DropdownMenuItem>
         )}
         {block && (
           <>
             <DropdownMenuItem onClick={act('convert-card')}>
-              <SquarePlus /> Convert to card
+              <SquarePlus /> {t('undo.convertToCard')}
             </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem onClick={act(framed ? 'style-plain' : 'style-framed')}>
-              <Frame /> {framed ? 'Remove frame' : 'Add frame'}
+              <Frame /> {framed ? t('undo.removeFrame') : t('undo.addFrame')}
             </DropdownMenuItem>
             <DropdownMenuSeparator />
           </>
         )}
         {node?.type === 'table' && (
           <DropdownMenuItem onClick={act('chart-from-table')}>
-            <BarChart /> Create chart from table
+            <BarChart /> {t('sel.chartFromTable')}
           </DropdownMenuItem>
         )}
         {linkedChart && (
           <DropdownMenuItem onClick={act('unlink-chart')}>
-            <Unlink /> Unlink from table
+            <Unlink /> {t('sel.unlinkTable')}
           </DropdownMenuItem>
         )}
         {node?.type === 'whiteboard' && (
           <DropdownMenuItem onClick={act('open')}>
-            <LayoutDashboard /> Open whiteboard
+            <LayoutDashboard /> {t('sel.openBoard')}
           </DropdownMenuItem>
         )}
         {node?.type === 'sketch' && (
           <DropdownMenuItem onClick={act('frame')}>
-            <Frame /> {node.data.object.data.frameless === true ? 'Add frame' : 'Remove frame'}
+            <Frame /> {node.data.object.data.frameless === true ? t('undo.addFrame') : t('undo.removeFrame')}
           </DropdownMenuItem>
         )}
         {isText && (
           <DropdownMenuSub>
             <DropdownMenuSubTrigger>
-              <Type /> Text size
+              <Type /> {t('settings.appearance.textSize')}
             </DropdownMenuSubTrigger>
             <DropdownMenuSubContent>
               {TEXT_SIZE_PRESETS.map((p) => (
@@ -98,24 +99,24 @@ export function NodeMenu({ menu, onClose, onAction }: Props) {
           </DropdownMenuSub>
         )}
         <DropdownMenuItem onClick={act('front')}>
-          <ArrowUpToLine /> Bring to front
+          <ArrowUpToLine /> {t('node.front')}
         </DropdownMenuItem>
         <DropdownMenuItem onClick={act('back')}>
-          <ArrowDownToLine /> Send to back
+          <ArrowDownToLine /> {t('node.back')}
         </DropdownMenuItem>
         <DropdownMenuSeparator />
         {block ? (
           <DropdownMenuItem variant="destructive" onClick={act('remove')}>
-            <Trash2 /> Delete text box
+            <Trash2 /> {t('node.deleteTextBox')}
           </DropdownMenuItem>
         ) : (
           <DropdownMenuItem onClick={act('remove')}>
-            <X /> Remove from whiteboard
+            <X /> {t('help.fixed.remove')}
           </DropdownMenuItem>
         )}
         {node?.type === 'card' && !block && (
           <DropdownMenuItem variant="destructive" onClick={act('delete-card')}>
-            <Trash2 /> Delete card everywhere
+            <Trash2 /> {t('node.deleteEverywhere')}
           </DropdownMenuItem>
         )}
       </DropdownMenuContent>

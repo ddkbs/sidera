@@ -3,9 +3,11 @@ import { memo, useState } from 'react'
 import { color } from '@/lib/colors'
 import { persist, type ObjectNode } from '../types'
 import { Resizer } from './NodeChrome'
+import { t, useLang } from '@/lib/i18n'
 
 export const SectionNode = memo(function SectionNode({ id, data, selected }: NodeProps<ObjectNode>) {
-  const [title, setTitle] = useState(String(data.object.data.title ?? 'Section'))
+  useLang()
+  const [title, setTitle] = useState(String(data.object.data.title ?? t('canvas.section')))
   const c = color(data.object.color ?? 'blue')
   return (
     <>

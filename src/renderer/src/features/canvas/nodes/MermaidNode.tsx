@@ -11,6 +11,7 @@ import { persist, type ObjectNode } from '../types'
 import { Handles, Resizer } from './NodeChrome'
 import { useEditMode } from './useEditMode'
 import { useEditorSide } from './useEditorSide'
+import { t, useLang } from '@/lib/i18n'
 
 let initializedTheme: string | null = null
 let renderSeq = 0
@@ -21,6 +22,7 @@ const DEFAULT = 'graph TD\n  A[Idea] --> B[Plan]\n  B --> C[Ship]'
  * double-click empty space (or "Edit" in the toolbar) to open the editor: nodes, connections, layout and code.
  */
 export const MermaidNode = memo(function MermaidNode({ id, data, selected }: NodeProps<ObjectNode>) {
+  useLang()
   const [source, setSource] = useState(String(data.object.data.source ?? DEFAULT))
   const [svg, setSvg] = useState('')
   const [error, setError] = useState<string | null>(null)
@@ -105,13 +107,13 @@ export const MermaidNode = memo(function MermaidNode({ id, data, selected }: Nod
       setSource(next)
       // inside the editor the session commit covers it; on the canvas it's its own undo step
       if (editing) scheduleSave(next)
-      else commit(before, next, mode === 'next' ? 'Add flowchart step' : 'Rename flowchart box')
+      else commit(before, next, mode === 'next' ? t('undo.flowStep') : t('undo.flowRename'))
     }
   }
 
   const externalSource = String(data.object.data.source ?? DEFAULT)
   const sessionStart = useRef(source)
-  const { editing, setEditing, root } = useEditMode(selected, () => commit(sessionStart.current, latest.current, 'Edit diagram'), !!data.autoEdit)
+  const { editing, setEditing, root } = useEditMode(selected, () => commit(sessionStart.current, latest.current, t('undo.editDiagram')), !!data.autoEdit)
   useEffect(() => {
     if (editing) sessionStart.current = latest.current
   }, [editing])
@@ -164,7 +166,7 @@ export const MermaidNode = memo(function MermaidNode({ id, data, selected }: Nod
             onClick={() => setEditing(true)}
             className="flex h-6 items-center gap-1.5 rounded-full px-2.5 text-xs text-muted-foreground hover:bg-accent hover:text-foreground"
           >
-            <Pencil className="size-3.5" /> {flowchart ? 'Edit flowchart' : 'Edit diagram'}
+            <Pencil className="size-3.5" /> {flowchart ? t('mermaid.editFlowchart') : t('undo.editDiagram')}
           </button>
         </div>
       </NodeToolbar>

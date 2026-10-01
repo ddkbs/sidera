@@ -1,6 +1,7 @@
 import { useReactFlow } from '@xyflow/react'
 import { BoxSelect, FileText, Globe, LayoutDashboard, Network, PenTool, BarChart, Table2, Type, Workflow, File } from '@/components/icons'
 import { useState } from 'react'
+import { t } from '@/lib/i18n'
 import { useCommands } from '@/lib/shortcuts'
 import { CommandDialog, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command'
 import type { ObjectNode } from './types'
@@ -11,20 +12,20 @@ const label = (n: ObjectNode): string => {
   const o = n.data.object
   switch (o.kind) {
     case 'card':
-      if (n.data.card?.kind === 'block') return n.data.card.excerpt.replace(/\s+/g, ' ') || 'Empty text box'
-      return [n.data.card?.title, n.data.card?.excerpt].filter(Boolean).join(' — ') || 'Untitled card'
+      if (n.data.card?.kind === 'block') return n.data.card.excerpt.replace(/\s+/g, ' ') || t('find.emptyTextBox')
+      return [n.data.card?.title, n.data.card?.excerpt].filter(Boolean).join(' — ') || t('find.untitledCard')
     case 'section':
-      return String(o.data.title ?? 'Section')
+      return String(o.data.title ?? t('canvas.section'))
     case 'whiteboard':
-      return n.data.childName ?? 'Whiteboard'
+      return n.data.childName ?? t('board.whiteboard')
     case 'chart':
-      return String(o.data.title ?? 'Chart')
+      return String(o.data.title ?? t('insert.chart'))
     case 'table':
-      return String(o.data.title || 'Table')
+      return String(o.data.title || t('library.table'))
     case 'file':
-      return String(o.data.name ?? 'File')
+      return String(o.data.name ?? t('canvas.file'))
     case 'link':
-      return String(o.data.title ?? o.data.url ?? 'Link')
+      return String(o.data.title ?? o.data.url ?? t('format.link'))
     default:
       return String(o.data.source ?? o.kind).split('\n')[0]
   }
@@ -38,11 +39,11 @@ export function FindOnBoard() {
 
   const nodes = open ? rf.getNodes() : []
   return (
-    <CommandDialog open={open} onOpenChange={setOpen} title="Find on whiteboard">
-      <CommandInput placeholder="Find on this whiteboard…" />
+    <CommandDialog open={open} onOpenChange={setOpen} title={t('cmd.canvas.find')}>
+      <CommandInput placeholder={t('find.placeholder')} />
       <CommandList>
-        <CommandEmpty>Nothing found</CommandEmpty>
-        <CommandGroup heading="On this whiteboard">
+        <CommandEmpty>{t('find.nothing')}</CommandEmpty>
+        <CommandGroup heading={t('find.onBoard')}>
           {nodes.map((n) => {
             const Icon = n.data.card?.kind === 'block' ? Type : ICONS[n.data.object.kind]
             const text = label(n)

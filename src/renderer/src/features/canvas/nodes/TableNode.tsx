@@ -14,6 +14,7 @@ import {
 } from '@shared/tables'
 import { ArrowDown, ArrowLeft, ArrowRight, ArrowUp, ChevronDown, Hash, Plus, Trash2, Type } from '@/components/icons'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
+import { useT } from '@/lib/i18n'
 import { record } from '@/lib/undo'
 import { cn } from '@/lib/utils'
 import { useAppDispatch } from '@/store'
@@ -41,6 +42,8 @@ const same = (a: Active | null, b: Active | null): boolean =>
  * Every committed cell or structure change is one undo step; linked charts follow in main.
  */
 export const TableNode = memo(function TableNode({ id, data, selected, height }: NodeProps<ObjectNode>) {
+  // `t` is the table throughout this component, so the translator is `tr`
+  const tr = useT()
   const dispatch = useAppDispatch()
   const boardId = data.object.whiteboardId
   const [table, setTable] = useState<TableData>(() => safeTable(data.object.data))
@@ -115,7 +118,7 @@ export const TableNode = memo(function TableNode({ id, data, selected, height }:
     return { ...t, rows: t.rows.map((r, i) => (i === a.r ? { ...r, cells } : r)) }
   }
 
-  const commitDraft = (): TableData => commit(withDraft(latest.current), 'Edit table')
+  const commitDraft = (): TableData => commit(withDraft(latest.current), tr('tableNode.edit'))
 
   const blankRow = () => ({ id: newRowId(), cells: {} })
 
@@ -135,7 +138,7 @@ export const TableNode = memo(function TableNode({ id, data, selected, height }:
     }
     if (r < -1) r = -1
     if (r >= t.rows.length) t = { ...t, rows: [...t.rows, blankRow()] }
-    t = commit(t, 'Edit table')
+    t = commit(t, tr('tableNode.edit'))
     setActive({ r, c }, t)
   }
 
@@ -184,7 +187,7 @@ export const TableNode = memo(function TableNode({ id, data, selected, height }:
     const t0 = latest.current
     const columns = [...t0.columns]
     const width = Math.max(...cells.map((l) => l.length))
-    while (a.c + width > columns.length) columns.push({ id: newColumnId(), name: `Column ${columns.length + 1}` })
+    while (a.c + width > columns.length) columns.push({ id: newColumnId(), name: tr('tableNode.column', { n: columns.length + 1 }) })
     let lines = cells
     if (a.r < 0) {
       // pasting into the header: first line = column names
@@ -201,25 +204,25 @@ export const TableNode = memo(function TableNode({ id, data, selected, height }:
         else rows[start + i].cells[col.id] = col.type === 'number' ? coerceCell(v, 'number') : v
       })
     })
-    const next = commit({ ...t0, columns, rows }, 'Paste cells')
+    const next = commit({ ...t0, columns, rows }, tr('tableNode.paste'))
     setActive(a, next)
   }
 
   // ---- structure ----------------------------------------------------------
   const insertRow = (at: number): void => {
     const t = withDraft(latest.current)
-    commit({ ...t, rows: [...t.rows.slice(0, at), blankRow(), ...t.rows.slice(at)] }, 'Add row')
+    commit({ ...t, rows: [...t.rows.slice(0, at), blankRow(), ...t.rows.slice(at)] }, tr('chart.addRow'))
     setActive(null)
   }
   const deleteRow = (r: number): void => {
     const t = withDraft(latest.current)
-    commit({ ...t, rows: t.rows.filter((_, i) => i !== r) }, 'Delete row')
+    commit({ ...t, rows: t.rows.filter((_, i) => i !== r) }, tr('table.rowDelete'))
     setActive(null)
   }
   const insertColumn = (at: number): void => {
     const t = withDraft(latest.current)
-    const col = { id: newColumnId(), name: `Column ${t.columns.length + 1}` }
-    const next = commit({ ...t, columns: [...t.columns.slice(0, at), col, ...t.columns.slice(at)] }, 'Add column')
+    const col = { id: newColumnId(), name: tr('tableNode.column', { n: t.columns.length + 1 }) }
+    const next = commit({ ...t, columns: [...t.columns.slice(0, at), col, ...t.columns.slice(at)] }, tr('tableNode.addColumn'))
     setActive({ r: -1, c: at }, next)
   }
   const deleteColumn = (c: number): void => {
@@ -235,7 +238,7 @@ export const TableNode = memo(function TableNode({ id, data, selected, height }:
           return { ...r, cells }
         })
       },
-      'Delete column'
+      tr('table.colDelete')
     )
     setActive(null)
   }
@@ -243,7 +246,7 @@ export const TableNode = memo(function TableNode({ id, data, selected, height }:
     const t = withDraft(latest.current)
     const col = t.columns[c]
     const rows = t.rows.map((r) => (r.cells[col.id] === undefined ? r : { ...r, cells: { ...r.cells, [col.id]: type === 'number' ? coerceCell(r.cells[col.id], 'number') : String(r.cells[col.id]) } }))
-    commit({ ...t, columns: t.columns.map((x, i) => (i === c ? { ...x, type } : x)), rows }, 'Change column type')
+    commit({ ...t, columns: t.columns.map((x, i) => (i === c ? { ...x, type } : x)), rows }, tr('tableNode.changeType'))
     setActive(null)
   }
 
@@ -299,7 +302,7 @@ export const TableNode = memo(function TableNode({ id, data, selected, height }:
               {active === 'title' ? (
                 cellInput('title', 'left', 'text-sm font-semibold')
               ) : (
-                <div className={cn('truncate text-sm font-semibold', !table.title && 'text-muted-foreground/70')}>{table.title || 'Table title'}</div>
+                <div className={cn('truncate text-sm font-semibold', !table.title && 'text-muted-foreground/70')}>{table.title || tr('tableNode.title')}</div>
               )}
             </div>
           )}
@@ -325,7 +328,7 @@ export const TableNode = memo(function TableNode({ id, data, selected, height }:
                     {same(active, { r: -1, c: ci }) ? (
                       cellInput({ r: -1, c: ci }, types[ci] === 'number' ? 'right' : 'left', 'font-medium text-foreground')
                     ) : (
-                      <span className="block truncate">{c.name || <span className="opacity-50">Column {ci + 1}</span>}</span>
+                      <span className="block truncate">{c.name || <span className="opacity-50">{tr('tableNode.column', { n: ci + 1 })}</span>}</span>
                     )}
                     {selected && !same(active, { r: -1, c: ci }) && (
                       <button
@@ -338,7 +341,7 @@ export const TableNode = memo(function TableNode({ id, data, selected, height }:
                           'absolute top-1/2 grid size-5 -translate-y-1/2 place-items-center rounded text-muted-foreground opacity-0 transition group-hover/th:opacity-100 hover:bg-accent hover:text-foreground',
                           types[ci] === 'number' ? 'left-1' : 'right-1'
                         )}
-                        aria-label="Column options"
+                        aria-label={tr('tableNode.columnOptions')}
                       >
                         <ChevronDown className="size-3.5" />
                       </button>
@@ -375,13 +378,13 @@ export const TableNode = memo(function TableNode({ id, data, selected, height }:
               onClick={() => insertRow(latest.current.rows.length)}
               className="nodrag absolute inset-x-6 -bottom-7 flex h-5 items-center justify-center gap-1 rounded-md text-xs text-muted-foreground opacity-60 transition hover:bg-accent hover:text-foreground hover:opacity-100"
             >
-              <Plus className="size-3.5" /> Row
+              <Plus className="size-3.5" /> {tr('tableNode.row')}
             </button>
             <button
               onClick={() => insertColumn(latest.current.columns.length)}
               className="nodrag absolute inset-y-4 -right-7 flex w-5 items-center justify-center rounded-md text-muted-foreground opacity-60 transition hover:bg-accent hover:text-foreground hover:opacity-100"
-              aria-label="Add column"
-              title="Add column"
+              aria-label={tr('tableNode.addColumn')}
+              title={tr('tableNode.addColumn')}
             >
               <Plus className="size-3.5" />
             </button>
@@ -397,32 +400,32 @@ export const TableNode = memo(function TableNode({ id, data, selected, height }:
             {menu.r >= 0 && (
               <>
                 <DropdownMenuItem onClick={() => insertRow(menu.r)}>
-                  <ArrowUp /> Insert row above
+                  <ArrowUp /> {tr('table.rowAbove')}
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={() => insertRow(menu.r + 1)}>
-                  <ArrowDown /> Insert row below
+                  <ArrowDown /> {tr('table.rowBelow')}
                 </DropdownMenuItem>
                 <DropdownMenuItem variant="destructive" onClick={() => deleteRow(menu.r)}>
-                  <Trash2 /> Delete row
+                  <Trash2 /> {tr('table.rowDelete')}
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
               </>
             )}
             <DropdownMenuItem onClick={() => setColumnType(menu.c, 'text')} className={cn(types[menu.c] === 'text' && 'font-medium')}>
-              <Type /> Text column
+              <Type /> {tr('tableNode.textColumn')}
             </DropdownMenuItem>
             <DropdownMenuItem onClick={() => setColumnType(menu.c, 'number')} className={cn(types[menu.c] === 'number' && 'font-medium')}>
-              <Hash /> Number column
+              <Hash /> {tr('tableNode.numberColumn')}
             </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem onClick={() => insertColumn(menu.c)}>
-              <ArrowLeft /> Insert column left
+              <ArrowLeft /> {tr('tableNode.colLeft')}
             </DropdownMenuItem>
             <DropdownMenuItem onClick={() => insertColumn(menu.c + 1)}>
-              <ArrowRight /> Insert column right
+              <ArrowRight /> {tr('tableNode.colRight')}
             </DropdownMenuItem>
             <DropdownMenuItem variant="destructive" disabled={cols.length <= 1} onClick={() => deleteColumn(menu.c)}>
-              <Trash2 /> Delete column
+              <Trash2 /> {tr('table.colDelete')}
             </DropdownMenuItem>
           </DropdownMenuContent>
         )}

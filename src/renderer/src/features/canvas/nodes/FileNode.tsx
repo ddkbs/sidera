@@ -6,13 +6,15 @@ import { cn } from '@/lib/utils'
 import { persist, type ObjectNode } from '../types'
 import { Handles, Resizer } from './NodeChrome'
 import { Rotatable } from './Rotatable'
+import { t, useLang } from '@/lib/i18n'
 
 pdfjs.GlobalWorkerOptions.workerSrc = new URL('pdfjs-dist/build/pdf.worker.min.mjs', import.meta.url).toString()
 
 export const FileNode = memo(function FileNode({ id, data, selected, width }: NodeProps<ObjectNode>) {
+  useLang()
   const [url, setUrl] = useState<string | null>(null)
   const rf = useReactFlow()
-  const name = String(data.object.data.name ?? 'File')
+  const name = String(data.object.data.name ?? t('canvas.file'))
   const mime = String(data.object.data.mime ?? '')
   const isImage = mime.startsWith('image/')
   const rotation = Number(data.object.data.rotation) || 0

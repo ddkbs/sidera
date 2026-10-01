@@ -6,8 +6,10 @@ import { store } from '@/store'
 import { navigate } from '@/store/ui'
 import type { ObjectNode } from '../types'
 import { Handles, Resizer } from './NodeChrome'
+import { t, useLang } from '@/lib/i18n'
 
 export const WhiteboardNode = memo(function WhiteboardNode({ data, selected }: NodeProps<ObjectNode>) {
+  useLang()
   const open = () => data.object.refId && store.dispatch(navigate({ type: 'whiteboard', id: data.object.refId }))
   return (
     <>
@@ -28,8 +30,8 @@ export const WhiteboardNode = memo(function WhiteboardNode({ data, selected }: N
             <LayoutDashboard className="size-4" />
           </span>
           <div className="min-w-0">
-            <div className="truncate text-sm font-semibold">{data.childName ?? 'Whiteboard'}</div>
-            <div className="text-[11px] text-muted-foreground">Double-click to open</div>
+            <div className="truncate text-sm font-semibold">{data.childName ?? t('board.whiteboard')}</div>
+            <div className="text-[11px] text-muted-foreground">{t('wbNode.open')}</div>
           </div>
         </div>
       </div>

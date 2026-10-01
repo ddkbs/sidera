@@ -10,6 +10,7 @@ import type { ObjectNode } from '../types'
 import { Handles, Resizer } from './NodeChrome'
 import { Rotatable } from './Rotatable'
 import { PointHandles } from '@/features/ink/PointHandles'
+import { t, useLang } from '@/lib/i18n'
 
 export const EDIT_SKETCH_EVENT = 'sidera:edit-sketch'
 
@@ -25,6 +26,7 @@ export const EDIT_SKETCH_EVENT = 'sidera:edit-sketch'
  * painted ink and photos are hit, so empty space inside the bounding box still reaches whatever lies below.
  */
 export const SketchNode = memo(function SketchNode({ id, data, selected, width, height }: NodeProps<ObjectNode>) {
+  useLang()
   const dark = useAppSelector((s) => s.ui.theme) === 'dark'
   const d = data.object.data
   const [preview, setPreview] = useState<unknown[] | null>(null)
@@ -72,7 +74,7 @@ export const SketchNode = memo(function SketchNode({ id, data, selected, width, 
         >
           {svg ? (
             <img
-              alt="Sketch"
+              alt={t('ink.sketch')}
               draggable={false}
               className={cn('h-full w-full object-contain', !darkSvg && 'dark:invert dark:hue-rotate-180')}
               src={`data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`}
@@ -85,7 +87,7 @@ export const SketchNode = memo(function SketchNode({ id, data, selected, width, 
           ) : (
             <div className="flex flex-col items-center gap-1.5 text-sm text-muted-foreground">
               <PenTool className="size-5" />
-              Double-click to draw
+              {t('sketch.doubleClick')}
             </div>
           )}
         </div>

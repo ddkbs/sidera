@@ -1,4 +1,5 @@
 import dagre from 'dagre'
+import { t as tr } from '../../lib/i18n'
 
 // Pure mindmap model: an outline tree stored as indented text ("Root\n  - Child\n    - Grandchild").
 
@@ -13,7 +14,7 @@ const uid = () => `m${Date.now().toString(36)}${(seq++).toString(36)}`
 
 export function parseTree(src: string): MindTree {
   const lines = src.split('\n').filter((l) => l.trim())
-  const root: MindTree = { id: uid(), label: lines[0]?.trim().replace(/^[-*+]\s+/, '') || 'Central idea', children: [] }
+  const root: MindTree = { id: uid(), label: lines[0]?.trim().replace(/^[-*+]\s+/, '') || tr('mindmap.central'), children: [] }
   const rootIndent = lines[0] ? lines[0].match(/^\s*/)![0].length : 0
   const stack: { indent: number; node: MindTree }[] = [{ indent: rootIndent - 1, node: root }]
   for (const raw of lines.slice(1)) {

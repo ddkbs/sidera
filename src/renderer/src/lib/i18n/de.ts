@@ -1044,4 +1044,86 @@ export const de: Dictionary = {
   'flow.direction': 'Richtung',
   'flow.lines': 'Linien',
   'flow.syntax': 'Syntax-Referenz ↗',
+  // table node
+  'tableNode.edit': 'Tabelle bearbeiten',
+  'tableNode.column': 'Spalte {n}',
+  'tableNode.paste': 'Zellen einfügen',
+  'tableNode.addColumn': 'Spalte hinzufügen',
+  'tableNode.changeType': 'Spaltentyp ändern',
+  'tableNode.title': 'Tabellentitel',
+  'tableNode.columnOptions': 'Spaltenoptionen',
+  'tableNode.row': 'Zeile',
+  'tableNode.textColumn': 'Textspalte',
+  'tableNode.numberColumn': 'Zahlenspalte',
+  'tableNode.colLeft': 'Spalte links einfügen',
+  'tableNode.colRight': 'Spalte rechts einfügen',
+
+  // find
+  'find.emptyTextBox': 'Leeres Textfeld',
+  'find.untitledCard': 'Karte ohne Titel',
+  'find.placeholder': 'Auf diesem Whiteboard suchen …',
+  'find.nothing': 'Nichts gefunden',
+  'find.onBoard': 'Auf diesem Whiteboard',
+
+  // zoom
+  'zoom.toggleMinimap': 'Minimap ein/aus',
+  'zoom.minimap': 'Minimap',
+  'zoom.reset100': 'Auf 100 % zurücksetzen',
+  // mindmap
+  'mindmap.central': 'Zentrale Idee',
+  'mindmap.branch': 'Zweig {n}',
+  'mindmap.detail': 'Detail',
+  'mindmap.topic': 'Thema',
+
+  // mermaid
+  'undo.flowStep': 'Schritt im Flussdiagramm hinzufügen',
+  'undo.flowRename': 'Kästchen im Flussdiagramm umbenennen',
+  'undo.editDiagram': 'Diagramm bearbeiten',
+  'mermaid.editFlowchart': 'Flussdiagramm bearbeiten',
+
+  // whiteboard properties
+  'wbProps.title': 'Eigenschaften',
+  'wbProps.description': 'Freie Schlüssel/Wert-Metadaten für dieses Whiteboard.',
+  'wbProps.key': 'Schlüssel',
+  'wbProps.value': 'Wert',
+  'wbProps.none': 'Noch keine Eigenschaften.',
+
+  // add card
+  'addCard.title': 'Karte zum Whiteboard hinzufügen',
+  'addCard.placeholder': 'Karten zum Hinzufügen suchen …',
+  'addCard.onBoard': 'Auf dem Board',
+
+  // card drawer
+  'drawer.hint': 'Karten aufs Whiteboard ziehen',
+  'drawer.search': 'Karten suchen …',
+  'drawer.none': 'Keine Karten',
+
+  // node menu
+  'node.front': 'Nach vorne bringen',
+  'node.back': 'Nach hinten senden',
+  'node.deleteTextBox': 'Textfeld löschen',
+  'node.deleteEverywhere': 'Karte überall löschen',
+
+  // sketch
+  'sketch.discard': 'Verwerfen',
+  'sketch.doubleClick': 'Doppelklick zum Zeichnen',
+
+  // chart node
+  'chartNode.follows': 'Die Daten folgen der Tabelle – bearbeite die Tabelle, um sie zu ändern.',
+  'chartNode.unlink': 'Entkoppeln',
+  'chartNode.linked': 'Mit einer Tabelle verknüpft: aktualisiert sich, wenn sich die Tabelle ändert',
+
+  // link node
+  'link.saving': 'Wird gespeichert …',
+  'link.saveAsCard': 'Als Karte speichern',
+
+  // rotate
+  'rotate.label': 'Drehen',
+  'rotate.hint': 'Drehen (Umschalt: 15°-Schritte)',
+
+  // whiteboard node
+  'wbNode.open': 'Doppelklick zum Öffnen',
+
+  // text block
+  'textBlock.placeholder': 'Tippen oder „/“ für Überschriften, Listen, Tabellen …',
 }
