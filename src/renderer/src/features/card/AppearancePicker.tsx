@@ -1,7 +1,8 @@
 import { useState, type ReactNode } from 'react'
 import { CARD_ICONS, CardIcon } from '@/components/CardIcon'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
-import { PALETTE } from '@/lib/colors'
+import { colorName, PALETTE } from '@/lib/colors'
+import { t } from '@/lib/i18n'
 import { cn } from '@/lib/utils'
 
 const EMOJI: [string, string][] = [
@@ -40,19 +41,19 @@ export function AppearancePicker({ color, icon, onChange, children, align = 'sta
       <PopoverTrigger asChild>{children}</PopoverTrigger>
       <PopoverContent align={align} className="w-80 p-0">
         <div className="border-b p-3">
-          <div className="mb-2 text-xs font-medium text-muted-foreground">Color</div>
+          <div className="mb-2 text-xs font-medium text-muted-foreground">{t('account.color')}</div>
           <div className="flex flex-wrap gap-1.5">
             <button
               onClick={() => onChange({ color: null })}
               className={cn('grid size-6 place-items-center rounded-full border text-[10px] text-muted-foreground', !color && 'ring-2 ring-foreground/40 ring-offset-1 ring-offset-popover')}
-              title="Default"
+              title={t('appearance.default')}
             >
               ∅
             </button>
             {CARD_COLORS.map((c) => (
               <button
                 key={c}
-                title={c}
+                title={colorName(c)}
                 onClick={() => onChange({ color: c })}
                 className={cn('size-6 rounded-full border', color === c && 'ring-2 ring-foreground/40 ring-offset-1 ring-offset-popover')}
                 style={{ background: PALETTE[c].bg, borderColor: PALETTE[c].border }}
@@ -62,26 +63,26 @@ export function AppearancePicker({ color, icon, onChange, children, align = 'sta
         </div>
         <div className="p-3">
           <div className="mb-2 flex items-center gap-1">
-            {(['emoji', 'icons'] as const).map((t) => (
+            {(['emoji', 'icons'] as const).map((kind) => (
               <button
-                key={t}
-                onClick={() => setTab(t)}
-                className={cn('h-7 rounded-md px-2.5 text-xs capitalize', tab === t ? 'bg-accent font-medium' : 'text-muted-foreground hover:text-foreground')}
+                key={kind}
+                onClick={() => setTab(kind)}
+                className={cn('h-7 rounded-md px-2.5 text-xs', tab === kind ? 'bg-accent font-medium' : 'text-muted-foreground hover:text-foreground')}
               >
-                {t}
+                {kind === 'emoji' ? t('appearance.emoji') : t('appearance.icons')}
               </button>
             ))}
             <div className="flex-1" />
             {icon && (
               <button onClick={() => onChange({ icon: null })} className="h-7 rounded-md px-2 text-xs text-muted-foreground hover:bg-accent hover:text-foreground">
-                Remove
+                {t('common.remove')}
               </button>
             )}
           </div>
           <input
             value={q}
             onChange={(e) => setQ(e.target.value)}
-            placeholder={tab === 'emoji' ? 'Search emoji…' : 'Search icons…'}
+            placeholder={tab === 'emoji' ? t('appearance.searchEmoji') : t('appearance.searchIcons')}
             className="mb-2 h-8 w-full rounded-md bg-muted/60 px-2.5 text-sm outline-none focus:ring-1 focus:ring-ring"
           />
           <div className="grid max-h-52 grid-cols-8 gap-0.5 overflow-y-auto">

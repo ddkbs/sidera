@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Skeleton } from '@/components/ui/skeleton'
+import { t } from '@/lib/i18n'
 import { cn } from '@/lib/utils'
 import { useAppDispatch } from '@/store'
 import { useAddObjectMutation, useDeleteCardMutation, useGetCardQuery, useListWhiteboardsQuery, useUpdateCardMutation } from '@/store/api'
@@ -61,11 +62,11 @@ export function CardPanel({ cardId }: { cardId: string }) {
 
   const header = (
     <div className="flex h-11 shrink-0 items-center gap-1 border-b px-2">
-      <span className="px-2 text-xs text-muted-foreground">Card</span>
+      <span className="px-2 text-xs text-muted-foreground">{t('task.card')}</span>
       <div className="flex-1" />
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <Button variant="ghost" size="icon" className="size-7">
+          <Button variant="ghost" size="icon" className="size-7" aria-label={t('card.more')}>
             <MoreHorizontal className="size-4" />
           </Button>
         </DropdownMenuTrigger>
@@ -73,20 +74,20 @@ export function CardPanel({ cardId }: { cardId: string }) {
           <DropdownMenuItem
             onClick={() => {
               void navigator.clipboard.writeText(cardId)
-              toast.success('Card id copied')
+              toast.success(t('card.idCopied'))
             }}
           >
-            <Link2 /> Copy card id
+            <Link2 /> {t('card.copyId')}
           </DropdownMenuItem>
           <DropdownMenuItem onClick={toggleDock}>
-            <PanelLeft className="rotate-180" /> {docked ? 'Center window' : 'Dock to the right'}
+            <PanelLeft className="rotate-180" /> {docked ? t('card.center') : t('card.dock')}
           </DropdownMenuItem>
           <DropdownMenuSub>
             <DropdownMenuSubTrigger>
-              <LayoutDashboard /> Add to whiteboard
+              <LayoutDashboard /> {t('card.addToBoard')}
             </DropdownMenuSubTrigger>
             <DropdownMenuSubContent className="max-h-72 overflow-y-auto">
-              {boards.length === 0 && <DropdownMenuItem disabled>No whiteboards</DropdownMenuItem>}
+              {boards.length === 0 && <DropdownMenuItem disabled>{t('card.noBoards')}</DropdownMenuItem>}
               {boards.map((b) => (
                 <DropdownMenuItem
                   key={b.id}
@@ -96,7 +97,7 @@ export function CardPanel({ cardId }: { cardId: string }) {
                     const x = objs.length ? Math.max(...objs.map((o) => o.x + o.width)) + 60 : 0
                     const y = objs.length ? Math.min(...objs.map((o) => o.y)) : 0
                     await addObject({ whiteboardId: b.id, kind: 'card', refId: cardId, x, y })
-                    toast.success(`Added to ${b.name}`, { action: { label: 'Open', onClick: () => dispatch(navigate({ type: 'whiteboard', id: b.id })) } })
+                    toast.success(t('card.addedTo', { name: b.name }), { action: { label: t('common.open'), onClick: () => dispatch(navigate({ type: 'whiteboard', id: b.id })) } })
                   }}
                 >
                   {b.name}
@@ -113,11 +114,11 @@ export function CardPanel({ cardId }: { cardId: string }) {
               recordDelete('card', cardId)
             }}
           >
-            <Trash2 /> Delete card
+            <Trash2 /> {t('undo.deleteCard')}
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
-      <Button variant="ghost" size="icon" className="size-7" onClick={close}>
+      <Button variant="ghost" size="icon" className="size-7" onClick={close} aria-label={t('common.close')}>
         <X className="size-4" />
       </Button>
     </div>
@@ -129,11 +130,11 @@ export function CardPanel({ cardId }: { cardId: string }) {
       icon={card.icon}
       onChange={(p) => {
         update({ id: card.id, ...p })
-        recordCardPatch(card.id, 'Change card appearance', { color: card.color, icon: card.icon }, { color: card.color, icon: card.icon, ...p })
+        recordCardPatch(card.id, t('undo.cardAppearance'), { color: card.color, icon: card.icon }, { color: card.color, icon: card.icon, ...p })
       }}
     >
       <button className="h-7 rounded-md px-2 text-xs text-muted-foreground opacity-0 transition group-hover/appearance:opacity-100 hover:bg-accent hover:text-foreground focus-visible:opacity-100">
-        {card.icon ? 'Change color' : 'Add icon & color'}
+        {card.icon ? t('card.changeColor') : t('card.addIconColor')}
       </button>
     </AppearancePicker>
   )
@@ -142,7 +143,7 @@ export function CardPanel({ cardId }: { cardId: string }) {
     <div className={cn('space-y-5 text-sm', docked ? 'mt-10 border-t pt-5' : 'w-60 shrink-0 border-l py-8 pr-8 pl-6')}>
       {card.whiteboards.length > 0 && (
         <section>
-          <h4 className="mb-1.5 text-xs font-medium text-muted-foreground">On whiteboards</h4>
+          <h4 className="mb-1.5 text-xs font-medium text-muted-foreground">{t('card.onBoards')}</h4>
           <div className="flex flex-wrap gap-1.5">
             {card.whiteboards.map((w) => (
               <button
@@ -159,7 +160,7 @@ export function CardPanel({ cardId }: { cardId: string }) {
       )}
       {card.backlinks.length > 0 && (
         <section>
-          <h4 className="mb-1.5 text-xs font-medium text-muted-foreground">Backlinks · {card.backlinks.length}</h4>
+          <h4 className="mb-1.5 text-xs font-medium text-muted-foreground">{t('card.backlinks', { count: card.backlinks.length })}</h4>
           <div className="flex flex-col">
             {card.backlinks.map((b) => (
               <button
@@ -168,7 +169,7 @@ export function CardPanel({ cardId }: { cardId: string }) {
                 className="group flex items-center gap-2 rounded-md px-2 py-1.5 text-left transition hover:bg-accent"
               >
                 <ArrowUpRight className="size-3.5 shrink-0 text-muted-foreground" />
-                <span className="truncate">{b.title || 'Untitled'}</span>
+                <span className="truncate">{b.title || t('common.untitled')}</span>
               </button>
             ))}
           </div>
@@ -194,10 +195,10 @@ export function CardPanel({ cardId }: { cardId: string }) {
               icon={card.icon}
               onChange={(p) => {
                 update({ id: card.id, ...p })
-                recordCardPatch(card.id, 'Change card appearance', { color: card.color, icon: card.icon }, { color: card.color, icon: card.icon, ...p })
+                recordCardPatch(card.id, t('undo.cardAppearance'), { color: card.color, icon: card.icon }, { color: card.color, icon: card.icon, ...p })
               }}
             >
-              <button className="-ml-1 grid size-12 place-items-center rounded-lg text-4xl transition hover:bg-accent" aria-label="Change icon">
+              <button className="-ml-1 grid size-12 place-items-center rounded-lg text-4xl transition hover:bg-accent" aria-label={t('card.changeIcon')}>
                 <CardIcon icon={card.icon} className="size-9" />
               </button>
             </AppearancePicker>
@@ -207,7 +208,7 @@ export function CardPanel({ cardId }: { cardId: string }) {
         <textarea
           value={title}
           rows={1}
-          placeholder="Untitled"
+          placeholder={t('common.untitled')}
           onChange={(e) => {
             setTitle(e.target.value)
             e.target.style.height = 'auto'
@@ -216,7 +217,7 @@ export function CardPanel({ cardId }: { cardId: string }) {
           onBlur={() => {
             if (title === card.title) return
             update({ id: card.id, title })
-            recordCardPatch(card.id, 'Rename card', { title: card.title }, { title })
+            recordCardPatch(card.id, t('undo.renameCard'), { title: card.title }, { title })
           }}
           onKeyDown={(e) => {
             if (e.key === 'Enter') {
@@ -269,7 +270,7 @@ export function CardPanel({ cardId }: { cardId: string }) {
       <motion.div
         role="dialog"
         aria-modal="true"
-        aria-label="Card"
+        aria-label={t('task.card')}
         data-card-modal=""
         initial={{ opacity: 0, scale: 0.96, y: 12 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}

@@ -1,6 +1,7 @@
 import { CircleDot } from '@/components/icons'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { color } from '@/lib/colors'
+import { t } from '@/lib/i18n'
 import { useSetPropertyValueMutation } from '@/store/api'
 import type { CardDetail } from '@shared/types'
 
@@ -26,7 +27,7 @@ export function PropertyList({ cardId, properties }: { cardId: string; propertie
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value={NONE}>
-                  <span className="text-muted-foreground">Empty</span>
+                  <span className="text-muted-foreground">{t('folder.empty')}</span>
                 </SelectItem>
                 {property.options.map((o) => (
                   <SelectItem key={o.id} value={o.id}>
@@ -42,7 +43,7 @@ export function PropertyList({ cardId, properties }: { cardId: string; propertie
               defaultValue={value == null ? '' : String(value)}
               onBlur={(e) => setValue({ cardId, propertyId: property.id, value: e.target.value })}
               className="h-7 rounded-md bg-transparent px-2 outline-none hover:bg-accent focus:bg-accent"
-              placeholder="Empty"
+              placeholder={t('folder.empty')}
             />
           )}
         </div>

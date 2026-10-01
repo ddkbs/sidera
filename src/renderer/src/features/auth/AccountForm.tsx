@@ -7,7 +7,7 @@ import { Checkbox } from '@/components/ui/checkbox'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
-import { color } from '@/lib/colors'
+import { color, colorName } from '@/lib/colors'
 import { t } from '@/lib/i18n'
 import { cn } from '@/lib/utils'
 import { ProfileAvatar } from '@/features/profile/ProfileAvatar'
@@ -25,7 +25,7 @@ export function ColorPicker({ value, onChange }: { value: string; onChange: (c: 
           type="button"
           role="radio"
           aria-checked={value === c}
-          aria-label={c}
+          aria-label={colorName(c)}
           onClick={() => onChange(c)}
           className={cn(
             'grid size-6 place-items-center rounded-full ring-offset-2 ring-offset-background transition outline-none focus-visible:ring-2 focus-visible:ring-ring',

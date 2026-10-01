@@ -1,5 +1,6 @@
 import { X } from '@/components/icons'
 import { color } from '@/lib/colors'
+import { t } from '@/lib/i18n'
 import type { Tag } from '@shared/types'
 
 export function TagBadge({ tag, onRemove }: { tag: Pick<Tag, 'name' | 'color'>; onRemove?: () => void }) {
@@ -11,7 +12,7 @@ export function TagBadge({ tag, onRemove }: { tag: Pick<Tag, 'name' | 'color'>; 
     >
       #{tag.name}
       {onRemove && (
-        <button onClick={onRemove} className="-mr-0.5 hidden rounded group-hover/tag:inline-flex" aria-label={`Remove ${tag.name}`}>
+        <button onClick={onRemove} className="-mr-0.5 hidden rounded group-hover/tag:inline-flex" aria-label={t('file.remove', { name: tag.name })}>
           <X className="size-3" />
         </button>
       )}

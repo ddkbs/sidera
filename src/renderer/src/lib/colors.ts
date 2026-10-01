@@ -1,4 +1,6 @@
 /** Palette used by tags, sections and select options. Values are CSS colors usable in both themes. */
+import { labelMap } from './i18n'
+
 export const PALETTE: Record<string, { fg: string; bg: string; border: string }> = {
   gray: { fg: 'oklch(0.5 0 0)', bg: 'oklch(0.6 0 0 / 0.1)', border: 'oklch(0.6 0 0 / 0.35)' },
   red: { fg: 'oklch(0.58 0.19 25)', bg: 'oklch(0.65 0.2 25 / 0.1)', border: 'oklch(0.65 0.2 25 / 0.4)' },
@@ -12,3 +14,18 @@ export const PALETTE: Record<string, { fg: string; bg: string; border: string }>
 }
 
 export const color = (name: string | null | undefined) => PALETTE[name ?? 'gray'] ?? PALETTE.gray
+
+const COLOR_NAMES = labelMap({
+  gray: 'color.gray',
+  red: 'color.red',
+  orange: 'color.orange',
+  yellow: 'color.yellow',
+  green: 'color.green',
+  teal: 'color.teal',
+  blue: 'color.blue',
+  purple: 'color.purple',
+  pink: 'color.pink'
+})
+
+/** Human name of a palette colour in the UI language (for titles / aria labels). */
+export const colorName = (name: string): string => COLOR_NAMES[name as keyof typeof COLOR_NAMES] ?? name

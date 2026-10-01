@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { Check, Hash } from '@/components/icons'
 import { color } from '@/lib/colors'
+import { t } from '@/lib/i18n'
 import { cn } from '@/lib/utils'
 import { useAppearance } from '@/lib/appearance'
 import { useCreateCardMutation, useListTagsQuery } from '@/store/api'
@@ -68,7 +69,7 @@ export function CaptureApp() {
         {saved ? (
           <div className="flex flex-1 flex-col items-center justify-center gap-2 text-sm text-muted-foreground">
             <Check className="size-6 text-emerald-500" />
-            Saved
+            {t('capture.saved')}
           </div>
         ) : (
           <>
@@ -76,30 +77,30 @@ export function CaptureApp() {
               ref={textareaRef}
               value={text}
               onChange={(e) => setText(e.target.value)}
-              placeholder="New card — first line is the title…"
+              placeholder={t('capture.placeholder')}
               className="min-h-0 flex-1 resize-none bg-transparent text-[15px] leading-relaxed outline-none placeholder:text-muted-foreground"
             />
             <div className="mb-2 flex flex-wrap items-center gap-1">
-              {tags.map((t) => {
-                const active = tagIds.includes(t.id)
+              {tags.map((tag) => {
+                const active = tagIds.includes(tag.id)
                 return (
                   <button
-                    key={t.id}
-                    onClick={() => setTagIds((ids) => (active ? ids.filter((id) => id !== t.id) : [...ids, t.id]))}
-                    style={active ? { color: color(t.color).fg, backgroundColor: color(t.color).bg, borderColor: color(t.color).border } : undefined}
+                    key={tag.id}
+                    onClick={() => setTagIds((ids) => (active ? ids.filter((id) => id !== tag.id) : [...ids, tag.id]))}
+                    style={active ? { color: color(tag.color).fg, backgroundColor: color(tag.color).bg, borderColor: color(tag.color).border } : undefined}
                     className={cn(
                       'flex h-6 items-center gap-1 rounded-full border px-2 text-xs transition',
                       active ? '' : 'border-transparent text-muted-foreground hover:bg-accent'
                     )}
                   >
                     <Hash className="size-3" />
-                    {t.name}
+                    {tag.name}
                   </button>
                 )
               })}
             </div>
             <div className="flex items-center justify-end border-t pt-2">
-              <p className="text-[11px] text-muted-foreground">↩ newline · ⌘↩ save · esc close</p>
+              <p className="text-[11px] text-muted-foreground">{t('capture.hint')}</p>
             </div>
           </>
         )}

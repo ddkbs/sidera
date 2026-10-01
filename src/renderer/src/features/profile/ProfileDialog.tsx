@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { color } from '@/lib/colors'
+import { color, colorName } from '@/lib/colors'
 import { t } from '@/lib/i18n'
 import { cn } from '@/lib/utils'
 import { useAppDispatch, useAppSelector } from '@/store'
@@ -161,8 +161,8 @@ function ProfileForm({ id, onDone }: { id: string | null; onDone: () => void }) 
             <button
               key={c}
               type="button"
-              aria-label={c}
-              title={c}
+              aria-label={colorName(c)}
+              title={colorName(c)}
               onClick={() => setTone(c)}
               className={cn('grid size-7 place-items-center rounded-full ring-offset-2 ring-offset-background transition', tone === c && 'ring-2 ring-ring')}
               style={{ background: color(c).fg }}

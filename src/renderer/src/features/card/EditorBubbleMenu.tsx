@@ -2,6 +2,8 @@ import type { Editor } from '@tiptap/react'
 import { BubbleMenu } from '@tiptap/react/menus'
 import { useState } from 'react'
 import { Bold, Code, Eraser, Highlighter, Italic, Link2, Strikethrough, Underline } from '@/components/icons'
+import { colorName } from '@/lib/colors'
+import { t } from '@/lib/i18n'
 import { cn } from '@/lib/utils'
 import { HIGHLIGHT_COLORS, TEXT_COLORS } from './marks'
 
@@ -42,8 +44,8 @@ function Swatches({
           <button
             key={c.name}
             type="button"
-            aria-label={c.name}
-            title={c.name}
+            aria-label={colorName(c.name)}
+            title={colorName(c.name)}
             onMouseDown={(e) => (e.preventDefault(), onPick(c.value))}
             className={cn('size-7 rounded-md border text-[13px] font-semibold', current === c.value && 'ring-2 ring-brand')}
             style={render(c.value)}
@@ -82,24 +84,24 @@ export function EditorBubbleMenu({ editor }: { editor: Editor }) {
       className="card-bubble-menu relative flex items-center gap-0.5 rounded-xl border bg-popover p-1 shadow-xl"
       onMouseLeave={() => setOpen(null)}
     >
-      <Btn label="Bold" active={editor.isActive('bold')} onClick={run(() => editor.chain().focus().toggleBold().run())}>
+      <Btn label={t('format.bold')} active={editor.isActive('bold')} onClick={run(() => editor.chain().focus().toggleBold().run())}>
         <Bold className="size-4" />
       </Btn>
-      <Btn label="Italic" active={editor.isActive('italic')} onClick={run(() => editor.chain().focus().toggleItalic().run())}>
+      <Btn label={t('format.italic')} active={editor.isActive('italic')} onClick={run(() => editor.chain().focus().toggleItalic().run())}>
         <Italic className="size-4" />
       </Btn>
-      <Btn label="Underline" active={editor.isActive('underline')} onClick={run(() => editor.chain().focus().toggleUnderline().run())}>
+      <Btn label={t('format.underline')} active={editor.isActive('underline')} onClick={run(() => editor.chain().focus().toggleUnderline().run())}>
         <Underline className="size-4" />
       </Btn>
-      <Btn label="Strikethrough" active={editor.isActive('strike')} onClick={run(() => editor.chain().focus().toggleStrike().run())}>
+      <Btn label={t('format.strike')} active={editor.isActive('strike')} onClick={run(() => editor.chain().focus().toggleStrike().run())}>
         <Strikethrough className="size-4" />
       </Btn>
-      <Btn label="Code" active={editor.isActive('code')} onClick={run(() => editor.chain().focus().toggleCode().run())}>
+      <Btn label={t('format.code')} active={editor.isActive('code')} onClick={run(() => editor.chain().focus().toggleCode().run())}>
         <Code className="size-4" />
       </Btn>
       <Sep />
       <div className="relative">
-        <Btn label="Text color" active={open === 'text' || Boolean(textColor)} onClick={() => setOpen((o) => (o === 'text' ? null : 'text'))}>
+        <Btn label={t('format.textColor')} active={open === 'text' || Boolean(textColor)} onClick={() => setOpen((o) => (o === 'text' ? null : 'text'))}>
           <span className="text-[15px] leading-none font-semibold" style={textColor ? { color: textColor } : undefined}>
             A
           </span>
@@ -110,13 +112,13 @@ export function EditorBubbleMenu({ editor }: { editor: Editor }) {
             current={textColor}
             onPick={(v) => run(() => editor.chain().focus().setColor(v).run())()}
             onClear={run(() => editor.chain().focus().unsetColor().run())}
-            clearLabel="Default color"
+            clearLabel={t('format.defaultColor')}
             render={(v) => ({ color: v })}
           />
         )}
       </div>
       <div className="relative">
-        <Btn label="Highlight" active={open === 'highlight' || Boolean(highlight)} onClick={() => setOpen((o) => (o === 'highlight' ? null : 'highlight'))}>
+        <Btn label={t('format.highlight')} active={open === 'highlight' || Boolean(highlight)} onClick={() => setOpen((o) => (o === 'highlight' ? null : 'highlight'))}>
           <Highlighter className="size-4" />
         </Btn>
         {open === 'highlight' && (
@@ -125,18 +127,18 @@ export function EditorBubbleMenu({ editor }: { editor: Editor }) {
             current={highlight}
             onPick={(v) => run(() => editor.chain().focus().setHighlight({ color: v }).run())()}
             onClear={run(() => editor.chain().focus().unsetHighlight().run())}
-            clearLabel="No highlight"
+            clearLabel={t('format.noHighlight')}
             render={(v) => ({ background: v })}
           />
         )}
       </div>
       <Sep />
       <Btn
-        label="Link"
+        label={t('format.link')}
         active={editor.isActive('link')}
         onClick={run(() => {
           const prev = (editor.getAttributes('link').href as string | undefined) ?? ''
-          const href = window.prompt('Link URL', prev)
+          const href = window.prompt(t('format.linkUrl'), prev)
           if (href === null) return
           if (!href) editor.chain().focus().unsetLink().run()
           else editor.chain().focus().setLink({ href }).run()
@@ -144,7 +146,7 @@ export function EditorBubbleMenu({ editor }: { editor: Editor }) {
       >
         <Link2 className="size-4" />
       </Btn>
-      <Btn label="Clear formatting" onClick={run(() => editor.chain().focus().unsetAllMarks().run())}>
+      <Btn label={t('format.clear')} onClick={run(() => editor.chain().focus().unsetAllMarks().run())}>
         <Eraser className="size-4" />
       </Btn>
     </BubbleMenu>

@@ -4,6 +4,7 @@ import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, Command
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { useCreateTagMutation, useListTagsQuery, useSetCardTagsMutation } from '@/store/api'
 import type { Tag } from '@shared/types'
+import { t } from '@/lib/i18n'
 import { TagBadge } from './TagBadge'
 
 export function TagPicker({ cardId, tags }: { cardId: string; tags: Tag[] }) {
@@ -11,7 +12,7 @@ export function TagPicker({ cardId, tags }: { cardId: string; tags: Tag[] }) {
   const [createTag] = useCreateTagMutation()
   const [setTags] = useSetCardTagsMutation()
   const [query, setQuery] = useState('')
-  const selected = new Set(tags.map((t) => t.id))
+  const selected = new Set(tags.map((tag) => tag.id))
 
   const toggle = (id: string) => {
     const next = new Set(selected)
@@ -33,20 +34,20 @@ export function TagPicker({ cardId, tags }: { cardId: string; tags: Tag[] }) {
       <Popover>
         <PopoverTrigger asChild>
           <button className="flex h-6 items-center gap-1 rounded-md px-1.5 text-xs text-muted-foreground transition hover:bg-accent hover:text-foreground">
-            <Plus className="size-3" /> Tag
+            <Plus className="size-3" /> {t('tag.tag')}
           </button>
         </PopoverTrigger>
         <PopoverContent className="w-60 p-0" align="start">
           <Command>
-            <CommandInput placeholder="Find or create tag…" value={query} onValueChange={setQuery} />
+            <CommandInput placeholder={t('tag.findOrCreate')} value={query} onValueChange={setQuery} />
             <CommandList>
               <CommandEmpty className="p-1">
                 {query.trim() ? (
                   <button onClick={create} className="flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-sm hover:bg-accent">
-                    <Plus className="size-3.5" /> Create “{query.trim()}”
+                    <Plus className="size-3.5" /> {t('tag.create', { name: query.trim() })}
                   </button>
                 ) : (
-                  <span className="block py-4 text-center text-sm text-muted-foreground">No tags</span>
+                  <span className="block py-4 text-center text-sm text-muted-foreground">{t('tag.none')}</span>
                 )}
               </CommandEmpty>
               <CommandGroup>
@@ -56,9 +57,9 @@ export function TagPicker({ cardId, tags }: { cardId: string; tags: Tag[] }) {
                     <Check className={selected.has(t.id) ? 'ml-auto size-3.5' : 'ml-auto size-3.5 opacity-0'} />
                   </CommandItem>
                 ))}
-                {query.trim() && !all.some((t) => t.name.toLowerCase() === query.trim().toLowerCase()) && all.length > 0 && (
+                {query.trim() && !all.some((tag) => tag.name.toLowerCase() === query.trim().toLowerCase()) && all.length > 0 && (
                   <CommandItem value={`__create ${query}`} onSelect={create}>
-                    <Plus className="size-3.5" /> Create “{query.trim()}”
+                    <Plus className="size-3.5" /> {t('tag.create', { name: query.trim() })}
                   </CommandItem>
                 )}
               </CommandGroup>

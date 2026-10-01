@@ -2,6 +2,7 @@ import { Details, DetailsContent, DetailsSummary } from '@tiptap/extension-detai
 import Highlight from '@tiptap/extension-highlight'
 import Link from '@tiptap/extension-link'
 import Placeholder from '@tiptap/extension-placeholder'
+import { t } from '@/lib/i18n'
 import TaskItem from '@tiptap/extension-task-item'
 import TaskList from '@tiptap/extension-task-list'
 import { TableKit } from '@tiptap/extension-table'
@@ -43,7 +44,7 @@ interface Props {
 }
 
 /** Rich text editor for card content. Uncontrolled after mount — remount (key) to load a different card. */
-export function CardEditor({ content, onChange, placeholder = "Write, type '/' for commands or '@' to link a card…", className, autofocus, editable = true }: Props) {
+export function CardEditor({ content, onChange, placeholder = t('editor.placeholder'), className, autofocus, editable = true }: Props) {
   const spellcheck = useAppSelector((s) => s.settings.editor.spellcheck)
   const timer = useRef<ReturnType<typeof setTimeout>>(undefined)
   const latest = useRef(onChange)

@@ -4,6 +4,7 @@ import type { SuggestionKeyDownProps, SuggestionProps } from '@tiptap/suggestion
 import { FileText, Plus } from '@/components/icons'
 import { forwardRef, useEffect, useImperativeHandle, useState } from 'react'
 import { MENTION_NODE } from '@shared/doc'
+import { t } from '@/lib/i18n'
 import { cn } from '@/lib/utils'
 import { store } from '@/store'
 import { openCard } from '@/store/ui'
@@ -42,7 +43,7 @@ const MentionList = forwardRef<ListHandle, SuggestionProps<Item>>(function Menti
           className={cn('flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left', i === index && 'bg-accent')}
         >
           {item.create ? <Plus className="size-3.5" /> : <FileText className="size-3.5 text-muted-foreground" />}
-          <span className="truncate">{item.create ? `Create “${item.label}”` : item.label || 'Untitled'}</span>
+          <span className="truncate">{item.create ? t('tag.create', { name: item.label }) : item.label || t('common.untitled')}</span>
         </button>
       ))}
     </div>

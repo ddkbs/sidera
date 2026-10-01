@@ -5,7 +5,8 @@ import { Button } from '@/components/ui/button'
 import { ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuLabel, ContextMenuSeparator, ContextMenuTrigger } from '@/components/ui/context-menu'
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
-import { PALETTE } from '@/lib/colors'
+import { colorName, PALETTE } from '@/lib/colors'
+import { t } from '@/lib/i18n'
 import { cn } from '@/lib/utils'
 import { useAppDispatch, useAppSelector } from '@/store'
 import { useDeleteTagMutation, useUpdateTagMutation } from '@/store/api'
@@ -28,12 +29,12 @@ export function TagMenu({ tag, children }: { tag: Tag; children: ReactNode }) {
           <div className="flex flex-col">{children}</div>
         </ContextMenuTrigger>
         <ContextMenuContent className="w-52">
-          <ContextMenuLabel className="text-xs text-muted-foreground">Color</ContextMenuLabel>
+          <ContextMenuLabel className="text-xs text-muted-foreground">{t('account.color')}</ContextMenuLabel>
           <div className="flex flex-wrap gap-1.5 px-2 pb-2">
             {Object.keys(PALETTE).map((c) => (
               <button
                 key={c}
-                aria-label={c}
+                aria-label={colorName(c)}
                 onClick={() => update({ id: tag.id, color: c })}
                 className={cn('size-5 rounded-full border-2', c === tag.color ? 'border-foreground/60' : 'border-transparent')}
                 style={{ background: PALETTE[c].fg }}
@@ -42,24 +43,24 @@ export function TagMenu({ tag, children }: { tag: Tag; children: ReactNode }) {
           </div>
           <ContextMenuSeparator />
           <ContextMenuItem onSelect={() => (setName(tag.name), setRenaming(true))}>
-            <Pencil /> Rename
+            <Pencil /> {t('common.rename')}
           </ContextMenuItem>
           <ContextMenuItem
             variant="destructive"
             onSelect={async () => {
               if (view.type === 'library' && view.tagId === tag.id) dispatch(navigate({ type: 'library', tagId: null, mode: 'table' }))
               await remove(tag.id)
-              toast(`Deleted #${tag.name} (cards kept)`)
+              toast(t('tag.deleted', { name: tag.name }))
             }}
           >
-            <Trash2 /> Delete tag
+            <Trash2 /> {t('tag.delete')}
           </ContextMenuItem>
         </ContextMenuContent>
       </ContextMenu>
       <Dialog open={renaming} onOpenChange={setRenaming}>
         <DialogContent className="sm:max-w-sm">
           <DialogHeader>
-            <DialogTitle>Rename tag</DialogTitle>
+            <DialogTitle>{t('tag.rename')}</DialogTitle>
           </DialogHeader>
           <form
             onSubmit={(e) => {
@@ -70,7 +71,7 @@ export function TagMenu({ tag, children }: { tag: Tag; children: ReactNode }) {
           >
             <Input autoFocus value={name} onChange={(e) => setName(e.target.value)} />
             <DialogFooter className="mt-4">
-              <Button type="submit">Save</Button>
+              <Button type="submit">{t('common.save')}</Button>
             </DialogFooter>
           </form>
         </DialogContent>

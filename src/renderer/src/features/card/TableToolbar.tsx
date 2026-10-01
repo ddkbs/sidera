@@ -1,6 +1,7 @@
 import type { Editor } from '@tiptap/react'
 import { BubbleMenu } from '@tiptap/react/menus'
 import { ArrowDown, ArrowLeft, ArrowRight, ArrowUp, Minus, Table2, Trash2 } from '@/components/icons'
+import { t } from '@/lib/i18n'
 import { cn } from '@/lib/utils'
 
 const Btn = ({ label, onClick, children, danger }: { label: string; onClick: () => void; children: React.ReactNode; danger?: boolean }) => (
@@ -31,30 +32,30 @@ export function TableToolbar({ editor }: { editor: Editor }) {
       shouldShow={({ editor }) => editor.isEditable && editor.isActive('table')}
       className="card-table-toolbar flex items-center gap-0.5 rounded-xl border bg-popover p-1 shadow-xl"
     >
-      <Btn label="Insert column before" onClick={() => c().addColumnBefore().run()}>
+      <Btn label={t('table.colBefore')} onClick={() => c().addColumnBefore().run()}>
         <ArrowLeft className="size-4" />
       </Btn>
-      <Btn label="Insert column after" onClick={() => c().addColumnAfter().run()}>
+      <Btn label={t('table.colAfter')} onClick={() => c().addColumnAfter().run()}>
         <ArrowRight className="size-4" />
       </Btn>
-      <Btn label="Delete column" onClick={() => c().deleteColumn().run()}>
+      <Btn label={t('table.colDelete')} onClick={() => c().deleteColumn().run()}>
         <Minus className="size-4 rotate-90" />
       </Btn>
       <Sep />
-      <Btn label="Insert row above" onClick={() => c().addRowBefore().run()}>
+      <Btn label={t('table.rowAbove')} onClick={() => c().addRowBefore().run()}>
         <ArrowUp className="size-4" />
       </Btn>
-      <Btn label="Insert row below" onClick={() => c().addRowAfter().run()}>
+      <Btn label={t('table.rowBelow')} onClick={() => c().addRowAfter().run()}>
         <ArrowDown className="size-4" />
       </Btn>
-      <Btn label="Delete row" onClick={() => c().deleteRow().run()}>
+      <Btn label={t('table.rowDelete')} onClick={() => c().deleteRow().run()}>
         <Minus className="size-4" />
       </Btn>
       <Sep />
-      <Btn label="Toggle header row" onClick={() => c().toggleHeaderRow().run()}>
+      <Btn label={t('table.headerRow')} onClick={() => c().toggleHeaderRow().run()}>
         <Table2 className="size-4" />
       </Btn>
-      <Btn label="Delete table" danger onClick={() => c().deleteTable().run()}>
+      <Btn label={t('table.delete')} danger onClick={() => c().deleteTable().run()}>
         <Trash2 className="size-4" />
       </Btn>
     </BubbleMenu>

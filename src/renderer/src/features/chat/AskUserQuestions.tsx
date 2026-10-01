@@ -3,6 +3,7 @@ import { useState } from 'react'
 import type { AskUserAnswer, AskUserQuestion } from '@shared/api'
 import { ArrowRight, Check, CircleDot } from '@/components/icons'
 import { Button } from '@/components/ui/button'
+import { t } from '@/lib/i18n'
 import { cn } from '@/lib/utils'
 import { answersFromValues, summarizeAnswers, toItemDefinitions } from './askUserQuestionsHelpers'
 
@@ -29,7 +30,7 @@ export function AskUserQuestions({ requestId, questions, answers, onSubmit, onSk
       <div className="max-w-full space-y-1 rounded-xl border bg-card px-3 py-2.5 text-sm">
         <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
           <Check className="size-3.5 text-primary" />
-          {rows ? 'Answered' : 'Skipped'}
+          {rows ? t('ask.answered') : t('ask.skipped')}
         </div>
         {rows && (
           <dl className="space-y-1">
@@ -76,7 +77,7 @@ export function AskUserQuestions({ requestId, questions, answers, onSubmit, onSk
           {q.type === 'text' ? (
             <Questionnaire.Input
               className="w-full rounded-lg border bg-background px-2.5 py-1.5 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring/30"
-              placeholder="Type your answer…"
+              placeholder={t('ask.placeholder')}
             />
           ) : (
             <Questionnaire.Choices className="space-y-1.5">
@@ -101,14 +102,14 @@ export function AskUserQuestions({ requestId, questions, answers, onSubmit, onSk
 
       <div className="flex items-center justify-between gap-2 pt-1">
         <button type="button" onClick={() => onSkip(requestId)} className="text-xs text-muted-foreground underline-offset-2 hover:underline">
-          Skip
+          {t('common.skip')}
         </button>
         <div className="flex items-center gap-1.5">
-          <Questionnaire.Previous render={<Button type="button" variant="ghost" size="sm" />}>Back</Questionnaire.Previous>
+          <Questionnaire.Previous render={<Button type="button" variant="ghost" size="sm" />}>{t('common.back')}</Questionnaire.Previous>
           <Questionnaire.Next render={<Button type="button" size="sm" className={cn('gap-1')} />}>
-            Next <ArrowRight className="size-3.5" />
+            {t('common.next')} <ArrowRight className="size-3.5" />
           </Questionnaire.Next>
-          <Questionnaire.Submit render={<Button type="submit" size="sm" />}>Submit</Questionnaire.Submit>
+          <Questionnaire.Submit render={<Button type="submit" size="sm" />}>{t('ask.submit')}</Questionnaire.Submit>
         </div>
       </div>
     </Questionnaire.Root>

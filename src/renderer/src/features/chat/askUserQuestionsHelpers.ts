@@ -1,4 +1,5 @@
 import type { AskUserAnswer, AskUserQuestion } from '@shared/api'
+import { t } from '../../lib/i18n'
 
 /** Shape the `@shadcn/react/questionnaire` `Questionnaire.Root` component expects for `items`. */
 export interface QuestionnaireItemDef {
@@ -26,6 +27,6 @@ export function summarizeAnswers(questions: AskUserQuestion[], answers: AskUserA
   const byId = new Map(questions.map((q) => [q.id, q]))
   return answers.map((a) => ({
     question: byId.get(a.id)?.question ?? a.id,
-    value: a.values.length ? a.values.join(', ') : 'Skipped'
+    value: a.values.length ? a.values.join(', ') : t('ask.skipped')
   }))
 }

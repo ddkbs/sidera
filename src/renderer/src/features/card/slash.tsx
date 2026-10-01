@@ -4,11 +4,13 @@ import { PluginKey } from '@tiptap/pm/state'
 import { forwardRef, useEffect, useImperativeHandle, useLayoutEffect, useRef, useState, type ReactNode } from 'react'
 import { ChevronRight, Code, FileText, Heading1, Heading2, Heading3, Highlighter, List, ListChecks, ListOrdered, Minus, Quote, Table2, Text, type AppIcon } from '@/components/icons'
 import { HIGHLIGHT_COLORS } from './marks'
+import { t, tRich } from '@/lib/i18n'
 import { cn } from '@/lib/utils'
 
 interface SlashItem {
   title: string
-  group: 'Basic blocks' | 'Insert'
+  /** translated group heading */
+  group: string
   hint?: string
   description: string
   keywords: string
@@ -28,87 +30,93 @@ const Heading4: AppIcon = ({ className, style }) => (
 
 const P = ({ children, className }: { children: ReactNode; className?: string }) => <div className={cn('text-[13px] leading-snug', className)}>{children}</div>
 
-export const SLASH_ITEMS: SlashItem[] = [
-  {
-    title: 'Text', group: 'Basic blocks', description: 'Just start writing with plain text.', keywords: 'paragraph plain p', icon: Text,
-    preview: <P>The best way to predict the future is to invent it.</P>,
-    run: (e, r) => chain(e, r).setParagraph().run()
-  },
-  {
-    title: 'Heading 1', group: 'Basic blocks', hint: '#', description: 'Big section heading.', keywords: 'h1 title', icon: Heading1,
-    preview: <><P className="text-xl font-semibold">The future</P><P className="mt-1 text-muted-foreground">is to invent it.</P></>,
-    run: (e, r) => chain(e, r).setHeading({ level: 1 }).run()
-  },
-  {
-    title: 'Heading 2', group: 'Basic blocks', hint: '##', description: 'Medium section heading.', keywords: 'h2 subtitle', icon: Heading2,
-    preview: <><P className="text-lg font-semibold">The future</P><P className="mt-1 text-muted-foreground">is to invent it.</P></>,
-    run: (e, r) => chain(e, r).setHeading({ level: 2 }).run()
-  },
-  {
-    title: 'Heading 3', group: 'Basic blocks', hint: '###', description: 'Small section heading.', keywords: 'h3', icon: Heading3,
-    preview: <><P className="text-base font-semibold">The future</P><P className="mt-1 text-muted-foreground">is to invent it.</P></>,
-    run: (e, r) => chain(e, r).setHeading({ level: 3 }).run()
-  },
-  {
-    title: 'Heading 4', group: 'Basic blocks', hint: '####', description: 'Smaller section heading.', keywords: 'h4', icon: Heading4,
-    preview: <><P className="font-semibold">The future</P><P className="mt-1 text-muted-foreground">The best way to predict the future is to invent it.</P></>,
-    run: (e, r) => chain(e, r).setHeading({ level: 4 }).run()
-  },
-  {
-    title: 'Bullet list', group: 'Basic blocks', hint: '-', description: 'Create a simple bulleted list.', keywords: 'ul bullets unordered', icon: List,
-    preview: <ul className="list-disc pl-4 text-[13px] leading-snug"><li>Ideas</li><li>Questions</li><li>Next steps</li></ul>,
-    run: (e, r) => chain(e, r).toggleBulletList().run()
-  },
-  {
-    title: 'Numbered list', group: 'Basic blocks', hint: '1.', description: 'Create a list with numbering.', keywords: 'ol numbers ordered', icon: ListOrdered,
-    preview: <ol className="list-decimal pl-4 text-[13px] leading-snug"><li>Research</li><li>Sketch</li><li>Ship</li></ol>,
-    run: (e, r) => chain(e, r).toggleOrderedList().run()
-  },
-  {
-    title: 'To-do list', group: 'Basic blocks', hint: '[]', description: 'Track tasks with checkboxes.', keywords: 'todo task checkbox check', icon: ListChecks,
-    preview: <div className="space-y-1 text-[13px]"><label className="flex items-center gap-1.5"><input type="checkbox" defaultChecked readOnly /> <s className="text-muted-foreground">Draft outline</s></label><label className="flex items-center gap-1.5"><input type="checkbox" readOnly /> Review</label></div>,
-    run: (e, r) => chain(e, r).toggleTaskList().run()
-  },
-  {
-    title: 'Quote', group: 'Basic blocks', hint: '>', description: 'Capture a quote.', keywords: 'blockquote citation', icon: Quote,
-    preview: <div className="border-l-2 border-foreground/40 pl-2 text-[13px] leading-snug">The best way to predict the future is to invent it.</div>,
-    run: (e, r) => chain(e, r).toggleBlockquote().run()
-  },
-  {
-    title: 'Code block', group: 'Basic blocks', hint: '```', description: 'Capture a code snippet.', keywords: 'code pre snippet', icon: Code,
-    preview: <pre className="rounded bg-muted px-2 py-1 font-mono text-[11px]">const idea = invent()</pre>,
-    run: (e, r) => chain(e, r).toggleCodeBlock().run()
-  },
-  {
-    title: 'Toggle list', group: 'Basic blocks', hint: '>>', description: 'Hide content inside a collapsible block.', keywords: 'toggle collapse details accordion fold', icon: ChevronRight,
-    preview: <div className="text-[13px] leading-snug"><div className="flex items-center gap-1 font-medium"><ChevronRight className="size-3.5 rotate-90" />Details</div><div className="pl-4.5 text-muted-foreground">Everything you can hide.</div></div>,
-    run: (e, r) => chain(e, r).setDetails().run()
-  },
-  {
-    title: 'Table', group: 'Basic blocks', hint: '|||', description: 'Add a table with a header row.', keywords: 'table grid rows columns spreadsheet', icon: Table2,
-    preview: <table className="w-full border-collapse text-[11px]"><tbody><tr className="bg-muted"><th className="border px-1.5 py-0.5 text-left">Name</th><th className="border px-1.5 py-0.5 text-left">Role</th></tr><tr><td className="border px-1.5 py-0.5">Ada</td><td className="border px-1.5 py-0.5">Maths</td></tr></tbody></table>,
-    run: (e, r) => chain(e, r).insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run()
-  },
-  {
-    title: 'Divider', group: 'Basic blocks', hint: '---', description: 'Visually divide blocks.', keywords: 'hr line separator rule', icon: Minus,
-    preview: <><P>Above</P><hr className="my-1.5 border-border" /><P>Below</P></>,
-    run: (e, r) => chain(e, r).setHorizontalRule().run()
-  },
-  {
-    title: 'Link to card', group: 'Insert', hint: '@', description: 'Mention another card. Creates a backlink.', keywords: 'mention card link backlink page', icon: FileText,
-    preview: <P>See <span className="rounded bg-brand/10 px-1 font-medium text-brand">@Research notes</span> for details.</P>,
-    run: (e, r) => chain(e, r).insertContent('@').run()
-  },
-  {
-    title: 'Highlight', group: 'Insert', description: 'Start highlighting what you type next. Pick other colors in the selection toolbar.', keywords: 'highlight marker color colour yellow mark', icon: Highlighter,
-    preview: <P>Make it <mark style={{ background: HIGHLIGHT_COLORS[3].value, borderRadius: 3, padding: '0 2px' }}>stand out</mark>.</P>,
-    run: (e, r) => chain(e, r).setHighlight({ color: HIGHLIGHT_COLORS[3].value }).run()
-  }
-]
+/** The "/" menu items in the UI language (keywords match in English and the UI language). */
+function slashItems(): SlashItem[] {
+  const basic = t('slash.group.basic')
+  const insert = t('slash.group.insert')
+  const quote = t('slash.preview.quote')
+  return [
+    {
+      title: t('slash.text'), group: basic, description: t('slash.text.desc'), keywords: `paragraph plain p ${t('slash.text.kw')}`, icon: Text,
+      preview: <P>{quote}</P>,
+      run: (e, r) => chain(e, r).setParagraph().run()
+    },
+    {
+      title: t('slash.h1'), group: basic, hint: '#', description: t('slash.h1.desc'), keywords: `h1 title ${t('slash.h.kw')}`, icon: Heading1,
+      preview: <><P className="text-xl font-semibold">{t('slash.preview.future')}</P><P className="mt-1 text-muted-foreground">{t('slash.preview.invent')}</P></>,
+      run: (e, r) => chain(e, r).setHeading({ level: 1 }).run()
+    },
+    {
+      title: t('slash.h2'), group: basic, hint: '##', description: t('slash.h2.desc'), keywords: `h2 subtitle ${t('slash.h.kw')}`, icon: Heading2,
+      preview: <><P className="text-lg font-semibold">{t('slash.preview.future')}</P><P className="mt-1 text-muted-foreground">{t('slash.preview.invent')}</P></>,
+      run: (e, r) => chain(e, r).setHeading({ level: 2 }).run()
+    },
+    {
+      title: t('slash.h3'), group: basic, hint: '###', description: t('slash.h3.desc'), keywords: `h3 ${t('slash.h.kw')}`, icon: Heading3,
+      preview: <><P className="text-base font-semibold">{t('slash.preview.future')}</P><P className="mt-1 text-muted-foreground">{t('slash.preview.invent')}</P></>,
+      run: (e, r) => chain(e, r).setHeading({ level: 3 }).run()
+    },
+    {
+      title: t('slash.h4'), group: basic, hint: '####', description: t('slash.h4.desc'), keywords: `h4 ${t('slash.h.kw')}`, icon: Heading4,
+      preview: <><P className="font-semibold">{t('slash.preview.future')}</P><P className="mt-1 text-muted-foreground">{quote}</P></>,
+      run: (e, r) => chain(e, r).setHeading({ level: 4 }).run()
+    },
+    {
+      title: t('slash.bullets'), group: basic, hint: '-', description: t('slash.bullets.desc'), keywords: `ul bullets unordered ${t('slash.bullets.kw')}`, icon: List,
+      preview: <ul className="list-disc pl-4 text-[13px] leading-snug"><li>{t('slash.preview.ideas')}</li><li>{t('slash.preview.questions')}</li><li>{t('slash.preview.nextSteps')}</li></ul>,
+      run: (e, r) => chain(e, r).toggleBulletList().run()
+    },
+    {
+      title: t('slash.numbered'), group: basic, hint: '1.', description: t('slash.numbered.desc'), keywords: `ol numbers ordered ${t('slash.numbered.kw')}`, icon: ListOrdered,
+      preview: <ol className="list-decimal pl-4 text-[13px] leading-snug"><li>{t('slash.preview.research')}</li><li>{t('slash.preview.sketch')}</li><li>{t('slash.preview.ship')}</li></ol>,
+      run: (e, r) => chain(e, r).toggleOrderedList().run()
+    },
+    {
+      title: t('slash.todo'), group: basic, hint: '[]', description: t('slash.todo.desc'), keywords: `todo task checkbox check ${t('slash.todo.kw')}`, icon: ListChecks,
+      preview: <div className="space-y-1 text-[13px]"><label className="flex items-center gap-1.5"><input type="checkbox" defaultChecked readOnly /> <s className="text-muted-foreground">{t('slash.preview.draft')}</s></label><label className="flex items-center gap-1.5"><input type="checkbox" readOnly /> {t('slash.preview.review')}</label></div>,
+      run: (e, r) => chain(e, r).toggleTaskList().run()
+    },
+    {
+      title: t('slash.quote'), group: basic, hint: '>', description: t('slash.quote.desc'), keywords: `blockquote citation ${t('slash.quote.kw')}`, icon: Quote,
+      preview: <div className="border-l-2 border-foreground/40 pl-2 text-[13px] leading-snug">{quote}</div>,
+      run: (e, r) => chain(e, r).toggleBlockquote().run()
+    },
+    {
+      title: t('slash.code'), group: basic, hint: '```', description: t('slash.code.desc'), keywords: 'code pre snippet', icon: Code,
+      preview: <pre className="rounded bg-muted px-2 py-1 font-mono text-[11px]">const idea = invent()</pre>,
+      run: (e, r) => chain(e, r).toggleCodeBlock().run()
+    },
+    {
+      title: t('slash.toggle'), group: basic, hint: '>>', description: t('slash.toggle.desc'), keywords: `toggle collapse details accordion fold ${t('slash.toggle.kw')}`, icon: ChevronRight,
+      preview: <div className="text-[13px] leading-snug"><div className="flex items-center gap-1 font-medium"><ChevronRight className="size-3.5 rotate-90" />{t('slash.preview.details')}</div><div className="pl-4.5 text-muted-foreground">{t('slash.preview.hide')}</div></div>,
+      run: (e, r) => chain(e, r).setDetails().run()
+    },
+    {
+      title: t('slash.table'), group: basic, hint: '|||', description: t('slash.table.desc'), keywords: `table grid rows columns spreadsheet ${t('slash.table.kw')}`, icon: Table2,
+      preview: <table className="w-full border-collapse text-[11px]"><tbody><tr className="bg-muted"><th className="border px-1.5 py-0.5 text-left">{t('account.name')}</th><th className="border px-1.5 py-0.5 text-left">{t('slash.preview.role')}</th></tr><tr><td className="border px-1.5 py-0.5">Ada</td><td className="border px-1.5 py-0.5">{t('slash.preview.maths')}</td></tr></tbody></table>,
+      run: (e, r) => chain(e, r).insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run()
+    },
+    {
+      title: t('slash.divider'), group: basic, hint: '---', description: t('slash.divider.desc'), keywords: `hr line separator rule ${t('slash.divider.kw')}`, icon: Minus,
+      preview: <><P>{t('slash.preview.above')}</P><hr className="my-1.5 border-border" /><P>{t('slash.preview.below')}</P></>,
+      run: (e, r) => chain(e, r).setHorizontalRule().run()
+    },
+    {
+      title: t('slash.link'), group: insert, hint: '@', description: t('slash.link.desc'), keywords: `mention card link backlink page ${t('slash.link.kw')}`, icon: FileText,
+      preview: <P>{tRich('slash.preview.see', { card: <span className="rounded bg-brand/10 px-1 font-medium text-brand">@{t('slash.preview.researchNotes')}</span> })}</P>,
+      run: (e, r) => chain(e, r).insertContent('@').run()
+    },
+    {
+      title: t('format.highlight'), group: insert, description: t('slash.highlight.desc'), keywords: `highlight marker color colour yellow mark ${t('slash.highlight.kw')}`, icon: Highlighter,
+      preview: <P>{tRich('slash.preview.standOut', { mark: <mark style={{ background: HIGHLIGHT_COLORS[3].value, borderRadius: 3, padding: '0 2px' }}>{t('slash.preview.standOutMark')}</mark> })}</P>,
+      run: (e, r) => chain(e, r).setHighlight({ color: HIGHLIGHT_COLORS[3].value }).run()
+    }
+  ]
+}
 
 export function filterSlash(query: string): SlashItem[] {
   const q = query.toLowerCase().trim()
-  return SLASH_ITEMS.filter((i) => !q || i.title.toLowerCase().includes(q) || i.keywords.includes(q))
+  return slashItems().filter((i) => !q || i.title.toLowerCase().includes(q) || i.keywords.toLowerCase().includes(q))
 }
 
 interface Handle {
@@ -143,7 +151,7 @@ const SlashMenu = forwardRef<Handle, SuggestionProps<SlashItem> & { close: () =>
   }))
 
   if (!props.items.length) {
-    return <div className="w-72 rounded-xl border bg-popover px-3 py-2.5 text-sm text-muted-foreground shadow-xl">No results</div>
+    return <div className="w-72 rounded-xl border bg-popover px-3 py-2.5 text-sm text-muted-foreground shadow-xl">{t('palette.noResults')}</div>
   }
 
   const groups = [...new Set(props.items.map((i) => i.group))]
@@ -178,7 +186,7 @@ const SlashMenu = forwardRef<Handle, SuggestionProps<SlashItem> & { close: () =>
           onMouseDown={(e) => (e.preventDefault(), props.close())}
           className="flex h-10 items-center justify-between border-t px-3.5 text-sm hover:bg-accent"
         >
-          Close menu
+          {t('slash.closeMenu')}
           <span className="text-xs text-muted-foreground">esc</span>
         </button>
       </div>
@@ -203,7 +211,7 @@ export const SlashCommand = Extension.create({
         char: '/',
         startOfLine: false,
         decorationClass: 'slash-decoration',
-        decorationContent: 'Type to search',
+        decorationContent: t('slash.typeToSearch'),
         allow: ({ state, range }) => !state.doc.resolve(range.from).parent.type.spec.code,
         items: ({ query }) => filterSlash(query),
         command: ({ editor, range, props }) => props.run(editor, range),

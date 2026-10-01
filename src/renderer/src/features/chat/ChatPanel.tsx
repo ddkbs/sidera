@@ -11,6 +11,7 @@ import { Input } from '@/components/ui/input'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { Orb } from '@/components/Orb'
+import { t, type MessageKey } from '@/lib/i18n'
 import { cn } from '@/lib/utils'
 import { useAppDispatch, useAppSelector } from '@/store'
 import { api } from '@/store/api'
@@ -61,12 +62,7 @@ function isHttpUrl(url: string): boolean {
   return /^https?:\/\//i.test(url)
 }
 
-const SUGGESTIONS = [
-  'What did I work on this week?',
-  'Summarize my #Research cards',
-  'Create a whiteboard that groups my cards by topic',
-  'Add a to-do for tomorrow to my Inbox'
-]
+const SUGGESTIONS: MessageKey[] = ['chat.suggest.week', 'chat.suggest.summarize', 'chat.suggest.group', 'chat.suggest.todo']
 
 export function ChatPanel() {
   const dispatch = useAppDispatch()
@@ -107,7 +103,7 @@ export function ChatPanel() {
     prevProvider.current = ai.provider
     setMessages([])
     setBusy(false)
-    toast(`Switched to ${getProviderMeta(ai.provider).label} — started a new conversation`)
+    toast(t('chat.switched', { provider: getProviderMeta(ai.provider).label }))
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ai.provider])
 
@@ -139,12 +135,12 @@ export function ChatPanel() {
   }, [messages])
 
   const send = (text: string) => {
-    const t = text.trim()
-    if (!t || busy) return
+    const value = text.trim()
+    if (!value || busy) return
     setInput('')
     setBusy(true)
-    setMessages((ms) => [...ms, { role: 'user', text: t, tools: [], asks: [] }, { role: 'assistant', text: '', tools: [], asks: [] }])
-    void window.chat.send(t)
+    setMessages((ms) => [...ms, { role: 'user', text: value, tools: [], asks: [] }, { role: 'assistant', text: '', tools: [], asks: [] }])
+    void window.chat.send(value)
   }
 
   const setAskAnswers = (requestId: string, answers: AskEntry['answers']) => {
@@ -205,19 +201,19 @@ export function ChatPanel() {
                   onClick={() => (dispatch(setSettingsSection('ai')), dispatch(setSettingsOpen(true)))}
                   className="flex w-full items-center rounded-md px-2 py-1.5 text-left text-sm text-muted-foreground transition hover:bg-accent hover:text-foreground"
                 >
-                  More providers & models…
+                  {t('chat.moreProviders')}
                 </button>
               </div>
             </PopoverContent>
           </Popover>
           <div className="flex-1" />
-          <Button variant="ghost" size="icon" className="size-7" title="New conversation" onClick={() => (void window.chat.reset(), setMessages([]), setBusy(false))}>
+          <Button variant="ghost" size="icon" className="size-7" title={t('chat.newConversation')} onClick={() => (void window.chat.reset(), setMessages([]), setBusy(false))}>
             <RotateCcw className="size-3.5" />
           </Button>
-          <Button variant="ghost" size="icon" className="size-7" title="API key" onClick={() => setHasKey(false)}>
+          <Button variant="ghost" size="icon" className="size-7" title={t('settings.ai.apiKey')} onClick={() => setHasKey(false)}>
             <KeyRound className="size-3.5" />
           </Button>
-          <Button variant="ghost" size="icon" className="size-7" onClick={() => dispatch(setChatOpen(false))}>
+          <Button variant="ghost" size="icon" className="size-7" aria-label={t('common.close')} onClick={() => dispatch(setChatOpen(false))}>
             <X className="size-4" />
           </Button>
         </div>
@@ -231,7 +227,7 @@ export function ChatPanel() {
                 await window.chat.setKey(key)
                 setKey('')
                 setHasKey(await window.chat.hasKey())
-                toast.success('API key saved to your Keychain')
+                toast.success(t('chat.keySaved'))
               } catch (err) {
                 toast.error(String(err))
               }
@@ -240,22 +236,20 @@ export function ChatPanel() {
             <div className="mx-auto mb-2">
               <Orb online={false} active={false} className="size-10 [&>span]:size-8" />
             </div>
-            <h3 className="text-center font-medium">Connect {getProviderMeta(ai.provider).label}</h3>
+            <h3 className="text-center font-medium">{t('chat.connect', { provider: getProviderMeta(ai.provider).label })}</h3>
             <p className="text-center text-sm text-muted-foreground">
-              {ai.provider === 'anthropic'
-                ? "The assistant uses your own Anthropic API key. It's encrypted with the macOS Keychain and never leaves this Mac except to call the API."
-                : `Add your ${getProviderMeta(ai.provider).label} API key, encrypted with the macOS Keychain.`}
+              {ai.provider === 'anthropic' ? t('chat.keyAnthropic') : t('chat.keyOther', { provider: getProviderMeta(ai.provider).label })}
             </p>
             <Input type="password" placeholder={getProviderMeta(ai.provider).keyPlaceholder} value={key} onChange={(e) => setKey(e.target.value)} autoFocus />
             <Button type="submit" disabled={!key.trim()}>
-              Save key
+              {t('chat.saveKey')}
             </Button>
             <button
               type="button"
               onClick={() => (dispatch(setSettingsSection('ai')), dispatch(setSettingsOpen(true)))}
               className="text-center text-xs text-muted-foreground underline-offset-2 hover:underline"
             >
-              Use a different provider (OpenAI, Gemini, Ollama, …) in Settings
+              {t('chat.otherProvider')}
             </button>
           </form>
         ) : (
@@ -264,11 +258,11 @@ export function ChatPanel() {
               {messages.length === 0 && (
                 <div className="flex h-full flex-col items-center justify-center gap-4 text-center">
                   <Orb online active={false} className="size-12 [&>span]:size-10" />
-                  <p className="text-sm text-muted-foreground">Ask about your knowledge base, or let the assistant organize it.</p>
+                  <p className="text-sm text-muted-foreground">{t('chat.emptyHint')}</p>
                   <div className="flex w-full flex-col gap-1.5">
                     {SUGGESTIONS.map((s) => (
-                      <button key={s} onClick={() => send(s)} className="rounded-lg border px-3 py-2 text-left text-sm transition hover:bg-accent">
-                        {s}
+                      <button key={s} onClick={() => send(t(s))} className="rounded-lg border px-3 py-2 text-left text-sm transition hover:bg-accent">
+                        {t(s)}
                       </button>
                     ))}
                   </div>
@@ -283,9 +277,9 @@ export function ChatPanel() {
                   <div key={i} className="space-y-2 text-sm">
                     {m.tools.length > 0 && (
                       <div className="flex flex-wrap gap-1">
-                        {m.tools.map((t, k) => (
+                        {m.tools.map((tool, k) => (
                           <span key={k} className="inline-flex items-center gap-1 rounded-md bg-muted px-1.5 py-0.5 font-mono text-[11px] text-muted-foreground">
-                            <Wrench className="size-3" /> {t}
+                            <Wrench className="size-3" /> {tool}
                           </span>
                         ))}
                       </div>
@@ -299,7 +293,7 @@ export function ChatPanel() {
                           >
                             <Globe className="size-3 shrink-0" />
                             <span className="truncate">
-                              {q.error ? q.error : q.query ? `Searched “${q.query}”` : busy && i === messages.length - 1 ? 'Searching the web…' : 'Searched the web'}
+                              {q.error ? q.error : q.query ? t('chat.searched', { query: q.query }) : busy && i === messages.length - 1 ? t('chat.searching') : t('chat.searchedWeb')}
                             </span>
                           </span>
                         ))}
@@ -312,7 +306,7 @@ export function ChatPanel() {
                     )}
                     {!!m.sources?.length && (
                       <div className="space-y-1">
-                        <div className="text-[11px] font-medium text-muted-foreground">Sources</div>
+                        <div className="text-[11px] font-medium text-muted-foreground">{t('chat.sources')}</div>
                         <ol className="flex flex-col gap-0.5">
                           {m.sources.filter((src) => isHttpUrl(src.url)).map((src, k) => (
                             <li key={src.url}>
@@ -365,7 +359,7 @@ export function ChatPanel() {
                     }
                   }}
                   rows={Math.min(6, Math.max(1, input.split('\n').length))}
-                  placeholder="Ask or instruct…"
+                  placeholder={t('chat.placeholder')}
                   className="max-h-40 min-h-6 flex-1 resize-none bg-transparent px-1 text-sm outline-none"
                 />
                 <WebSearchToggle />
@@ -400,7 +394,7 @@ function WebSearchToggle() {
           type="button"
           size="sm"
           variant="ghost"
-          aria-label="Allow web search"
+          aria-label={t('chat.allowWeb')}
           aria-pressed={on}
           aria-disabled={!supported}
           data-web-search={supported ? (on ? 'on' : 'off') : 'disabled'}
@@ -412,11 +406,11 @@ function WebSearchToggle() {
           )}
         >
           <Globe className="size-4" />
-          {on && <span>Web</span>}
+          {on && <span>{t('chat.web')}</span>}
         </Button>
       </TooltipTrigger>
       <TooltipContent side="top">
-        {supported ? (on ? 'Web search on — searches may cost extra' : 'Allow web search') : 'Web search is available with OpenAI and Anthropic'}
+        {supported ? (on ? t('chat.webOn') : t('chat.allowWeb')) : t('chat.webUnsupported')}
       </TooltipContent>
     </Tooltip>
   )
