@@ -1,4 +1,5 @@
 import { useReactFlow } from '@xyflow/react'
+import { record } from '@/lib/undo'
 import type { NodeProps } from '@xyflow/react'
 import { memo, useEffect, useRef, useState } from 'react'
 import { docToText } from '@shared/doc'
@@ -36,7 +37,27 @@ export const TextBlockNode = memo(function TextBlockNode({ id, data, selected, h
   const { data: card } = useGetCardQuery(summary.id)
   const [update] = useUpdateCardMutation()
   const style = blockStyle(data.object.data)
-  const fontSize = blockFontSize(data.object.data)
+  const rf = useReactFlow()
+  const storedFont = blockFontSize(data.object.data)
+  // corner drag scales the text with the box (Freeform-style); previewed live, stored on release
+  const [liveFont, setLiveFont] = useState<number | null>(null)
+  const fontSize = liveFont ?? storedFont
+  const scaleText = (ratio: number, done: boolean, width: number): void => {
+    const next = Math.round(Math.min(160, Math.max(6, storedFont * ratio)) * 2) / 2
+    if (!done) return setLiveFont(next)
+    setLiveFont(null)
+    if (next === storedFont) return
+    const prevWidth = Math.round(width / ratio)
+    const set = (size: number, w: number): void => {
+      const n = rf.getNode(id) as ObjectNode | undefined
+      if (!n) return
+      const d = { ...n.data.object.data, fontSize: size }
+      rf.updateNode(id, { width: w, data: { ...n.data, object: { ...n.data.object, width: w, data: d } } })
+      void window.api.updateObjects([{ id, width: w, data: d }])
+    }
+    set(next, Math.round(width))
+    record({ label: 'Scale text', undo: () => set(storedFont, prevWidth), redo: () => set(next, Math.round(width)) })
+  }
   const rotation = Number(data.object.data.rotation) || 0
   const tint = summary.color ? paletteColor(summary.color) : null
   const latest = useRef<DocJSON | null>(null)
@@ -63,7 +84,6 @@ export const TextBlockNode = memo(function TextBlockNode({ id, data, selected, h
   )
 
   // while typing, the board's selection toolbar would cover the text-formatting bubble menu → it hides on this flag
-  const rf = useReactFlow()
   useEffect(() => rf.updateNodeData(id, { editing }), [rf, id, editing])
 
   const content = useRef<HTMLDivElement>(null)
@@ -71,7 +91,7 @@ export const TextBlockNode = memo(function TextBlockNode({ id, data, selected, h
 
   return (
     <>
-      <WidthResizer selected={selected && !editing} minWidth={140} />
+      <WidthResizer selected={selected && !editing} minWidth={60} onScale={scaleText} />
       <Rotatable id={id} rotation={editing ? 0 : rotation} selected={!!selected && !editing}>
         <div
           ref={root}

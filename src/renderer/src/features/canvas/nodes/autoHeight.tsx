@@ -29,11 +29,29 @@ export function useAutoHeight(id: string, content: RefObject<HTMLElement | null>
   useEffect(() => () => clearTimeout(timer.current), [])
 }
 
-/** Left/right edge handles that change only the width (the height follows the content). */
-export function WidthResizer({ selected, minWidth = 120 }: { selected?: boolean; minWidth?: number }) {
+/**
+ * Left/right edge handles that change only the width (the height follows the content). With `onScale`, corner
+ * handles scale the whole thing instead: `onScale(ratio, done)` gets new width / start width while dragging.
+ */
+export function WidthResizer({ selected, minWidth = 120, onScale }: { selected?: boolean; minWidth?: number; onScale?: (ratio: number, done: boolean, width: number) => void }) {
+  const startW = useRef(0)
   if (!selected) return null
   return (
     <>
+      {onScale &&
+        (['top-left', 'top-right', 'bottom-left', 'bottom-right'] as const).map((p) => (
+          <NodeResizeControl
+            key={p}
+            position={p}
+            minWidth={minWidth}
+            // ratio from the width only — the height follows the (scaled) content via useAutoHeight
+            shouldResize={(_, s) => s.direction[0] !== 0}
+            onResizeStart={(_, s) => (startW.current = s.width)}
+            onResize={(_, s) => startW.current && onScale(s.width / startW.current, false, s.width)}
+            onResizeEnd={(_, s) => startW.current && onScale(s.width / startW.current, true, s.width)}
+            className="!size-2 !rounded-[2px] !border !border-brand !bg-background"
+          />
+        ))}
       {(['left', 'right'] as const).map((p) => (
         <NodeResizeControl
           key={p}
