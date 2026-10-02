@@ -55,7 +55,7 @@ export const FileNode = memo(function FileNode({ id, data, selected, width }: No
 
   return (
     <>
-      <Resizer selected={selected} minWidth={140} minHeight={100} />
+      <Resizer selected={selected} minWidth={isImage ? 16 : 140} minHeight={isImage ? 16 : 100} />
       {isImage ? (
         <Rotatable id={id} rotation={rotation} selected={!!selected}>
           {visual}
