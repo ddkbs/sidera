@@ -352,3 +352,31 @@ export function straightLine(a: [number, number, number], b: [number, number], p
   const n = Math.max(2, Math.ceil(Math.hypot(b[0] - a[0], b[1] - a[1]) / 4))
   return Array.from({ length: n + 1 }, (_, i) => [a[0] + ((b[0] - a[0]) * i) / n, a[1] + ((b[1] - a[1]) * i) / n, pressure] as [number, number, number])
 }
+
+/** Cuts a stroke into dashes of `dash` board units with `gap` between them (by arc length, pressure interpolated). */
+export function dashSegments(points: [number, number, number][], dash: number, gap: number): [number, number, number][][] {
+  if (points.length < 2) return [points]
+  const out: [number, number, number][][] = []
+  let cur: [number, number, number][] = [points[0]]
+  let on = true
+  let left = dash
+  for (let i = 1; i < points.length; i++) {
+    let a = points[i - 1]
+    const b = points[i]
+    let len = Math.hypot(b[0] - a[0], b[1] - a[1])
+    while (len >= left) {
+      const f = left / len
+      const cut: [number, number, number] = [a[0] + (b[0] - a[0]) * f, a[1] + (b[1] - a[1]) * f, a[2] + (b[2] - a[2]) * f]
+      if (on) out.push([...cur, cut])
+      cur = [cut]
+      on = !on
+      len -= left
+      left = on ? dash : gap
+      a = cut
+    }
+    left -= len
+    if (on) cur.push(b)
+  }
+  if (on && cur.length > 1) out.push(cur)
+  return out.length ? out : [points]
+}

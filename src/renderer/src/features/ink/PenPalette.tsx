@@ -103,6 +103,20 @@ export function PenPalette({ settings, onChange, dark }: Props) {
               <TooltipContent side="top">{widthName(i)}</TooltipContent>
             </Tooltip>
           ))}
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                type="button"
+                aria-label={t('ink.dashed')}
+                aria-pressed={!!settings.dashed}
+                onClick={() => set({ dashed: !settings.dashed, tool: 'pen' })}
+                className={cn('grid size-8 place-items-center rounded-xl text-foreground transition hover:bg-accent', settings.dashed && 'bg-accent')}
+              >
+                <span className="w-5 border-t-[2.5px] border-dashed border-current" />
+              </button>
+            </TooltipTrigger>
+            <TooltipContent side="top">{t('ink.dashed')}</TooltipContent>
+          </Tooltip>
         </div>
       </motion.div>
     </div>

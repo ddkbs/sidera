@@ -879,6 +879,7 @@ export const de: Dictionary = {
   'ink.hint': 'Stift · P – Esc zum Beenden',
   'ink.pen': 'Stift',
   'ink.highlighter': 'Textmarker',
+  'ink.dashed': 'Gestrichelt',
   'ink.eraser': 'Radierer – löscht ganze Striche',
   'undo.editPoints': 'Punkte bearbeiten',
   'undo.draw': 'Zeichnen',

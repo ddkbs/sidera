@@ -9,7 +9,7 @@ import { storageKey } from '@/lib/storage'
 import { useAppDispatch, useAppSelector } from '@/store'
 import { api } from '@/store/api'
 import type { ObjectNode } from '@/features/canvas/types'
-import { appendStrokes, eraseElements, newInk, penStroke, strokeToElement, type PenSettings } from './elements'
+import { PEN_WIDTHS, appendStrokes, dashPattern, eraseElements, newInk, penStroke, strokeToElement, type PenSettings } from './elements'
 import { isFrameless } from './frame'
 import {
   GROUP_GAP_PX,
@@ -18,6 +18,7 @@ import {
   STRAIGHTEN_MIN_PX,
   STRAIGHTEN_SLOP_PX,
   appendTarget,
+  dashSegments,
   darkInk,
   freedrawOutline,
   hitInkObject,
@@ -75,12 +76,21 @@ const nodeBox = (n: ObjectNode): Rect => ({ x: n.position.x, y: n.position.y, wi
 const nodeElements = (n: ObjectNode): unknown[] => (Array.isArray(n.data.object.data.elements) ? (n.data.object.data.elements as unknown[]) : [])
 
 /** Element of a (possibly unfinished) stroke in board coordinates. */
-const strokeElement = (s: Stroke): InkElement => {
-  const el = strokeToElement(penStroke(s.points, s.settings, s.realPressure), s.elementId)
-  return s.done ? el : { ...el, lastCommittedPoint: null }
+/** Pen strokes of a (possibly unfinished) stroke: one, or one per dash; the first keeps the stroke's element id. */
+const strokeParts = (s: Stroke): { stroke: ReturnType<typeof penStroke>; id: string }[] => {
+  const width = PEN_WIDTHS[s.settings.width] ?? PEN_WIDTHS[1]
+  const parts = s.settings.dashed && s.settings.tool === 'pen' ? dashSegments(s.points, ...dashPattern(width)) : [s.points]
+  return parts.map((pts, i) => ({ stroke: penStroke(pts, s.settings, s.realPressure), id: i ? `${s.elementId}-${i}` : s.elementId }))
 }
 
-const strokeBounds = (s: Stroke): Rect | null => inkBounds([strokeElement(s)])
+/** Elements of a (possibly unfinished) stroke in board coordinates. */
+const strokeElements = (s: Stroke): InkElement[] =>
+  strokeParts(s).map((p) => {
+    const el = strokeToElement(p.stroke, p.id)
+    return s.done ? el : { ...el, lastCommittedPoint: null }
+  })
+
+const strokeBounds = (s: Stroke): Rect | null => inkBounds(strokeElements(s))
 
 /**
  * Pen mode: draws ink straight onto the whiteboard. Pointer input is taken in the capture phase on the canvas host,
@@ -160,8 +170,9 @@ export function InkLayer({
       if (!s.points.length) continue
       let cached = s.paint
       if (!cached || cached.dark !== darkRef.current) {
-        const el = strokeElement(s)
-        cached = { path: new Path2D(outlinePath(freedrawOutline(el))), color: (darkRef.current ? darkInk(el.strokeColor) : el.strokeColor) ?? '#1e1e1e', alpha: (el.opacity ?? 100) / 100, dark: darkRef.current }
+        const els = strokeElements(s)
+        const el = els[0]
+        cached = { path: new Path2D(els.map((e) => outlinePath(freedrawOutline(e))).join(' ')), color: (darkRef.current ? darkInk(el.strokeColor) : el.strokeColor) ?? '#1e1e1e', alpha: (el.opacity ?? 100) / 100, dark: darkRef.current }
         if (s.done) s.paint = cached
       }
       ctx.globalAlpha = cached.alpha
@@ -203,7 +214,7 @@ export function InkLayer({
     const cached = g.target ? written.current.get(g.target) : undefined
     const base: WhiteboardObject | undefined =
       cached && performance.now() - cached.at < WRITTEN_TTL_MS ? cached.object : node ? { ...node.data.object, ...nodeBox(node) } : undefined
-    const newStrokes = done.map((s) => ({ stroke: penStroke(s.points, s.settings, s.realPressure), id: s.elementId }))
+    const newStrokes = done.flatMap(strokeParts)
     let committed: string | null = null
     try {
       if (base) {

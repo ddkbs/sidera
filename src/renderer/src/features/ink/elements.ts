@@ -49,7 +49,12 @@ export interface PenSettings {
   color: string
   /** index into PEN_WIDTHS */
   width: number
+  /** pen strokes are cut into dashes */
+  dashed?: boolean
 }
+
+/** Dash and gap length (board units) of a dashed pen stroke of `width`. */
+export const dashPattern = (width: number): [number, number] => [width * 3 + 6, width * 2.5 + 5]
 
 /** DrawStroke for a finished pen-mode stroke (board coordinates). */
 export function penStroke(points: [number, number, number][], settings: PenSettings, realPressure: boolean): DrawStroke {

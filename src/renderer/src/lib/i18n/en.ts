@@ -887,6 +887,7 @@ export const en = {
   'ink.hint': 'Pen · P — Esc to exit',
   'ink.pen': 'Pen',
   'ink.highlighter': 'Highlighter',
+  'ink.dashed': 'Dashed',
   'ink.eraser': 'Eraser — erases whole strokes',
   'undo.editPoints': 'Edit points',
   'undo.draw': 'Draw',
