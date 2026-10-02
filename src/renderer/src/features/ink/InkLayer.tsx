@@ -26,13 +26,13 @@ import {
   joinsGroup,
   outlinePath,
   screenToBoard,
-  straightLine,
   unionRects,
   type InkElement,
   type Point,
   type Rect
 } from './geometry'
 import { PenPalette } from './PenPalette'
+import { recognize, straightLine } from './recognize'
 import { IS_IPAD } from '@/lib/platform'
 
 /** Eraser radius in screen px. */
@@ -319,9 +319,11 @@ export function InkLayer({
     let drawing: Stroke | null = null
     let erasing: { originals: Map<string, WhiteboardObject>; hit: Map<string, Set<string>> } | null = null
     let pointerId: number | null = null
-    // hold the pen still mid-stroke → the stroke snaps to a straight line, whose end then follows the pen
+    // hold the pen still mid-stroke → the stroke snaps to the shape it looks like (recognize.ts): a straight line,
+    // whose end then follows the pen, or a closed shape (circle, rectangle, triangle …), which stays as it is
     let hold: { x: number; y: number; timer: ReturnType<typeof setTimeout> } | null = null
     let straight: { pressure: number } | null = null
+    let shaped = false
     const endHold = (): void => {
       if (hold) clearTimeout(hold.timer)
       hold = null
@@ -330,12 +332,15 @@ export function InkLayer({
       hold = null
       const s = drawing
       if (!s || s.done || s.points.length < 2) return
-      const a = s.points[0]
-      const b = s.points[s.points.length - 1]
-      if (Math.hypot(b[0] - a[0], b[1] - a[1]) * rf.getViewport().zoom < STRAIGHTEN_MIN_PX) return
-      const ps = s.points.map((p) => p[2]).sort((x, y) => x - y)
-      straight = { pressure: ps[Math.floor(ps.length / 2)] }
-      s.points = straightLine(a, [b[0], b[1]], straight.pressure)
+      const xs = s.points.map((p) => p[0])
+      const ys = s.points.map((p) => p[1])
+      const size = Math.hypot(Math.max(...xs) - Math.min(...xs), Math.max(...ys) - Math.min(...ys))
+      if (size * rf.getViewport().zoom < STRAIGHTEN_MIN_PX) return
+      const shape = recognize(s.points)
+      if (!shape) return
+      s.points = shape.points
+      if (shape.kind === 'line') straight = { pressure: shape.points[0][2] }
+      else shaped = true
       schedule()
     }
     const armHold = (e: PointerEvent): void => {
@@ -439,6 +444,7 @@ export function InkLayer({
       group.current!.strokes.push(drawing)
       strokes.current.push(drawing)
       straight = null
+      shaped = false
       armHold(e)
       schedule()
     }
@@ -454,7 +460,7 @@ export function InkLayer({
           eraseAt(p)
           continue
         }
-        if (!drawing) continue
+        if (!drawing || shaped) continue
         if (straight) {
           drawing.points = straightLine(drawing.points[0], [p.x, p.y], straight.pressure)
           continue
@@ -464,7 +470,7 @@ export function InkLayer({
         if (Math.hypot(p.x - last[0], p.y - last[1]) * zoom < 0.75) continue
         drawing.points.push([p.x, p.y, pressure(ev)])
       }
-      if (drawing && !straight && (!hold || Math.hypot(e.clientX - hold.x, e.clientY - hold.y) > STRAIGHTEN_SLOP_PX)) armHold(e)
+      if (drawing && !straight && !shaped && (!hold || Math.hypot(e.clientX - hold.x, e.clientY - hold.y) > STRAIGHTEN_SLOP_PX)) armHold(e)
       if (drawing) schedule()
     }
 
@@ -475,6 +481,7 @@ export function InkLayer({
       originCache = null
       endHold()
       straight = null
+      shaped = false
       lastPenUp.current = performance.now()
       try {
         if (el.hasPointerCapture(e.pointerId)) el.releasePointerCapture(e.pointerId)
