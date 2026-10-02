@@ -6,6 +6,7 @@ import { labelMap, t } from '@/lib/i18n'
 import { cn } from '@/lib/utils'
 import { INK_COLORS, PEN_WIDTHS, highlighterColor, type PenSettings, type PenTool as Tool } from './elements'
 import { darkInk } from './geometry'
+import { IS_IPAD } from '@/lib/platform'
 
 const INK_NAME = labelMap({ Ink: 'ink.color.ink', Blue: 'color.blue', Red: 'color.red', Green: 'color.green', Orange: 'color.orange', Purple: 'color.purple' })
 const inkName = (name: string): string => INK_NAME[name as keyof typeof INK_NAME] ?? name
@@ -19,7 +20,8 @@ interface Props {
 
 /** Floating palette of pen mode: pen / highlighter / eraser, six colours, three widths — plus a short hint on entry. */
 export function PenPalette({ settings, onChange, dark }: Props) {
-  const [hint, setHint] = useState(true)
+  // the "P / Esc" hint is about the Mac's pen mode; on the iPad the palette is always there for the Pencil
+  const [hint, setHint] = useState(!IS_IPAD)
   useEffect(() => {
     const timer = setTimeout(() => setHint(false), 3500)
     return () => clearTimeout(timer)

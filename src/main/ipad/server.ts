@@ -306,6 +306,8 @@ export class IpadServer {
     if (!host) return plain(404)
     if (req.method !== 'GET' && req.method !== 'HEAD') return plain(405)
     const path = (req.url ?? '/').split('?')[0]
+    // a rebuilt app (new hashed asset names) is picked up on the next page load, without restarting the server
+    if ((path === '/' || path === '/index.html') && this.opts.staticDir) this.files = scanStatic(this.opts.staticDir)
     const entry = path === '/' || path === '/index.html' ? this.files.get('/ipad.html') : this.files.get(path)
     if (!entry) return plain(404)
     let body: Buffer

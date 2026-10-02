@@ -1188,7 +1188,7 @@ function Canvas({ detail }: { detail: WhiteboardDetail }) {
       >
         <Background variant={BackgroundVariant.Dots} gap={22} size={1.4} color="var(--canvas-dot)" />
       </ReactFlow>
-      {(tool === 'pen' || IS_IPAD) && <InkLayer host={wrapper} boardId={boardId} pencilOnly={IS_IPAD} palette={tool === 'pen'} />}
+      {(tool === 'pen' || IS_IPAD) && <InkLayer host={wrapper} boardId={boardId} pencilOnly={IS_IPAD} palette={IS_IPAD || tool === 'pen'} />}
       <CanvasToolbar tool={tool} onTool={(t) => void changeTool(t)} onAction={(a) => void onAction(a)} />
       <ZoomControls />
       {/* the iPad sees only this board: no card library, no navigation */}
