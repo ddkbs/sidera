@@ -1,11 +1,11 @@
 /**
  * Shape recognition for "hold the pen still": a held stroke snaps to the shape it looks like. Pure geometry on board
  * points ([x, y, pressure]); the result is again a list of pen points, so it stays an ordinary ink stroke.
- * Open strokes become a straight line (whose end then follows the pen); closed ones a circle / ellipse, triangle,
+ * Open strokes become a straight line (whose end then follows the pen), a circular arc or a smooth curve; closed ones a circle / ellipse, triangle,
  * rectangle / square, other quadrilateral or polygon — or nothing, when no shape fits well enough.
  */
 export type Pt = [number, number, number]
-export type RecognizedKind = 'line' | 'circle' | 'ellipse' | 'triangle' | 'square' | 'rectangle' | 'polygon'
+export type RecognizedKind = 'line' | 'arc' | 'curve' | 'circle' | 'ellipse' | 'triangle' | 'square' | 'rectangle' | 'polygon'
 export interface Recognized {
   kind: RecognizedKind
   points: Pt[]
@@ -92,8 +92,7 @@ export function recognize(points: Pt[]): Recognized | null {
   for (let i = 1; i < xy.length; i++) length += dist(xy[i - 1], xy[i])
   const gap = dist(xy[0], xy[xy.length - 1])
 
-  // open stroke → straight line (the hold gesture's original meaning)
-  if (gap > Math.max(0.2 * length, 0.25 * diag)) return { kind: 'line', points: straightLine(points[0], xy[xy.length - 1], pressure) }
+  if (gap > Math.max(0.2 * length, 0.25 * diag)) return openShape(points, xy, pressure)
 
   // closed: corners first (polygons), then the ellipse fit
   const eps = 0.07 * diag
@@ -172,6 +171,91 @@ export function recognize(points: Pt[]): Recognized | null {
       return [cx + ex * Math.cos(a), cy + ey * Math.sin(a), pressure]
     })
     return { kind: circle ? 'circle' : 'ellipse', points: pts }
+  }
+  return null
+}
+
+/** Point at fraction `f` of the polyline's length. */
+function along(xy: V[], f: number): V {
+  let total = 0
+  for (let i = 1; i < xy.length; i++) total += dist(xy[i - 1], xy[i])
+  let want = total * f
+  for (let i = 1; i < xy.length; i++) {
+    const d = dist(xy[i - 1], xy[i])
+    if (want <= d && d) return [xy[i - 1][0] + ((xy[i][0] - xy[i - 1][0]) * want) / d, xy[i - 1][1] + ((xy[i][1] - xy[i - 1][1]) * want) / d]
+    want -= d
+  }
+  return xy[xy.length - 1]
+}
+
+/** Mean distance of the stroke from a sampled candidate, relative to `scale`. */
+const fitError = (xy: V[], cand: V[], scale: number): number => {
+  let sum = 0
+  for (const p of xy) {
+    let best = Infinity
+    for (let i = 1; i < cand.length; i++) best = Math.min(best, segDist(p, cand[i - 1], cand[i]))
+    sum += best
+  }
+  return sum / xy.length / scale
+}
+
+const sample = (n: number, f: (t: number) => V): V[] => Array.from({ length: n + 1 }, (_, i) => f(i / n))
+
+/** Catmull-Rom spline through `vs` (smooth curve through every vertex). */
+function spline(vs: V[], perSeg = 16): V[] {
+  const out: V[] = []
+  for (let i = 0; i < vs.length - 1; i++) {
+    const p0 = vs[Math.max(0, i - 1)]
+    const p1 = vs[i]
+    const p2 = vs[i + 1]
+    const p3 = vs[Math.min(vs.length - 1, i + 2)]
+    for (let k = 0; k < perSeg; k++) {
+      const t = k / perSeg
+      const t2 = t * t
+      const t3 = t2 * t
+      const c = (a: number, b: number, cc: number, d: number): number =>
+        0.5 * (2 * b + (-a + cc) * t + (2 * a - 5 * b + 4 * cc - d) * t2 + (-a + 3 * b - 3 * cc + d) * t3)
+      out.push([c(p0[0], p1[0], p2[0], p3[0]), c(p0[1], p1[1], p2[1], p3[1])])
+    }
+  }
+  out.push(vs[vs.length - 1])
+  return out
+}
+
+/** Open stroke: straight line, circular arc, smooth curve — or null for scribbles. */
+function openShape(points: Pt[], xy: V[], pressure: number): Recognized | null {
+  const s = xy[0]
+  const e = xy[xy.length - 1]
+  const chord = dist(s, e)
+  const withP = (vs: V[]): Pt[] => vs.map((v) => [v[0], v[1], pressure])
+  const deviation = Math.max(...xy.map((p) => segDist(p, s, e)))
+  if (deviation < 0.08 * chord) return { kind: 'line', points: straightLine(points[0], e, pressure) }
+
+  const m = along(xy, 0.5)
+  const steps = (len: number): number => Math.max(16, Math.ceil(len / 4))
+  // circular arc through start, middle and end
+  const d = 2 * (s[0] * (m[1] - e[1]) + m[0] * (e[1] - s[1]) + e[0] * (s[1] - m[1]))
+  if (Math.abs(d) > 1e-6) {
+    const ss = s[0] ** 2 + s[1] ** 2
+    const mm = m[0] ** 2 + m[1] ** 2
+    const ee = e[0] ** 2 + e[1] ** 2
+    const c: V = [(ss * (m[1] - e[1]) + mm * (e[1] - s[1]) + ee * (s[1] - m[1])) / d, (ss * (e[0] - m[0]) + mm * (s[0] - e[0]) + ee * (m[0] - s[0])) / d]
+    const r = dist(c, s)
+    const a0 = Math.atan2(s[1] - c[1], s[0] - c[0])
+    const am = Math.atan2(m[1] - c[1], m[0] - c[0])
+    let a1 = Math.atan2(e[1] - c[1], e[0] - c[0])
+    // go the way that passes the middle point
+    const norm = (a: number): number => ((a % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI)
+    const ccw = norm(am - a0) < norm(a1 - a0)
+    a1 = ccw ? a0 + norm(a1 - a0) : a0 - norm(a0 - a1)
+    const arc = sample(steps(Math.abs(a1 - a0) * r), (t) => [c[0] + r * Math.cos(a0 + (a1 - a0) * t), c[1] + r * Math.sin(a0 + (a1 - a0) * t)])
+    if (r < 20 * chord && fitError(xy, arc, chord) < 0.025) return { kind: 'arc', points: withP(arc) }
+  }
+  // smooth curve through a few simplified points (S-curves, waves)
+  const vs = rdp(xy, 0.06 * Math.max(chord, deviation))
+  if (vs.length <= 7) {
+    const curve = spline(vs)
+    if (fitError(xy, curve, Math.max(chord, deviation)) < 0.04) return { kind: 'curve', points: withP(curve) }
   }
   return null
 }

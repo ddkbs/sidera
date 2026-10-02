@@ -23,6 +23,15 @@ describe('ink shape recognition', () => {
     const pts = Array.from({ length: 40 }, (_, i) => [i * 5, i * 2 + wobble(i, 4), 0.5] as Pt)
     expect(recognize(pts)?.kind).toBe('line')
   })
+  it('snaps bent strokes to an arc, S-shapes to a smooth curve', () => {
+    const arc = Array.from({ length: 50 }, (_, i) => {
+      const a = Math.PI + (i / 49) * Math.PI * 0.8
+      return [200 + 150 * Math.cos(a) + wobble(i, 2), 200 + 150 * Math.sin(a) + wobble(i + 2, 2), 0.5] as Pt
+    })
+    expect(recognize(arc)?.kind).toBe('arc')
+    const wave = Array.from({ length: 60 }, (_, i) => [i * 6, Math.sin((i / 59) * 2 * Math.PI) * 60 + wobble(i, 1.5), 0.5] as Pt)
+    expect(recognize(wave)?.kind).toBe('curve')
+  })
   it('recognizes circles and ellipses', () => {
     expect(recognize(ellipse(100, 95))?.kind).toBe('circle')
     expect(recognize(ellipse(160, 70))?.kind).toBe('ellipse')
