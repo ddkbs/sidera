@@ -26,7 +26,7 @@ function icon(): Electron.NativeImage {
   return img
 }
 
-/** Menu-bar icon: left click opens quick capture right under the icon, right click shows the menu. */
+/** Menu-bar icon: any click shows the menu. */
 export function createTray(actions: TrayActions): void {
   if (tray || process.platform !== 'darwin') return
   tray = new Tray(icon())
@@ -52,8 +52,9 @@ export function createTray(actions: TrayActions): void {
       { type: 'separator' },
       { label: `Quit ${APP_NAME}`, role: 'quit' }
     ])
-  tray.on('click', capture)
-  tray.on('right-click', () => tray?.popUpContextMenu(menu()))
+  const show = (): void => tray?.popUpContextMenu(menu())
+  tray.on('click', show)
+  tray.on('right-click', show)
 }
 
 export function destroyTray(): void {
