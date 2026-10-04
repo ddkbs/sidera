@@ -75,4 +75,8 @@ describe('markdown <-> doc', () => {
   it('round-trips a toggle containing a table', () => {
     roundTrip('<details open>\n<summary>Data</summary>\n\n| a |\n| --- |\n| b |\n\n</details>')
   })
+
+  it('keeps list markers in plain text', () => {
+    expect(docToText(markdownToDoc('1. eins\n2. zwei\n\n- a'))).toBe('1. eins\n2. zwei\n• a')
+  })
 })

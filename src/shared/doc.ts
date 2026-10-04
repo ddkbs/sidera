@@ -15,7 +15,14 @@ export function docToText(doc: DocJSON | null | undefined): string {
     if (n.type === 'text') out.push(n.text ?? '')
     else if (n.type === MENTION_NODE) out.push(String(n.attrs?.label ?? ''))
     else if (n.type === 'hardBreak') out.push('\n')
-    n.content?.forEach((c) => walk(c, inCell || CELLS.has(n.type)))
+    const start = n.type === 'orderedList' ? Number(n.attrs?.start ?? 1) : 0
+    n.content?.forEach((c, i) => {
+      // keep list markers so plain-text previews (card excerpts on boards) still read as lists
+      if (n.type === 'orderedList') out.push(`${start + i}. `)
+      else if (n.type === 'bulletList') out.push('• ')
+      else if (n.type === 'taskList') out.push(c.attrs?.checked ? '☑ ' : '☐ ')
+      walk(c, inCell || CELLS.has(n.type))
+    })
     if (CELLS.has(n.type)) out.push(' ')
     else if (!inCell && BLOCKS.has(n.type)) out.push('\n')
   }

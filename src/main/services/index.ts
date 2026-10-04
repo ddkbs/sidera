@@ -62,6 +62,8 @@ export type Services = ServiceMethods & {
   notify(scope: DbChangeScope): void
   /** Hard-delete soft-deleted cards/whiteboards older than `olderThan` ms. */
   purgeDeleted(olderThan: number): void
+  /** Recompute stored plain text (excerpts/search) after `docToText` changes; only rows that differ are written. */
+  refreshCardText(): void
 
   // ---- files (need `filesDir`) ----
   /** Copy a file from disk into the data folder (importable extensions only, 25 MB). */
@@ -1523,6 +1525,17 @@ export function createServices(
       db.delete(s.pdfHighlights).where(eq(s.pdfHighlights.id, id)).run()
       onChange('files')
     },
+    refreshCardText() {
+      const rows = sql.prepare(`SELECT id, content, content_text AS contentText FROM cards`).all() as { id: string; content: string; contentText: string }[]
+      const update = sql.prepare(`UPDATE cards SET content_text = ? WHERE id = ?`)
+      tx(() => {
+        for (const r of rows) {
+          const text = docToText(json<DocJSON>(r.content, emptyDoc()))
+          if (text !== r.contentText) update.run(text, r.id)
+        }
+      })
+    },
+
     purgeDeleted(olderThan) {
       const cutoff = now() - olderThan
       tx(() => {

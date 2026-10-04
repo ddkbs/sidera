@@ -90,6 +90,7 @@ export class Session {
     }, { filesDir: this.filesDir })
     // deleted cards/whiteboards stay restorable (undo) for 30 days
     this.services.purgeDeleted(30 * 24 * 60 * 60 * 1000)
+    this.services.refreshCardText()
     this.keys = new KeyStore(this.dataDir)
     this.chat = new ChatAgent(this.services, opts.version, () => this.activeAiConfig(), (tool, args) => this.reportActivity(tool, args))
     this.handlers = this.buildHandlers()
