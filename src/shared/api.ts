@@ -252,6 +252,9 @@ export interface McpActivity {
 
 /** Event pushed to the renderer whenever the main window enters/leaves native macOS fullscreen. */
 export const FULLSCREEN_CHANGED = 'app:fullscreen-changed'
+/** menu-bar icon → main window: actions that run in the renderer */
+export const TRAY_COMMAND = 'app:tray-command'
+export type TrayCommand = { type: 'new-whiteboard' } | { type: 'new-card' } | { type: 'search' } | { type: 'open-board'; id: string }
 
 /** A choice offered to the user by the `ask_user_questions` chat-local tool. */
 export interface AskUserOption {

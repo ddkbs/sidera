@@ -4,10 +4,10 @@ import { Toaster } from '@/components/ui/sonner'
 import { AppShell } from '@/components/layout/AppShell'
 import { api, scopeTags } from '@/store/api'
 import { useAppDispatch } from '@/store'
-import { openSettings, pushActivity, setFullscreen } from '@/store/ui'
+import { navigate, openCard, openSettings, pushActivity, setFullscreen, setPaletteOpen } from '@/store/ui'
 import { settingsLoaded } from '@/store/settings'
 import { useAppearance } from '@/lib/appearance'
-import { useLang } from '@/lib/i18n'
+import { t, useLang } from '@/lib/i18n'
 
 export { FONT_STACKS } from '@/lib/appearance'
 
@@ -30,6 +30,21 @@ export function App() {
 
   useEffect(() => window.events.onMcpActivity((a) => dispatch(pushActivity(a))), [dispatch])
   useEffect(() => window.events.onOpenSettings(() => dispatch(openSettings(undefined))), [dispatch])
+  useEffect(
+    () =>
+      window.events.onTrayCommand(async (c) => {
+        if (c.type === 'search') dispatch(setPaletteOpen(true))
+        else if (c.type === 'open-board') dispatch(navigate({ type: 'whiteboard', id: c.id }))
+        else if (c.type === 'new-whiteboard') {
+          const r = await dispatch(api.endpoints.createWhiteboard.initiate({ name: t('board.untitled') }))
+          if (r.data) dispatch(navigate({ type: 'whiteboard', id: r.data.id }))
+        } else {
+          const r = await dispatch(api.endpoints.createCard.initiate({ title: '' }))
+          if (r.data) dispatch(openCard(r.data.id))
+        }
+      }),
+    [dispatch]
+  )
 
   useEffect(() => {
     void window.app.isFullScreen().then((fullscreen) => dispatch(setFullscreen(fullscreen)))

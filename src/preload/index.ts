@@ -11,6 +11,8 @@ import {
   DB_CHANGED,
   FULLSCREEN_CHANGED,
   MCP_ACTIVITY,
+  TRAY_COMMAND,
+  type TrayCommand,
   type ChatBridge,
   type ChatEvent,
   type CanvasApi,
@@ -38,6 +40,12 @@ const events = {
     const listener = (): void => cb()
     ipcRenderer.on('app:open-settings', listener)
     return () => ipcRenderer.removeListener('app:open-settings', listener)
+  },
+  /** menu-bar icon → New whiteboard / New card / Search / Screenshot to board */
+  onTrayCommand(cb: (c: TrayCommand) => void): () => void {
+    const listener = (_: unknown, c: TrayCommand): void => cb(c)
+    ipcRenderer.on(TRAY_COMMAND, listener)
+    return () => ipcRenderer.removeListener(TRAY_COMMAND, listener)
   },
   /** native macOS fullscreen entered/left. */
   onFullscreenChanged(cb: (fullscreen: boolean) => void): () => void {

@@ -12,6 +12,11 @@ interface TrayActions {
   canCapture: () => boolean
   openMain: () => void
   openSettings: () => void
+  /** runs in the main window's renderer (opens it first) */
+  command: (type: 'new-whiteboard' | 'new-card' | 'search') => void
+  /** boards for "Screenshot to Board", most recently edited first */
+  boards: () => { id: string; name: string }[]
+  screenshotTo: (whiteboardId: string) => void
 }
 
 function icon(): Electron.NativeImage {
@@ -30,6 +35,17 @@ export function createTray(actions: TrayActions): void {
   const menu = (): Menu =>
     Menu.buildFromTemplate([
       { label: 'Quick Capture', enabled: actions.canCapture(), accelerator: actions.captureAccelerator() ?? undefined, click: capture },
+      { label: 'New Whiteboard', enabled: actions.canCapture(), click: () => actions.command('new-whiteboard') },
+      { label: 'New Card', enabled: actions.canCapture(), click: () => actions.command('new-card') },
+      { label: 'Search…', enabled: actions.canCapture(), click: () => actions.command('search') },
+      {
+        label: 'Screenshot to Board',
+        enabled: actions.canCapture(),
+        submenu: actions.canCapture()
+          ? actions.boards().slice(0, 15).map((b) => ({ label: b.name || 'Untitled', click: () => actions.screenshotTo(b.id) }))
+          : []
+      },
+      { type: 'separator' },
       { label: `Open ${APP_NAME}`, click: actions.openMain },
       { type: 'separator' },
       { label: 'Settings…', click: actions.openSettings },

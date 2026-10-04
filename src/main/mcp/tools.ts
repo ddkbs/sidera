@@ -1347,7 +1347,7 @@ export function createMcpServer(api: Services, version: string, onCall?: ToolCal
   return server
 }
 
-function freeSpot(api: Services, whiteboardId: string): { x: number; y: number } {
+export function freeSpot(api: Services, whiteboardId: string): { x: number; y: number } {
   const wb = api.getWhiteboard(whiteboardId)
   if (!wb || !wb.objects.length) return { x: 0, y: 0 }
   const maxX = Math.max(...wb.objects.map((o) => o.x + o.width))

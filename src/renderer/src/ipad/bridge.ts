@@ -118,6 +118,7 @@ export function installBridge(client: SyncClient): void {
     onDbChanged: (cb: Parameters<Window['events']['onDbChanged']>[0]) => client.on('changed', cb),
     onMcpActivity: off,
     onOpenSettings: off,
+    onTrayCommand: off,
     onFullscreenChanged: off
   }
   const chat: ChatBridge = {

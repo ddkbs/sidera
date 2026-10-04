@@ -1,6 +1,6 @@
 import type { AuthBridge } from '../shared/auth'
 import type { IpadBridge } from '../shared/ipad'
-import type { AppBridge, CanvasApi, ChatBridge, DbChangeScope, McpActivity } from '../shared/api'
+import type { AppBridge, CanvasApi, ChatBridge, DbChangeScope, McpActivity, TrayCommand } from '../shared/api'
 
 declare global {
   interface Window {
@@ -10,6 +10,7 @@ declare global {
       onDbChanged(cb: (scopes: DbChangeScope[]) => void): () => void
       onMcpActivity(cb: (a: McpActivity) => void): () => void
       onOpenSettings(cb: () => void): () => void
+      onTrayCommand(cb: (c: TrayCommand) => void): () => void
       onFullscreenChanged(cb: (fullscreen: boolean) => void): () => void
     }
     platform: string

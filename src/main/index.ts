@@ -1,9 +1,9 @@
-import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs'
+import { existsSync, readdirSync, readFileSync, rmSync, statSync } from 'node:fs'
 import { join } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { app, BrowserWindow, ipcMain, net, protocol, shell } from 'electron'
 import Database from 'better-sqlite3'
-import { CHAT_EVENT, FULLSCREEN_CHANGED, type AskUserAnswer } from '@shared/api'
+import { CHAT_EVENT, FULLSCREEN_CHANGED, TRAY_COMMAND, type AskUserAnswer, type TrayCommand } from '@shared/api'
 import { getProviderMeta, resolveBaseUrl, type AiProviderId } from '@shared/ai'
 import {
   GUEST_NAMESPACE,
@@ -27,6 +27,8 @@ import { migrateUserData } from './userDataMigration'
 import { listModels as listOpenAiModels } from './ai/openaiCompatible'
 import { registerIpc } from './ipc'
 import { startStdioMcp } from './mcp/server'
+import { freeSpot } from './mcp/tools'
+import { captureScreenRegion } from './screenshot'
 import { Session } from './session'
 import { hardenWindow, rendererUrl } from './windowSecurity'
 
@@ -449,8 +451,28 @@ async function bootstrap(): Promise<void> {
       openSettings: () => {
         showMain()
         if (session) win?.webContents.send('app:open-settings')
+      },
+      command: (type) => sendTrayCommand({ type }),
+      boards: () => session?.services.listWhiteboards() ?? [],
+      screenshotTo: async (whiteboardId) => {
+        const path = await captureScreenRegion()
+        if (!path || !session) return
+        const api = session.services
+        const file = api.importFileFromPath(path)
+        rmSync(path, { force: true })
+        api.addFileObject({ whiteboardId, fileId: file.id, ...freeSpot(api, whiteboardId) })
+        sendTrayCommand({ type: 'open-board', id: whiteboardId })
       }
     })
+}
+
+/** Menu-bar action that runs in the renderer: bring the main window up first (a fresh window needs to load). */
+function sendTrayCommand(c: TrayCommand): void {
+  const fresh = !win || win.isDestroyed()
+  showMain()
+  if (!session || !win) return
+  if (fresh || win.webContents.isLoading()) win.webContents.once('did-finish-load', () => win?.webContents.send(TRAY_COMMAND, c))
+  else win.webContents.send(TRAY_COMMAND, c)
 }
 
 function showMain(): void {
