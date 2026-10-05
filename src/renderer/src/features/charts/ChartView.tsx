@@ -16,6 +16,7 @@ import {
   PolarGrid,
   PolarRadiusAxis,
   Radar,
+  ReferenceDot,
   RadarChart,
   ResponsiveContainer,
   Sankey,
@@ -26,9 +27,10 @@ import {
   YAxis,
   ZAxis
 } from 'recharts'
+import { curveCatmullRom } from 'victory-vendor/d3-shape'
 import { locale, t, useLang } from '@/lib/i18n'
 import { cn } from '@/lib/utils'
-import { CHART_DEFS, VENN_REGIONS, num, sankeyData, seriesNames, seriesRows, type ChartData } from '@shared/charts'
+import { CHART_DEFS, VENN_REGIONS, num, sankeyData, seriesNames, seriesRows, valueAt, type ChartData, type ChartOptions } from '@shared/charts'
 import { SCHEMES, colorAt } from './palette'
 
 const axis = { stroke: 'var(--border)', tick: { fill: 'var(--muted-foreground)', fontSize: 11 }, tickLine: false }
@@ -40,6 +42,81 @@ const tooltip = (
     labelStyle={{ color: 'var(--muted-foreground)' }}
   />
 )
+const axisTitle = { fill: 'var(--muted-foreground)', fontSize: 11, fontWeight: 500 }
+const SPLINE = curveCatmullRom.alpha(0.5)
+
+/** Props for the horizontal axis: title, hidden values, own category labels (`numeric` = scatter/bubble X). */
+function xAxisProps(o: ChartOptions, numeric = false) {
+  const custom = o.xTicks?.length ? o.xTicks : null
+  return {
+    ...axis,
+    height: o.xAxisTitle ? 44 : 30,
+    ...(o.hideAxisValues && !custom ? { tick: false } : {}),
+    ...(custom
+      ? {
+          ticks: custom.map((c) => (numeric ? num(c.value) : c.value)),
+          tickFormatter: (v: unknown) => custom.find((c) => (numeric ? num(c.value) === v : c.value === String(v)))?.label ?? '',
+          interval: 0 as const
+        }
+      : {}),
+    label: o.xAxisTitle ? { value: o.xAxisTitle, position: 'insideBottom' as const, offset: 2, style: axisTitle } : undefined
+  }
+}
+
+/** Props for the vertical value axis: title (rotated), hidden values, own labels at given values. */
+function yAxisProps(o: ChartOptions, numeric = true) {
+  const custom = numeric && o.yTicks?.length ? o.yTicks : null
+  const longest = custom ? Math.max(...custom.map((c) => c.label.length)) : 0
+  return {
+    ...axis,
+    width: (custom ? Math.min(120, 16 + longest * 6) : 60) + (o.yAxisTitle ? 18 : 0),
+    ...(o.hideAxisValues && !custom ? { tick: false } : {}),
+    ...(custom
+      ? {
+          ticks: custom.map((c) => c.value),
+          tickFormatter: (v: unknown) => custom.find((c) => c.value === v)?.label ?? '',
+          interval: 0 as const,
+          domain: [(min: number) => Math.min(min, ...custom.map((c) => c.value)), (max: number) => Math.max(max, ...custom.map((c) => c.value))] as [
+            (n: number) => number,
+            (n: number) => number
+          ]
+        }
+      : {}),
+    label: o.yAxisTitle ? { value: o.yAxisTitle, angle: -90, position: 'insideLeft' as const, style: { ...axisTitle, textAnchor: 'middle' as const } } : undefined
+  }
+}
+
+/** Left chart margin: room for a y title, otherwise the usual tight fit. */
+const marginLeft = (o: ChartOptions) => (o.yAxisTitle || o.yTicks?.length ? 4 : -12)
+
+function curveOf(o: ChartOptions) {
+  const c = o.curve ?? (o.smooth ? 'monotone' : 'linear')
+  return c === 'spline' ? SPLINE : c
+}
+
+/** Series colour: the first series may have its own colour. */
+const seriesColor = (o: ChartOptions, i: number) => (i === 0 && o.lineColor ? o.lineColor : colorAt(i))
+
+function markers(data: ChartData) {
+  return (data.options.markers ?? []).map((m, i) => {
+    const y = m.y ?? valueAt(data, m.x)
+    if (y === null) return null
+    return (
+      <ReferenceDot
+        key={`m${i}`}
+        x={m.x}
+        y={y}
+        r={5}
+        fill={seriesColor(data.options, 0)}
+        stroke="var(--card)"
+        strokeWidth={2}
+        ifOverflow="extendDomain"
+        label={m.label ? { value: m.label, position: 'top', offset: 10, style: { fill: 'var(--foreground)', fontSize: 11, fontWeight: 600 } } : undefined}
+      />
+    )
+  })
+}
+
 const legend = <Legend iconType="circle" iconSize={8} wrapperStyle={{ fontSize: 11, color: 'var(--muted-foreground)' }} />
 
 interface Props {
@@ -70,14 +147,17 @@ export const ChartView = memo(function ChartView({ data, onMoveItem }: Props) {
       const rows = seriesRows(data)
       const names = seriesNames(data)
       const stack = options.stacked ? 'a' : undefined
-      const curve = options.smooth ? 'monotone' : 'linear'
+      const curve = curveOf(options)
+      const g = options.hideGrid ? null : grid
+      const width = options.lineWidth ?? 2.2
+      const dot = options.hideDots ? false : { r: 3 }
       switch (type) {
         case 'bar':
           return (
             <BarChart data={rows} layout="vertical" margin={{ top: 4, right: 12, bottom: 0, left: 0 }}>
-              <CartesianGrid stroke="var(--border)" strokeDasharray="3 3" horizontal={false} />
-              <XAxis type="number" {...axis} />
-              <YAxis type="category" dataKey="label" width={70} {...axis} />
+              {!options.hideGrid && <CartesianGrid stroke="var(--border)" strokeDasharray="3 3" horizontal={false} />}
+              <XAxis type="number" {...xAxisProps({ ...options, xTicks: undefined })} />
+              <YAxis type="category" dataKey="label" {...yAxisProps(options, false)} width={70 + (options.yAxisTitle ? 18 : 0)} />
               {tooltip}
               {options.legend !== false && names.length > 1 && legend}
               {names.map((n, i) => (
@@ -87,45 +167,57 @@ export const ChartView = memo(function ChartView({ data, onMoveItem }: Props) {
           )
         case 'line':
           return (
-            <LineChart data={rows} margin={{ top: 8, right: 12, bottom: 0, left: -12 }}>
-              {grid}
-              <XAxis dataKey="label" {...axis} />
-              <YAxis {...axis} />
+            <LineChart data={rows} margin={{ top: options.markers?.length ? 22 : 8, right: 12, bottom: 0, left: marginLeft(options) }}>
+              {g}
+              <XAxis dataKey="label" {...xAxisProps(options)} />
+              <YAxis {...yAxisProps(options)} />
               {tooltip}
               {options.legend !== false && names.length > 1 && legend}
               {names.map((n, i) => (
-                <Line key={n} dataKey={n} type={curve} stroke={colorAt(i)} strokeWidth={2.2} dot={{ r: 3 }} activeDot={{ r: 5 }} />
+                <Line key={n} dataKey={n} type={curve} stroke={seriesColor(options, i)} strokeWidth={width} dot={dot} activeDot={{ r: 5 }} />
               ))}
+              {markers(data)}
             </LineChart>
           )
         case 'area':
           return (
-            <AreaChart data={rows} margin={{ top: 8, right: 12, bottom: 0, left: -12 }}>
-              {grid}
-              <XAxis dataKey="label" {...axis} />
-              <YAxis {...axis} />
+            <AreaChart data={rows} margin={{ top: options.markers?.length ? 22 : 8, right: 12, bottom: 0, left: marginLeft(options) }}>
+              {g}
+              <XAxis dataKey="label" {...xAxisProps(options)} />
+              <YAxis {...yAxisProps(options)} />
               {tooltip}
               {options.legend !== false && names.length > 1 && legend}
               {names.map((n, i) => (
-                <Area key={n} dataKey={n} type={curve} stackId={stack} stroke={colorAt(i)} fill={colorAt(i)} fillOpacity={0.25} strokeWidth={2} />
+                <Area
+                  key={n}
+                  dataKey={n}
+                  type={curve}
+                  stackId={stack}
+                  stroke={seriesColor(options, i)}
+                  fill={seriesColor(options, i)}
+                  fillOpacity={options.hideArea ? 0 : 0.25}
+                  strokeWidth={options.lineWidth ?? 2}
+                  dot={options.hideDots === false ? { r: 3 } : false}
+                />
               ))}
+              {markers(data)}
             </AreaChart>
           )
         case 'combo': {
           const lines = new Set(options.lineSeries ?? [names.length - 1])
           return (
-            <ComposedChart data={rows} margin={{ top: 8, right: 4, bottom: 0, left: -12 }}>
-              {grid}
-              <XAxis dataKey="label" {...axis} />
-              <YAxis yAxisId="left" {...axis} />
-              <YAxis yAxisId="right" orientation="right" {...axis} />
+            <ComposedChart data={rows} margin={{ top: 8, right: 4, bottom: 0, left: marginLeft(options) }}>
+              {g}
+              <XAxis dataKey="label" {...xAxisProps(options)} />
+              <YAxis yAxisId="left" {...yAxisProps(options)} />
+              <YAxis yAxisId="right" orientation="right" {...axis} {...(options.hideAxisValues ? { tick: false } : {})} />
               {tooltip}
               {options.legend !== false && legend}
               {names.map((n, i) =>
                 lines.has(i) ? (
-                  <Line key={n} yAxisId="right" dataKey={n} type={curve} stroke={colorAt(i)} strokeWidth={2.4} dot={{ r: 3 }} />
+                  <Line key={n} yAxisId="right" dataKey={n} type={curve} stroke={seriesColor(options, i)} strokeWidth={options.lineWidth ?? 2.4} dot={dot} />
                 ) : (
-                  <Bar key={n} yAxisId="left" dataKey={n} stackId={stack} fill={colorAt(i)} radius={stack ? 0 : [4, 4, 0, 0]} />
+                  <Bar key={n} yAxisId="left" dataKey={n} stackId={stack} fill={seriesColor(options, i)} radius={stack ? 0 : [4, 4, 0, 0]} />
                 )
               )}
             </ComposedChart>
@@ -146,15 +238,16 @@ export const ChartView = memo(function ChartView({ data, onMoveItem }: Props) {
           )
         default:
           return (
-            <BarChart data={rows} margin={{ top: 8, right: 12, bottom: 0, left: -12 }}>
-              {grid}
-              <XAxis dataKey="label" {...axis} />
-              <YAxis {...axis} />
+            <BarChart data={rows} margin={{ top: options.markers?.length ? 22 : 8, right: 12, bottom: 0, left: marginLeft(options) }}>
+              {g}
+              <XAxis dataKey="label" {...xAxisProps(options)} />
+              <YAxis {...yAxisProps(options)} />
               {tooltip}
               {options.legend !== false && names.length > 1 && legend}
               {names.map((n, i) => (
-                <Bar key={n} dataKey={n} stackId={stack} fill={colorAt(i)} radius={stack ? 0 : [4, 4, 0, 0]} />
+                <Bar key={n} dataKey={n} stackId={stack} fill={seriesColor(options, i)} radius={stack ? 0 : [4, 4, 0, 0]} />
               ))}
+              {markers(data)}
             </BarChart>
           )
       }
@@ -190,10 +283,10 @@ export const ChartView = memo(function ChartView({ data, onMoveItem }: Props) {
       const groupCol = bubble ? 4 : 3
       const groups = [...new Set(data.rows.map((r) => r[groupCol]?.trim() || t('chart.data')))]
       return (
-        <ScatterChart margin={{ top: bubble ? 24 : 8, right: bubble ? 28 : 16, bottom: 0, left: -12 }}>
-          <CartesianGrid stroke="var(--border)" strokeDasharray="3 3" />
-          <XAxis type="number" dataKey="x" name="X" {...axis} />
-          <YAxis type="number" dataKey="y" name="Y" {...axis} />
+        <ScatterChart margin={{ top: bubble ? 24 : 8, right: bubble ? 28 : 16, bottom: 0, left: marginLeft(options) }}>
+          {!options.hideGrid && <CartesianGrid stroke="var(--border)" strokeDasharray="3 3" />}
+          <XAxis type="number" dataKey="x" name={options.xAxisTitle || 'X'} {...xAxisProps(options, true)} />
+          <YAxis type="number" dataKey="y" name={options.yAxisTitle || 'Y'} {...yAxisProps(options)} />
           {bubble && <ZAxis type="number" dataKey="z" range={[60, 1400]} name={t('chart.size')} />}
           {tooltip}
           {options.legend !== false && groups.length > 1 && legend}

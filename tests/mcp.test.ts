@@ -205,6 +205,15 @@ describe('mcp charts & diagrams', () => {
     expect(obj.data).toMatchObject({ chartType: 'line', rows: [['Jan', '120', '40'], ['Feb', '150', '']] })
     expect((obj.data as { options: { smooth: boolean } }).options.smooth).toBe(true)
 
+    // schematic curve options (axis titles, spline, own Y labels, marker) merge into options
+    await call('update_chart', {
+      object_id: added.object_id,
+      options: { xAxisTitle: 'Zeit', yAxisTitle: 'Cashflow', curve: 'spline', hideArea: true, lineWidth: 4, lineColor: '#e11d48', hideGrid: true, hideAxisValues: true, yTicks: [{ value: 0, label: 'Break-even' }], markers: [{ x: 'Feb', label: 'Break-even' }] }
+    })
+    expect(api.getObject(added.object_id)!.data).toMatchObject({
+      options: { smooth: true, xAxisTitle: 'Zeit', yAxisTitle: 'Cashflow', curve: 'spline', lineWidth: 4, yTicks: [{ value: 0, label: 'Break-even' }], markers: [{ x: 'Feb', label: 'Break-even' }] }
+    })
+
     // fixed-shape types ignore custom columns; venn rows are normalised to regions
     const venn = await call('add_chart', { whiteboard_id: wb.id, chart_type: 'venn', rows: [['A', 'Design'], ['B', 'Code']], options: { sets: 2 } })
     expect(api.getObject(venn.object_id)!.data).toMatchObject({ columns: ['Region', 'Text'], rows: [['A', 'Design'], ['B', 'Code'], ['A∩B', '']] })

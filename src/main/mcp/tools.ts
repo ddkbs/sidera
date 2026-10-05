@@ -584,7 +584,25 @@ export function createMcpServer(api: Services, version: string, onCall?: ToolCal
       yAxis: z.tuple([z.string(), z.string()]).optional().describe('matrix: [low label, high label]'),
       quadrants: z.tuple([z.string(), z.string(), z.string(), z.string()]).optional().describe('matrix: [top-left, top-right, bottom-left, bottom-right]'),
       sets: z.union([z.literal(2), z.literal(3)]).optional().describe('venn: number of sets'),
-      scheme: z.enum(['blue', 'green', 'orange', 'purple']).optional().describe('heatmap colour')
+      scheme: z.enum(['blue', 'green', 'orange', 'purple']).optional().describe('heatmap colour'),
+      xAxisTitle: z.string().optional().describe('axis charts (column, bar, line, area, combo, scatter, bubble): title centred under the X axis; "" removes it'),
+      yAxisTitle: z.string().optional().describe('axis charts: title rotated left of the Y axis; "" removes it'),
+      hideGrid: z.boolean().optional().describe('axis charts: no grid lines'),
+      hideAxisValues: z.boolean().optional().describe('axis charts: no numbers/category names on the axes (custom ticks still show) — for schematic curves'),
+      yTicks: z
+        .array(z.object({ value: z.number(), label: z.string() }))
+        .optional()
+        .describe('own labels on the value axis at given values instead of numbers, e.g. [{value:-50,label:"Investition"},{value:0,label:"Break-even"},{value:80,label:"Gewinn"}]'),
+      xTicks: z.array(z.object({ value: z.string(), label: z.string() })).optional().describe('own labels on the X axis at given categories (first-column values)'),
+      curve: z.enum(['linear', 'monotone', 'spline']).optional().describe('line/area/combo curve: linear = straight segments, monotone = smooth, spline = round Catmull-Rom through every point (J-curves, schematic curves). Overrides smooth'),
+      hideArea: z.boolean().optional().describe('area: line only, no fill'),
+      hideDots: z.boolean().optional().describe('line/combo: no point dots'),
+      lineWidth: z.number().min(1).max(10).optional().describe('line/area/combo stroke width in px (default ~2)'),
+      lineColor: z.string().max(40).optional().describe('CSS colour (e.g. "#e11d48") of the first series; "" = palette'),
+      markers: z
+        .array(z.object({ x: z.string().describe('category (first-column value)'), y: z.number().optional().describe('defaults to the first series value there'), label: z.string() }))
+        .optional()
+        .describe('line/area/column: highlighted labelled points, e.g. [{x:"Jahr 3",label:"Break-even"}]')
     })
     .partial()
 

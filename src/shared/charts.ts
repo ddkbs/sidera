@@ -24,6 +24,70 @@ export interface ChartOptions {
   sets?: 2 | 3
   /** heatmap colour */
   scheme?: 'blue' | 'green' | 'orange' | 'purple'
+
+  // ---- axes (column, bar, line, area, combo, scatter, bubble) ----
+  /** title under the horizontal axis */
+  xAxisTitle?: string
+  /** title left of the vertical axis, rotated */
+  yAxisTitle?: string
+  hideGrid?: boolean
+  /** hide the numbers/category names on both axes (custom ticks below still show) */
+  hideAxisValues?: boolean
+  /** own labels at given positions of the value axis, e.g. [{ value: 0, label: 'Break-even' }] */
+  yTicks?: AxisTick[]
+  /** own labels at given categories (first-column values), e.g. [{ value: '2026', label: 'Launch' }] */
+  xTicks?: CategoryTick[]
+
+  // ---- lines (line, area, combo lines) ----
+  /** curve shape; overrides `smooth` (true = monotone). 'spline' = Catmull-Rom through every point */
+  curve?: 'linear' | 'monotone' | 'spline'
+  /** area: draw only the line, no fill */
+  hideArea?: boolean
+  hideDots?: boolean
+  /** stroke width in px (default 2.2) */
+  lineWidth?: number
+  /** CSS colour of the first series (default: palette) */
+  lineColor?: string
+  /** labelled points (line, area, column): x = category, y defaults to the first series' value there */
+  markers?: ChartMarker[]
+}
+
+export interface AxisTick {
+  value: number
+  label: string
+}
+export interface CategoryTick {
+  value: string
+  label: string
+}
+export interface ChartMarker {
+  x: string
+  y?: number
+  label: string
+}
+
+/** Types drawn on x/y axes (axis titles, grid, ticks apply). */
+export const AXIS_TYPES: ChartType[] = ['column', 'bar', 'line', 'area', 'combo', 'scatter', 'bubble']
+/** Types with line options (curve, width, colour, dots, markers). */
+export const LINE_TYPES: ChartType[] = ['line', 'area', 'combo']
+
+/** Editor text ↔ list: one entry per line, "key: label" (the first colon splits). */
+export function parseLabelLines(text: string): { key: string; label: string }[] {
+  return text
+    .split('\n')
+    .map((line) => {
+      const i = line.indexOf(':')
+      return i < 0 ? { key: line.trim(), label: '' } : { key: line.slice(0, i).trim(), label: line.slice(i + 1).trim() }
+    })
+    .filter((e) => e.key)
+}
+export const labelLines = (entries: { key: string | number; label: string }[] | undefined): string =>
+  (entries ?? []).map((e) => `${e.key}: ${e.label}`).join('\n')
+
+/** Value of a series at a category (markers default to the first series). */
+export function valueAt(data: ChartData, category: string, series = 1): number | null {
+  const row = data.rows.find((r) => (r[0] ?? '').trim() === category.trim())
+  return row ? num(row[series]) : null
 }
 
 export interface ChartData {

@@ -1,9 +1,24 @@
-import { useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Plus, X } from '@/components/icons'
 import { Switch } from '@/components/ui/switch'
 import { labelMap, t } from '@/lib/i18n'
 import { cn } from '@/lib/utils'
-import { CHART_DEFS, changeType, compatibleTypes, parseClipboardTable, seriesNames, vennRows, type ChartData, type ChartOptions, type ChartType } from '@shared/charts'
+import {
+  AXIS_TYPES,
+  CHART_DEFS,
+  LINE_TYPES,
+  changeType,
+  compatibleTypes,
+  labelLines,
+  num,
+  parseClipboardTable,
+  parseLabelLines,
+  seriesNames,
+  vennRows,
+  type ChartData,
+  type ChartOptions,
+  type ChartType
+} from '@shared/charts'
 import { SCHEMES, colorAt } from './palette'
 
 /** Short chart type names for the type switcher. */
@@ -200,7 +215,6 @@ function Options({ data, setOpt, onChange }: { data: ChartData; setOpt: (p: Part
   const toggles: { key: 'legend' | 'stacked' | 'smooth'; label: string }[] = []
   if (['column', 'bar', 'line', 'area', 'combo', 'radar', 'pie', 'donut', 'scatter', 'bubble'].includes(type)) toggles.push({ key: 'legend', label: t('chart.legend') })
   if (['column', 'bar', 'area', 'combo'].includes(type)) toggles.push({ key: 'stacked', label: t('chart.stacked') })
-  if (['line', 'area', 'combo'].includes(type)) toggles.push({ key: 'smooth', label: t('chart.smooth') })
 
   const input = 'h-7 w-full rounded-md bg-muted/50 px-2 text-xs outline-none focus:bg-background focus:ring-1 focus:ring-brand'
   const rows: React.ReactNode[] = []
@@ -279,9 +293,10 @@ function Options({ data, setOpt, onChange }: { data: ChartData; setOpt: (p: Part
       </div>
     )
   }
+  if (AXIS_TYPES.includes(type)) rows.push(<AxisOptions key="axes" type={type} o={o} setOpt={setOpt} />)
   if (!toggles.length && !rows.length) return null
   return (
-    <div className="space-y-2 border-t px-3 py-2">
+    <div className="max-h-56 space-y-2 overflow-y-auto border-t px-3 py-2">
       {toggles.length > 0 && (
         <div className="flex flex-wrap gap-4">
           {toggles.map(({ key, label }) => (
@@ -294,5 +309,125 @@ function Options({ data, setOpt, onChange }: { data: ChartData; setOpt: (p: Part
       )}
       {rows}
     </div>
+  )
+}
+
+const CURVES = [
+  { value: 'linear', label: 'chart.curve.linear' },
+  { value: 'monotone', label: 'chart.curve.monotone' },
+  { value: 'spline', label: 'chart.curve.spline' }
+] as const
+const WIDTHS = [2, 3, 4, 6]
+
+/** Axis titles, grid/values, own axis labels and (line types) curve, width, colour, area, dots, markers. Collapsed by default. */
+function AxisOptions({ type, o, setOpt }: { type: ChartType; o: ChartOptions; setOpt: (p: Partial<ChartOptions>) => void }) {
+  const line = LINE_TYPES.includes(type)
+  const input = 'h-7 w-full rounded-md bg-muted/50 px-2 text-xs outline-none focus:bg-background focus:ring-1 focus:ring-brand'
+  const seg = (on: boolean) => cn('h-6 rounded-md border px-2 text-xs', on ? 'border-brand bg-brand/10 text-brand' : 'text-muted-foreground hover:text-foreground')
+  const curve = o.curve ?? (o.smooth ? 'monotone' : 'linear')
+  const dotsShown = type === 'area' ? o.hideDots === false : !o.hideDots
+  const switches: { label: string; checked: boolean; set: (v: boolean) => void }[] = [
+    { label: t('chart.grid'), checked: !o.hideGrid, set: (v) => setOpt({ hideGrid: !v }) },
+    { label: t('chart.axisValues'), checked: !o.hideAxisValues, set: (v) => setOpt({ hideAxisValues: !v }) }
+  ]
+  if (type === 'area') switches.push({ label: t('chart.fill'), checked: !o.hideArea, set: (v) => setOpt({ hideArea: !v }) })
+  if (line) switches.push({ label: t('chart.dots'), checked: dotsShown, set: (v) => setOpt({ hideDots: !v }) })
+  return (
+    <details className="group/axes text-xs" open={!!(o.xAxisTitle || o.yAxisTitle)}>
+      <summary className="cursor-pointer text-muted-foreground select-none hover:text-foreground">{t(line ? 'chart.axesAndLine' : 'chart.axes')}</summary>
+      <div className="mt-2 space-y-2">
+        <div className="grid grid-cols-2 gap-1.5">
+          <input className={input} value={o.xAxisTitle ?? ''} placeholder={t('chart.xAxisTitle')} onChange={(e) => setOpt({ xAxisTitle: e.target.value })} />
+          <input className={input} value={o.yAxisTitle ?? ''} placeholder={t('chart.yAxisTitle')} onChange={(e) => setOpt({ yAxisTitle: e.target.value })} />
+        </div>
+        <div className="flex flex-wrap gap-4">
+          {switches.map((sw) => (
+            <label key={sw.label} className="flex items-center gap-1.5">
+              <Switch checked={sw.checked} onCheckedChange={sw.set} className="scale-75" />
+              {sw.label}
+            </label>
+          ))}
+        </div>
+        {line && (
+          <>
+            <div className="flex flex-wrap items-center gap-1">
+              <span className="mr-1 w-16 text-muted-foreground">{t('chart.curve')}</span>
+              {CURVES.map((c) => (
+                <button key={c.value} className={seg(curve === c.value)} onClick={() => setOpt({ curve: c.value, smooth: c.value !== 'linear' })}>
+                  {t(c.label)}
+                </button>
+              ))}
+            </div>
+            <div className="flex flex-wrap items-center gap-1">
+              <span className="mr-1 w-16 text-muted-foreground">{t('chart.lineWidth')}</span>
+              {WIDTHS.map((w) => (
+                <button key={w} className={seg((o.lineWidth ?? 2) === w)} onClick={() => setOpt({ lineWidth: w })}>
+                  {w}
+                </button>
+              ))}
+            </div>
+            <div className="flex flex-wrap items-center gap-1.5">
+              <span className="mr-1 w-16 text-muted-foreground">{t('chart.lineColor')}</span>
+              {[0, 1, 2, 3, 4, 5].map((i) => {
+                const c = colorAt(i)
+                const on = i === 0 ? !o.lineColor || o.lineColor === c : o.lineColor === c
+                return (
+                  <button
+                    key={i}
+                    aria-label={c}
+                    onClick={() => setOpt({ lineColor: i === 0 ? '' : c })}
+                    className={cn('size-5 rounded-full border-2', on ? 'border-foreground/60' : 'border-transparent')}
+                    style={{ background: c }}
+                  />
+                )
+              })}
+            </div>
+          </>
+        )}
+        {type !== 'bar' && (
+          <LabelLines
+            label={t('chart.yTicks')}
+            placeholder={t('chart.yTicksPlaceholder')}
+            value={labelLines(o.yTicks?.map((x) => ({ key: x.value, label: x.label })))}
+            onCommit={(text) => setOpt({ yTicks: parseLabelLines(text).map((e) => ({ value: num(e.key), label: e.label })) })}
+          />
+        )}
+        {(line || type === 'column') && (
+          <LabelLines
+            label={t('chart.markers')}
+            placeholder={t('chart.markersPlaceholder')}
+            value={labelLines(o.markers?.map((m) => ({ key: m.y === undefined ? m.x : `${m.x}@${m.y}`, label: m.label })))}
+            onCommit={(text) =>
+              setOpt({
+                markers: parseLabelLines(text).map((e) => {
+                  const at = e.key.lastIndexOf('@')
+                  return at > 0 ? { x: e.key.slice(0, at).trim(), y: num(e.key.slice(at + 1)), label: e.label } : { x: e.key, label: e.label }
+                })
+              })
+            }
+          />
+        )}
+      </div>
+    </details>
+  )
+}
+
+/** Multi-line "key: label" field, committed on blur so half-typed lines are not reformatted. */
+function LabelLines({ label, placeholder, value, onCommit }: { label: string; placeholder: string; value: string; onCommit: (text: string) => void }) {
+  const [text, setText] = useState(value)
+  useEffect(() => setText(value), [value])
+  return (
+    <label className="block space-y-1">
+      <span className="text-muted-foreground">{label}</span>
+      <textarea
+        value={text}
+        rows={Math.min(4, Math.max(2, text.split('\n').length))}
+        placeholder={placeholder}
+        onChange={(e) => setText(e.target.value)}
+        onBlur={() => text !== value && onCommit(text)}
+        onKeyDown={(e) => e.stopPropagation()}
+        className="w-full resize-none rounded-md bg-muted/50 px-2 py-1 font-mono text-[11px] outline-none focus:bg-background focus:ring-1 focus:ring-brand"
+      />
+    </label>
   )
 }
