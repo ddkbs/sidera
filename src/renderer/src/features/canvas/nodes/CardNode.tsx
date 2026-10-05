@@ -126,16 +126,14 @@ export const CardNode = memo(function CardNode({ id, data, selected }: NodeProps
                 ))}
               </div>
             )}
-            <p
+            <div
               className={cn(
-                'text-[13px] leading-relaxed whitespace-pre-line text-muted-foreground',
-                autoSize
-                  ? 'line-clamp-[12]'
-                  : 'min-h-0 flex-1 overflow-hidden [mask-image:linear-gradient(to_bottom,black_70%,transparent)]'
+                'pointer-events-none text-[13px] leading-relaxed text-muted-foreground',
+                autoSize ? 'max-h-[460px] overflow-hidden' : 'min-h-0 flex-1 overflow-hidden [mask-image:linear-gradient(to_bottom,black_70%,transparent)]'
               )}
             >
-              {card.excerpt}
-            </p>
+              <CardPreview cardId={card.id} updatedAt={card.updatedAt} excerpt={card.excerpt} />
+            </div>
           </div>
         )}
       </div>
@@ -143,6 +141,22 @@ export const CardNode = memo(function CardNode({ id, data, selected }: NodeProps
     </>
   )
 })
+
+/** Read-only rich render of the card body (quotes, lists, headings, toggles, tables…); plain excerpt until it loads. */
+function CardPreview({ cardId, updatedAt, excerpt }: { cardId: string; updatedAt: number; excerpt: string }) {
+  const { data: card } = useGetCardQuery(cardId)
+  if (!card) return <p className="whitespace-pre-line">{excerpt}</p>
+  return (
+    <CardEditor
+      key={`${card.id}:${Math.max(updatedAt, card.updatedAt)}`}
+      content={card.content}
+      editable={false}
+      placeholder=""
+      onChange={() => undefined}
+      className="min-h-0 [&_.prose-canvas]:text-[13px]"
+    />
+  )
+}
 
 function InlineEditor({ cardId }: { cardId: string }) {
   const { data: card } = useGetCardQuery(cardId)
