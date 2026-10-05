@@ -383,6 +383,7 @@ function AxisOptions({ type, o, setOpt, categories }: { type: ChartType; o: Char
             </div>
           </>
         )}
+        {['line', 'area', 'column'].includes(type) && <SplitOptions o={o} setOpt={setOpt} />}
         {type !== 'bar' && (
           <EntryList
             label={t('chart.yTicks')}
@@ -428,6 +429,51 @@ function AxisOptions({ type, o, setOpt, categories }: { type: ChartType; o: Char
         )}
       </div>
     </details>
+  )
+}
+
+/** "Colour by value": everything above the Y value in one colour, below in another. */
+function SplitOptions({ o, setOpt }: { o: ChartOptions; setOpt: (p: Partial<ChartOptions>) => void }) {
+  const split = o.split
+  const swatches = (current: string, pick: (c: string) => void) =>
+    [0, 1, 2, 3, 4, 5, 6, 7].map((i) => (
+      <button
+        key={i}
+        aria-label={colorAt(i)}
+        onClick={() => pick(colorAt(i))}
+        className={cn('size-4 rounded-full border-2', current === colorAt(i) ? 'border-foreground/60' : 'border-transparent')}
+        style={{ background: colorAt(i) }}
+      />
+    ))
+  return (
+    <div className="space-y-1.5 rounded-md bg-muted/40 p-2">
+      <label className="flex items-center gap-1.5">
+        <Switch checked={!!split} onCheckedChange={(v) => setOpt({ split: v ? { value: 0, above: colorAt(0), below: colorAt(4) } : null })} className="scale-75" />
+        {t('chart.split')}
+        {split && (
+          <input
+            type="number"
+            value={split.value}
+            onChange={(e) => setOpt({ split: { ...split, value: num(e.target.value) } })}
+            onKeyDown={(e) => e.stopPropagation()}
+            className="h-6 w-16 rounded-md bg-background px-1.5 text-right tabular-nums outline-none focus:ring-1 focus:ring-brand"
+            aria-label={t('chart.value')}
+          />
+        )}
+      </label>
+      {split && (
+        <>
+          <div className="flex items-center gap-1">
+            <span className="w-16 text-muted-foreground">{t('chart.splitAbove')}</span>
+            {swatches(split.above, (c) => setOpt({ split: { ...split, above: c } }))}
+          </div>
+          <div className="flex items-center gap-1">
+            <span className="w-16 text-muted-foreground">{t('chart.splitBelow')}</span>
+            {swatches(split.below, (c) => setOpt({ split: { ...split, below: c } }))}
+          </div>
+        </>
+      )}
+    </div>
   )
 }
 

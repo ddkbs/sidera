@@ -599,6 +599,11 @@ export function createMcpServer(api: Services, version: string, onCall?: ToolCal
       hideDots: z.boolean().optional().describe('line/combo: no point dots'),
       lineWidth: z.number().min(1).max(10).optional().describe('line/area/combo stroke width in px (default ~2)'),
       lineColor: z.string().max(40).optional().describe('CSS colour (e.g. "#e11d48") of the first series; "" = palette'),
+      split: z
+        .object({ value: z.number(), above: z.string().max(40), below: z.string().max(40) })
+        .nullable()
+        .optional()
+        .describe('line/area/column (not stacked): colour the graph by Y value, e.g. {value:0, above:"#3b82f6", below:"#ef4444"} = everything under 0 red, above blue; null removes it'),
       markers: z
         .array(z.object({ x: z.string().describe('category (first-column value)'), y: z.number().optional().describe('defaults to the first series value there'), label: z.string() }))
         .optional()

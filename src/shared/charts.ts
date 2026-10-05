@@ -48,6 +48,8 @@ export interface ChartOptions {
   lineWidth?: number
   /** CSS colour of the first series (default: palette) */
   lineColor?: string
+  /** two colours split at a value of the Y axis (line, area, column; not stacked): above / below `value` */
+  split?: { value: number; above: string; below: string } | null
   /** labelled points (line, area, column): x = category, y defaults to the first series' value there */
   markers?: ChartMarker[]
 }

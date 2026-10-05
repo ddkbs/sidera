@@ -1,4 +1,4 @@
-import { memo, useMemo, useRef } from 'react'
+import { memo, useId, useMemo, useRef } from 'react'
 import {
   Area,
   AreaChart,
@@ -147,6 +147,7 @@ interface Props {
 /** Renders any chart type into its parent (fills 100% × 100%). */
 export const ChartView = memo(function ChartView({ data, onMoveItem }: Props) {
   useLang() // memoised: re-render on language change
+  const uid = useId().replace(/[^a-zA-Z0-9-]/g, '')
   const { chartType: type, options } = data
   const shape = CHART_DEFS[type].shape
 
@@ -170,6 +171,31 @@ export const ChartView = memo(function ChartView({ data, onMoveItem }: Props) {
       const g = options.hideGrid ? null : grid
       const width = options.lineWidth ?? 2.2
       const dot = options.hideDots ? false : { r: 3 }
+      // two-colour split at a Y value: hard-stop gradients over each series' bounding box (line + area),
+      // per-bar colour for columns. The area fill is drawn against the split value (baseValue) so its box is known too.
+      const split = options.split && !stack ? options.split : undefined
+      const range = (n: string, extra?: number) => {
+        const v = rows.map((r) => Number(r[n])).concat(extra === undefined ? [] : [extra])
+        return [Math.min(...v), Math.max(...v)] as const
+      }
+      const gradient = (id: string, [min, max]: readonly [number, number]) =>
+        max === min ? null : (
+          <linearGradient key={id} id={id} x1="0" y1="0" x2="0" y2="1">
+            <stop offset={Math.min(1, Math.max(0, (max - split!.value) / (max - min)))} stopColor={split!.above} />
+            <stop offset={Math.min(1, Math.max(0, (max - split!.value) / (max - min)))} stopColor={split!.below} />
+          </linearGradient>
+        )
+      const splitPaint = (n: string, i: number, kind: 'stroke' | 'fill') => {
+        if (!split) return seriesColor(options, i)
+        const [min, max] = range(n, kind === 'fill' ? split.value : undefined)
+        if (max === min) return min >= split.value ? split.above : split.below
+        return `url(#${uid}-${kind}${i})`
+      }
+      const splitDefs = split && (
+        <defs>
+          {names.flatMap((n, i) => [gradient(`${uid}-stroke${i}`, range(n)), type === 'area' ? gradient(`${uid}-fill${i}`, range(n, split.value)) : null])}
+        </defs>
+      )
       switch (type) {
         case 'bar':
           return (
@@ -192,8 +218,9 @@ export const ChartView = memo(function ChartView({ data, onMoveItem }: Props) {
               <YAxis {...yAxisProps(options)} />
               {tooltip}
               {options.legend !== false && names.length > 1 && legend}
+              {splitDefs}
               {names.map((n, i) => (
-                <Line key={n} dataKey={n} type={curve} stroke={seriesColor(options, i)} strokeWidth={width} dot={dot} activeDot={{ r: 5 }} />
+                <Line key={n} dataKey={n} type={curve} stroke={splitPaint(n, i, 'stroke')} strokeWidth={width} dot={split ? false : dot} activeDot={{ r: 5 }} />
               ))}
               {markers(data)}
             </LineChart>
@@ -206,14 +233,16 @@ export const ChartView = memo(function ChartView({ data, onMoveItem }: Props) {
               <YAxis {...yAxisProps(options)} />
               {tooltip}
               {options.legend !== false && names.length > 1 && legend}
+              {splitDefs}
               {names.map((n, i) => (
                 <Area
                   key={n}
                   dataKey={n}
                   type={curve}
                   stackId={stack}
-                  stroke={seriesColor(options, i)}
-                  fill={seriesColor(options, i)}
+                  baseValue={split ? split.value : undefined}
+                  stroke={splitPaint(n, i, 'stroke')}
+                  fill={splitPaint(n, i, 'fill')}
                   fillOpacity={options.hideArea ? 0 : 0.25}
                   strokeWidth={options.lineWidth ?? 2}
                   dot={options.hideDots === false ? { r: 3 } : false}
@@ -264,7 +293,9 @@ export const ChartView = memo(function ChartView({ data, onMoveItem }: Props) {
               {tooltip}
               {options.legend !== false && names.length > 1 && legend}
               {names.map((n, i) => (
-                <Bar key={n} dataKey={n} stackId={stack} fill={seriesColor(options, i)} radius={stack ? 0 : [4, 4, 0, 0]} />
+                <Bar key={n} dataKey={n} stackId={stack} fill={seriesColor(options, i)} radius={stack ? 0 : [4, 4, 0, 0]}>
+                  {split && rows.map((r, ri) => <Cell key={ri} fill={Number(r[n]) >= split.value ? split.above : split.below} />)}
+                </Bar>
               ))}
               {markers(data)}
             </BarChart>
