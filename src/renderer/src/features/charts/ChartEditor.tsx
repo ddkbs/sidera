@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useRef } from 'react'
 import { Plus, X } from '@/components/icons'
 import { Switch } from '@/components/ui/switch'
 import { labelMap, t } from '@/lib/i18n'
@@ -9,13 +9,12 @@ import {
   LINE_TYPES,
   changeType,
   compatibleTypes,
-  labelLines,
   num,
   parseClipboardTable,
-  parseLabelLines,
   seriesNames,
   vennRows,
   type ChartData,
+  type ChartMarker,
   type ChartOptions,
   type ChartType
 } from '@shared/charts'
@@ -293,7 +292,7 @@ function Options({ data, setOpt, onChange }: { data: ChartData; setOpt: (p: Part
       </div>
     )
   }
-  if (AXIS_TYPES.includes(type)) rows.push(<AxisOptions key="axes" type={type} o={o} setOpt={setOpt} />)
+  if (AXIS_TYPES.includes(type)) rows.push(<AxisOptions key="axes" type={type} o={o} setOpt={setOpt} categories={data.rows.map((r) => (r[0] ?? '').trim()).filter(Boolean)} />)
   if (!toggles.length && !rows.length) return null
   return (
     <div className="max-h-56 space-y-2 overflow-y-auto border-t px-3 py-2">
@@ -320,7 +319,7 @@ const CURVES = [
 const WIDTHS = [2, 3, 4, 6]
 
 /** Axis titles, grid/values, own axis labels and (line types) curve, width, colour, area, dots, markers. Collapsed by default. */
-function AxisOptions({ type, o, setOpt }: { type: ChartType; o: ChartOptions; setOpt: (p: Partial<ChartOptions>) => void }) {
+function AxisOptions({ type, o, setOpt, categories }: { type: ChartType; o: ChartOptions; setOpt: (p: Partial<ChartOptions>) => void; categories: string[] }) {
   const line = LINE_TYPES.includes(type)
   const input = 'h-7 w-full rounded-md bg-muted/50 px-2 text-xs outline-none focus:bg-background focus:ring-1 focus:ring-brand'
   const seg = (on: boolean) => cn('h-6 rounded-md border px-2 text-xs', on ? 'border-brand bg-brand/10 text-brand' : 'text-muted-foreground hover:text-foreground')
@@ -385,26 +384,46 @@ function AxisOptions({ type, o, setOpt }: { type: ChartType; o: ChartOptions; se
           </>
         )}
         {type !== 'bar' && (
-          <LabelLines
+          <EntryList
             label={t('chart.yTicks')}
-            placeholder={t('chart.yTicksPlaceholder')}
-            value={labelLines(o.yTicks?.map((x) => ({ key: x.value, label: x.label })))}
-            onCommit={(text) => setOpt({ yTicks: parseLabelLines(text).map((e) => ({ value: num(e.key), label: e.label })) })}
+            addLabel={t('chart.addYTick')}
+            items={o.yTicks ?? []}
+            onChange={(yTicks) => setOpt({ yTicks })}
+            create={() => ({ value: 0, label: '' })}
+            renderKey={(item, set) => (
+              <input
+                type="number"
+                value={item.value}
+                onChange={(e) => set({ ...item, value: num(e.target.value) })}
+                onKeyDown={(e) => e.stopPropagation()}
+                className={cn(input, 'w-20 shrink-0 text-right tabular-nums')}
+                aria-label={t('chart.value')}
+              />
+            )}
           />
         )}
         {(line || type === 'column') && (
-          <LabelLines
+          <EntryList<ChartMarker>
             label={t('chart.markers')}
-            placeholder={t('chart.markersPlaceholder')}
-            value={labelLines(o.markers?.map((m) => ({ key: m.y === undefined ? m.x : `${m.x}@${m.y}`, label: m.label })))}
-            onCommit={(text) =>
-              setOpt({
-                markers: parseLabelLines(text).map((e) => {
-                  const at = e.key.lastIndexOf('@')
-                  return at > 0 ? { x: e.key.slice(0, at).trim(), y: num(e.key.slice(at + 1)), label: e.label } : { x: e.key, label: e.label }
-                })
-              })
-            }
+            addLabel={t('chart.addMarker')}
+            items={o.markers ?? []}
+            onChange={(markers) => setOpt({ markers })}
+            create={() => ({ x: categories[0] ?? '', label: '' })}
+            renderKey={(item, set) => (
+              <select
+                value={item.x}
+                onChange={(e) => set({ ...item, x: e.target.value, y: undefined })}
+                className={cn(input, 'w-28 shrink-0 cursor-pointer')}
+                aria-label={t('chart.category')}
+              >
+                {!categories.includes(item.x) && <option value={item.x}>{item.x || '—'}</option>}
+                {categories.map((c) => (
+                  <option key={c} value={c}>
+                    {c}
+                  </option>
+                ))}
+              </select>
+            )}
           />
         )}
       </div>
@@ -412,22 +431,49 @@ function AxisOptions({ type, o, setOpt }: { type: ChartType; o: ChartOptions; se
   )
 }
 
-/** Multi-line "key: label" field, committed on blur so half-typed lines are not reformatted. */
-function LabelLines({ label, placeholder, value, onCommit }: { label: string; placeholder: string; value: string; onCommit: (text: string) => void }) {
-  const [text, setText] = useState(value)
-  useEffect(() => setText(value), [value])
+/** Small editable list (key control + label + remove), used for own axis labels and marked points. */
+function EntryList<T extends { label: string }>({
+  label,
+  addLabel,
+  items,
+  onChange,
+  create,
+  renderKey
+}: {
+  label: string
+  addLabel: string
+  items: T[]
+  onChange: (items: T[]) => void
+  create: () => T
+  renderKey: (item: T, set: (next: T) => void) => React.ReactNode
+}) {
+  const input = 'h-7 w-full rounded-md bg-muted/50 px-2 text-xs outline-none focus:bg-background focus:ring-1 focus:ring-brand'
+  const setAt = (i: number) => (next: T) => onChange(items.map((x, j) => (j === i ? next : x)))
   return (
-    <label className="block space-y-1">
-      <span className="text-muted-foreground">{label}</span>
-      <textarea
-        value={text}
-        rows={Math.min(4, Math.max(2, text.split('\n').length))}
-        placeholder={placeholder}
-        onChange={(e) => setText(e.target.value)}
-        onBlur={() => text !== value && onCommit(text)}
-        onKeyDown={(e) => e.stopPropagation()}
-        className="w-full resize-none rounded-md bg-muted/50 px-2 py-1 font-mono text-[11px] outline-none focus:bg-background focus:ring-1 focus:ring-brand"
-      />
-    </label>
+    <div className="space-y-1">
+      <div className="text-muted-foreground">{label}</div>
+      {items.map((item, i) => (
+        <div key={i} className="group flex items-center gap-1.5">
+          {renderKey(item, setAt(i))}
+          <input
+            value={item.label}
+            placeholder={t('chart.labelText')}
+            onChange={(e) => setAt(i)({ ...item, label: e.target.value })}
+            onKeyDown={(e) => e.stopPropagation()}
+            className={input}
+          />
+          <button
+            onClick={() => onChange(items.filter((_, j) => j !== i))}
+            className="grid size-6 shrink-0 place-items-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground"
+            aria-label={t('common.delete')}
+          >
+            <X className="size-3" />
+          </button>
+        </div>
+      ))}
+      <button onClick={() => onChange([...items, create()])} className="flex h-6 items-center gap-1 rounded-md px-1.5 text-muted-foreground hover:bg-accent hover:text-foreground">
+        <Plus className="size-3" /> {addLabel}
+      </button>
+    </div>
   )
 }

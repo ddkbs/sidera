@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { CHART_DEFS, changeType, labelLines, parseLabelLines, valueAt, compatibleTypes, defaultChart, parseClipboardTable, sankeyData, seriesRows, vennRows, type ChartType } from '../src/shared/charts'
+import { CHART_DEFS, changeType, valueAt, compatibleTypes, defaultChart, parseClipboardTable, sankeyData, seriesRows, vennRows, type ChartType } from '../src/shared/charts'
 
 describe('chart model', () => {
   it('provides sensible defaults for every type', () => {
@@ -35,13 +35,7 @@ describe('chart model', () => {
     expect(vennRows(2, [['A', 'Design'], ['A∩B∩C', 'All']])).toEqual([['A', 'Design'], ['B', ''], ['A∩B', '']])
   })
 
-  it('parses "key: label" lines for own axis labels and markers', () => {
-    expect(parseLabelLines('-50: Investition\n0: Break-even\n\n80:Gewinn: viel')).toEqual([
-      { key: '-50', label: 'Investition' },
-      { key: '0', label: 'Break-even' },
-      { key: '80', label: 'Gewinn: viel' }
-    ])
-    expect(labelLines([{ key: 0, label: 'Break-even' }])).toBe('0: Break-even')
+  it('finds the value a marker sits on', () => {
     const chart = defaultChart('line')
     expect(valueAt(chart, chart.rows[1][0])).toBe(Number(chart.rows[1][1]))
     expect(valueAt(chart, 'nope')).toBeNull()

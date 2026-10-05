@@ -71,19 +71,6 @@ export const AXIS_TYPES: ChartType[] = ['column', 'bar', 'line', 'area', 'combo'
 /** Types with line options (curve, width, colour, dots, markers). */
 export const LINE_TYPES: ChartType[] = ['line', 'area', 'combo']
 
-/** Editor text ↔ list: one entry per line, "key: label" (the first colon splits). */
-export function parseLabelLines(text: string): { key: string; label: string }[] {
-  return text
-    .split('\n')
-    .map((line) => {
-      const i = line.indexOf(':')
-      return i < 0 ? { key: line.trim(), label: '' } : { key: line.slice(0, i).trim(), label: line.slice(i + 1).trim() }
-    })
-    .filter((e) => e.key)
-}
-export const labelLines = (entries: { key: string | number; label: string }[] | undefined): string =>
-  (entries ?? []).map((e) => `${e.key}: ${e.label}`).join('\n')
-
 /** Value of a series at a category (markers default to the first series). */
 export function valueAt(data: ChartData, category: string, series = 1): number | null {
   const row = data.rows.find((r) => (r[0] ?? '').trim() === category.trim())

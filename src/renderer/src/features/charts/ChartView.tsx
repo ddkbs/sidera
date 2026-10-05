@@ -69,7 +69,7 @@ function yAxisProps(o: ChartOptions, numeric = true) {
   const longest = custom ? Math.max(...custom.map((c) => c.label.length)) : 0
   return {
     ...axis,
-    width: (custom ? Math.min(120, 16 + longest * 6) : 60) + (o.yAxisTitle ? 18 : 0),
+    width: (custom ? Math.min(120, 16 + longest * 6) : o.yAxisTitle ? 44 : 60) + (o.yAxisTitle ? 18 : 0),
     ...(o.hideAxisValues && !custom ? { tick: false } : {}),
     ...(custom
       ? {
@@ -98,9 +98,14 @@ function curveOf(o: ChartOptions) {
 const seriesColor = (o: ChartOptions, i: number) => (i === 0 && o.lineColor ? o.lineColor : colorAt(i))
 
 function markers(data: ChartData) {
+  const last = Math.max(1, data.rows.length - 1)
   return (data.options.markers ?? []).map((m, i) => {
     const y = m.y ?? valueAt(data, m.x)
     if (y === null) return null
+    // labels near the left/right edge grow inwards so they are never cut off by the chart box
+    const pos = data.rows.findIndex((r) => (r[0] ?? '').trim() === m.x.trim()) / last
+    const anchor = pos > 0.75 ? 'end' : pos < 0.25 && pos >= 0 ? 'start' : 'middle'
+    const dx = anchor === 'end' ? 6 : anchor === 'start' ? -6 : 0
     return (
       <ReferenceDot
         key={`m${i}`}
@@ -111,7 +116,21 @@ function markers(data: ChartData) {
         stroke="var(--card)"
         strokeWidth={2}
         ifOverflow="extendDomain"
-        label={m.label ? { value: m.label, position: 'top', offset: 10, style: { fill: 'var(--foreground)', fontSize: 11, fontWeight: 600 } } : undefined}
+        label={
+          m.label
+            ? {
+                content: (p: { viewBox?: unknown }) => {
+                  const vb = p.viewBox as { x: number; y: number; width: number } | undefined
+                  if (!vb) return null
+                  return (
+                    <text x={vb.x + vb.width / 2 + dx} y={vb.y - 8} textAnchor={anchor} fontSize={11} fontWeight={600} fill="var(--foreground)">
+                      {m.label}
+                    </text>
+                  )
+                }
+              }
+            : undefined
+        }
       />
     )
   })
