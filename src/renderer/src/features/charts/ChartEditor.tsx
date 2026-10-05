@@ -367,7 +367,7 @@ function AxisOptions({ type, o, setOpt, categories }: { type: ChartType; o: Char
             </div>
             <div className="flex flex-wrap items-center gap-1.5">
               <span className="mr-1 w-16 text-muted-foreground">{t('chart.lineColor')}</span>
-              {[0, 1, 2, 3, 4, 5].map((i) => {
+              {[0, 1, 2, 3, 4, 5, 8].map((i) => {
                 const c = colorAt(i)
                 const on = i === 0 ? !o.lineColor || o.lineColor === c : o.lineColor === c
                 return (
@@ -436,7 +436,7 @@ function AxisOptions({ type, o, setOpt, categories }: { type: ChartType; o: Char
 function SplitOptions({ o, setOpt }: { o: ChartOptions; setOpt: (p: Partial<ChartOptions>) => void }) {
   const split = o.split
   const swatches = (current: string, pick: (c: string) => void) =>
-    [0, 1, 2, 3, 4, 5, 6, 7].map((i) => (
+    [0, 1, 2, 3, 4, 5, 6, 7, 8].map((i) => (
       <button
         key={i}
         aria-label={colorAt(i)}

@@ -7,7 +7,8 @@ export const CHART_COLORS = [
   'oklch(0.65 0.2 15)', // red
   'oklch(0.7 0.12 200)', // teal
   'oklch(0.75 0.14 95)', // yellow
-  'oklch(0.66 0.19 340)' // pink
+  'oklch(0.66 0.19 340)', // pink
+  'var(--foreground)' // black, white in dark mode
 ]
 
 export const colorAt = (i: number) => CHART_COLORS[i % CHART_COLORS.length]
