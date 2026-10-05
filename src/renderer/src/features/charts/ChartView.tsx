@@ -7,6 +7,7 @@ import {
   CartesianGrid,
   Cell,
   ComposedChart,
+  LabelList,
   Legend,
   Line,
   LineChart,
@@ -17,6 +18,7 @@ import {
   PolarRadiusAxis,
   Radar,
   ReferenceDot,
+  ReferenceLine,
   RadarChart,
   ResponsiveContainer,
   Sankey,
@@ -30,7 +32,7 @@ import {
 import { curveCatmullRom } from 'victory-vendor/d3-shape'
 import { locale, t, useLang } from '@/lib/i18n'
 import { cn } from '@/lib/utils'
-import { CHART_DEFS, VENN_REGIONS, num, sankeyData, seriesNames, seriesRows, valueAt, type ChartData, type ChartOptions } from '@shared/charts'
+import { CHART_DEFS, VENN_REGIONS, num, sankeyData, seriesNames, seriesRows, valueAt, waterfallBars, type ChartData, type ChartOptions } from '@shared/charts'
 import { SCHEMES, colorAt } from './palette'
 
 const axis = { stroke: 'var(--border)', tick: { fill: 'var(--muted-foreground)', fontSize: 11 }, tickLine: false }
@@ -301,6 +303,51 @@ export const ChartView = memo(function ChartView({ data, onMoveItem }: Props) {
             </BarChart>
           )
       }
+    }
+    if (type === 'waterfall') {
+      const fmt = (v: number) => v.toLocaleString(locale(), { maximumFractionDigits: 2 })
+      const colors = { up: options.upColor || colorAt(1), down: options.downColor || colorAt(4), total: options.totalColor || colorAt(0) }
+      // floating bars: each bar is the range [low, high] between the running total before and after the step
+      const bars = waterfallBars(data, t('chart.total')).map((b) => ({
+        ...b,
+        range: [Math.min(b.start, b.end), Math.max(b.start, b.end)],
+        text: b.kind === 'total' ? fmt(b.value) : `${b.value > 0 ? '+' : b.value < 0 ? '−' : ''}${fmt(Math.abs(b.value))}`
+      }))
+      return (
+        <BarChart data={bars} margin={{ top: options.hideValues ? 8 : 20, right: 12, bottom: 0, left: marginLeft(options) }}>
+          {!options.hideGrid && grid}
+          <XAxis dataKey="label" interval={0} {...xAxisProps(options)} />
+          <YAxis {...yAxisProps(options)} />
+          <Tooltip
+            cursor={{ fill: 'color-mix(in oklch, var(--foreground) 5%, transparent)' }}
+            contentStyle={{ background: 'var(--popover)', border: '1px solid var(--border)', borderRadius: 8, fontSize: 12, color: 'var(--popover-foreground)' }}
+            labelStyle={{ color: 'var(--muted-foreground)' }}
+            formatter={(_v, _n, item) => [(item.payload as { text: string }).text, '']}
+            separator=""
+          />
+          <Bar dataKey="range" radius={3} isAnimationActive={false}>
+            {bars.map((b, i) => (
+              <Cell key={i} fill={colors[b.kind]} />
+            ))}
+            {!options.hideValues && <LabelList dataKey="text" position="top" style={{ fill: 'var(--muted-foreground)', fontSize: 11, fontWeight: 500 }} />}
+          </Bar>
+          {/* dashed connector from the end of each bar to the next one */}
+          {!options.hideConnectors &&
+            bars.slice(0, -1).map((b, i) => (
+              <ReferenceLine
+                key={`c${i}`}
+                segment={[
+                  { x: b.label, y: b.end },
+                  { x: bars[i + 1].label, y: b.end }
+                ]}
+                stroke="var(--muted-foreground)"
+                strokeOpacity={0.6}
+                strokeDasharray="3 3"
+                ifOverflow="visible"
+              />
+            ))}
+        </BarChart>
+      )
     }
     if (shape === 'parts') {
       const rows = data.rows.map((r) => ({ name: r[0] || '—', value: num(r[1]) })).filter((r) => r.value > 0)

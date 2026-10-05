@@ -35,6 +35,7 @@ import {
   Table2,
   Type,
   Upload,
+  WaterfallChart,
   Workflow,
   type AppIcon
 } from '@/components/icons'
@@ -129,7 +130,8 @@ export const CHART_GROUPS: { title: MessageKey; items: ChartItem[] }[] = [
     items: [
       { label: 'chart.type.column', hint: 'chartHint.column', icon: BarChart, action: chart('column') },
       { label: 'chart.type.bar', hint: 'chartHint.bar', icon: BarChart, action: chart('bar'), iconClass: 'rotate-90 -scale-x-100' },
-      { label: 'chart.type.radar', hint: 'chartHint.radar', icon: RadarChart, action: chart('radar') }
+      { label: 'chart.type.radar', hint: 'chartHint.radar', icon: RadarChart, action: chart('radar') },
+      { label: 'chart.type.waterfall', hint: 'chartHint.waterfall', icon: WaterfallChart, action: chart('waterfall') }
     ]
   },
   {

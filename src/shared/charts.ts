@@ -2,7 +2,7 @@
 
 export type ChartType =
   | 'column' | 'bar' | 'line' | 'area' | 'combo' | 'radar'
-  | 'pie' | 'donut'
+  | 'pie' | 'donut' | 'waterfall'
   | 'scatter' | 'bubble'
   | 'heatmap' | 'sankey'
   | 'timeline' | 'matrix' | 'venn'
@@ -50,6 +50,20 @@ export interface ChartOptions {
   lineColor?: string
   /** two colours split at a value of the Y axis (line, area, column; not stacked): above / below `value` */
   split?: { value: number; above: string; below: string } | null
+  // ---- waterfall ----
+  /** row indexes drawn as (sub)total bars from 0: empty value = running total so far, a value = sets the total */
+  totals?: number[]
+  /** append a final total bar (default true) */
+  showTotal?: boolean
+  /** name of the final total bar (default "Total", localised) */
+  totalLabel?: string
+  hideConnectors?: boolean
+  /** no value labels on the bars */
+  hideValues?: boolean
+  /** bar colours (CSS); default green / red / blue */
+  upColor?: string
+  downColor?: string
+  totalColor?: string
   /** labelled points (line, area, column): x = category, y defaults to the first series' value there */
   markers?: ChartMarker[]
 }
@@ -69,9 +83,39 @@ export interface ChartMarker {
 }
 
 /** Types drawn on x/y axes (axis titles, grid, ticks apply). */
-export const AXIS_TYPES: ChartType[] = ['column', 'bar', 'line', 'area', 'combo', 'scatter', 'bubble']
+export const AXIS_TYPES: ChartType[] = ['column', 'bar', 'line', 'area', 'combo', 'scatter', 'bubble', 'waterfall']
 /** Types with line options (curve, width, colour, dots, markers). */
 export const LINE_TYPES: ChartType[] = ['line', 'area', 'combo']
+
+export interface WaterfallBar {
+  label: string
+  start: number
+  end: number
+  kind: 'up' | 'down' | 'total'
+  /** change for steps, the total for total bars */
+  value: number
+}
+
+/** Waterfall steps: each row moves the running total; rows in `totals` are bars from 0 (Excel's "set as total"). */
+export function waterfallBars(data: ChartData, totalLabel = 'Total'): WaterfallBar[] {
+  const totals = new Set(data.options.totals ?? [])
+  const bars: WaterfallBar[] = []
+  let run = 0
+  data.rows.forEach((r, i) => {
+    const label = r[0] ?? ''
+    const raw = String(r[1] ?? '').trim()
+    if (totals.has(i)) {
+      if (raw) run = num(raw)
+      bars.push({ label, start: 0, end: run, kind: 'total', value: run })
+    } else if (raw || label.trim()) {
+      const v = num(raw)
+      bars.push({ label, start: run, end: run + v, kind: v < 0 ? 'down' : 'up', value: v })
+      run += v
+    }
+  })
+  if (data.options.showTotal !== false) bars.push({ label: data.options.totalLabel || totalLabel, start: 0, end: run, kind: 'total', value: run })
+  return bars
+}
 
 /** Value of a series at a category (markers default to the first series). */
 export function valueAt(data: ChartData, category: string, series = 1): number | null {
@@ -118,6 +162,7 @@ export const CHART_DEFS: Record<ChartType, ChartDef> = {
   heatmap: { label: 'Heatmap', shape: 'series', numericFrom: 1 },
   pie: { label: 'Pie chart', shape: 'parts', fixedColumns: SHAPE_COLUMNS.parts, numericFrom: 1 },
   donut: { label: 'Donut chart', shape: 'parts', fixedColumns: SHAPE_COLUMNS.parts, numericFrom: 1 },
+  waterfall: { label: 'Waterfall chart', shape: 'parts', fixedColumns: SHAPE_COLUMNS.parts, numericFrom: 1 },
   scatter: { label: 'Scatter plot', shape: 'points', fixedColumns: SHAPE_COLUMNS.points, numericFrom: 1 },
   bubble: { label: 'Bubble chart', shape: 'bubbles', fixedColumns: SHAPE_COLUMNS.bubbles, numericFrom: 1 },
   sankey: { label: 'Sankey diagram', shape: 'flows', fixedColumns: SHAPE_COLUMNS.flows, numericFrom: 2 },
@@ -154,6 +199,14 @@ export function defaultChart(type: ChartType): ChartData {
         rows: MONTHS.map((m, i) => [m, String(40 + ((i * 17) % 35)), String(type === 'combo' ? 5 + ((i * 7) % 20) : 55 + ((i * 23) % 40))])
       }
     case 'parts':
+      if (type === 'waterfall')
+        return {
+          ...base,
+          title: 'Profit bridge',
+          options: { totals: [0, 2], showTotal: true, totalLabel: 'Net profit' },
+          columns: SHAPE_COLUMNS.parts!,
+          rows: [['Revenue', '420'], ['Cost of goods', '-180'], ['Gross profit', ''], ['Marketing', '-60'], ['Salaries', '-110'], ['Other income', '25']]
+        }
       return { ...base, title: 'Time spent', columns: SHAPE_COLUMNS.parts!, rows: [['Deep work', '42'], ['Meetings', '23'], ['Email', '15'], ['Learning', '20']] }
     case 'points':
       return { ...base, title: 'Effort vs impact', columns: SHAPE_COLUMNS.points!, rows: [['A', '2', '8', 'Quick wins'], ['B', '7', '9', 'Big bets'], ['C', '3', '3', 'Quick wins'], ['D', '8', '4', 'Big bets'], ['E', '5', '6', 'Quick wins']] }

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { CHART_DEFS, changeType, valueAt, compatibleTypes, defaultChart, parseClipboardTable, sankeyData, seriesRows, vennRows, type ChartType } from '../src/shared/charts'
+import { CHART_DEFS, changeType, valueAt, waterfallBars, compatibleTypes, defaultChart, parseClipboardTable, sankeyData, seriesRows, vennRows, type ChartType } from '../src/shared/charts'
 
 describe('chart model', () => {
   it('provides sensible defaults for every type', () => {
@@ -39,5 +39,22 @@ describe('chart model', () => {
     const chart = defaultChart('line')
     expect(valueAt(chart, chart.rows[1][0])).toBe(Number(chart.rows[1][1]))
     expect(valueAt(chart, 'nope')).toBeNull()
+  })
+
+  it('computes waterfall steps, subtotals and the end total', () => {
+    const chart = defaultChart('waterfall') // Revenue 420 (total), −180, Gross profit (total, empty), −60, −110, +25
+    const bars = waterfallBars(chart, 'Total')
+    expect(bars.map((b) => [b.label, b.start, b.end, b.kind])).toEqual([
+      ['Revenue', 0, 420, 'total'],
+      ['Cost of goods', 420, 240, 'down'],
+      ['Gross profit', 0, 240, 'total'],
+      ['Marketing', 240, 180, 'down'],
+      ['Salaries', 180, 70, 'down'],
+      ['Other income', 70, 95, 'up'],
+      ['Net profit', 0, 95, 'total']
+    ])
+    expect(waterfallBars({ ...chart, options: { showTotal: false } }, 'Total').at(-1)).toMatchObject({ label: 'Other income', kind: 'up' })
+    // pie ↔ donut ↔ waterfall share the table shape, so switching keeps the data
+    expect(compatibleTypes('pie')).toContain('waterfall')
   })
 })

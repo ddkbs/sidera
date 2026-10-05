@@ -604,6 +604,14 @@ export function createMcpServer(api: Services, version: string, onCall?: ToolCal
         .nullable()
         .optional()
         .describe('line/area/column (not stacked): colour the graph by Y value, e.g. {value:0, above:"#3b82f6", below:"#ef4444"} = everything under 0 red, above blue; null removes it'),
+      totals: z.array(z.number().int().min(0)).optional().describe('waterfall: 0-based row indexes drawn as (sub)total bars from 0 — empty value = running total so far, a value = sets the total (e.g. the start value)'),
+      showTotal: z.boolean().optional().describe('waterfall: append a final total bar (default true)'),
+      totalLabel: z.string().max(80).optional().describe('waterfall: name of the final total bar'),
+      hideConnectors: z.boolean().optional().describe('waterfall: no dashed lines between bars'),
+      hideValues: z.boolean().optional().describe('waterfall: no value labels on the bars'),
+      upColor: z.string().max(40).optional().describe('waterfall: CSS colour of increases ("" = green)'),
+      downColor: z.string().max(40).optional().describe('waterfall: CSS colour of decreases ("" = red)'),
+      totalColor: z.string().max(40).optional().describe('waterfall: CSS colour of total bars ("" = blue)'),
       markers: z
         .array(z.object({ x: z.string().describe('category (first-column value)'), y: z.number().optional().describe('defaults to the first series value there'), label: z.string() }))
         .optional()
@@ -698,8 +706,8 @@ export function createMcpServer(api: Services, version: string, onCall?: ToolCal
         'Add a chart or structured diagram to a whiteboard. Every chart is a small table: `columns` (header) + `rows` (cells). ' +
         'Omit columns/rows to start from an example. Numbers may be given as numbers or strings. Table shapes per type:\n' +
         shapeDocs +
-        '\nNotes: timeline dates use YYYY-MM-DD; matrix X/Y are 0–100; venn regions are A, B, C, A∩B, A∩C, B∩C, A∩B∩C (A/B/C rows hold the set names); sankey rows are flows From → To with a value.' +
-        '\nWith table_id (a table object on the board) the chart is linked to that table: first text column = categories, number columns = series, and it updates whenever the table changes (column, bar, line, area, combo, radar, heatmap, pie, donut).',
+        '\nNotes: timeline dates use YYYY-MM-DD; matrix X/Y are 0–100; venn regions are A, B, C, A∩B, A∩C, B∩C, A∩B∩C (A/B/C rows hold the set names); sankey rows are flows From → To with a value; waterfall rows are steps Label | change (+ up, − down), options.totals marks (sub)total rows.' +
+        '\nWith table_id (a table object on the board) the chart is linked to that table: first text column = categories, number columns = series, and it updates whenever the table changes (column, bar, line, area, combo, radar, heatmap, pie, donut, waterfall).',
       inputSchema: {
         whiteboard_id: z.string(),
         chart_type: z.enum(chartTypes),

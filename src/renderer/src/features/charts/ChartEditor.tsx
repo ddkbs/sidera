@@ -31,6 +31,7 @@ const TYPE_LABEL = labelMap<ChartType>({
   heatmap: 'chart.type.heatmap',
   pie: 'chart.type.pie',
   donut: 'chart.type.donut',
+  waterfall: 'chart.type.waterfall',
   scatter: 'chart.type.scatter',
   bubble: 'chart.type.bubble',
   sankey: 'chart.type.sankey',
@@ -59,7 +60,14 @@ export function ChartEditor({ data, onChange }: Props) {
   }
 
   const addRow = () => set({ rows: [...data.rows, data.columns.map(() => '')] })
-  const removeRow = (r: number) => data.rows.length > 1 && set({ rows: data.rows.filter((_, i) => i !== r) })
+  const removeRow = (r: number) =>
+    data.rows.length > 1 &&
+    onChange({
+      ...data,
+      rows: data.rows.filter((_, i) => i !== r),
+      // waterfall totals point at row indexes: drop the removed one, shift the rest up
+      options: data.options.totals ? { ...data.options, totals: data.options.totals.filter((i) => i !== r).map((i) => (i > r ? i - 1 : i)) } : data.options
+    })
   const addColumn = () => set({ columns: [...data.columns, t('chart.series', { n: data.columns.length })], rows: data.rows.map((row) => [...row, '']) })
   const removeColumn = (c: number) =>
     data.columns.length > 2 &&
@@ -163,7 +171,7 @@ export function ChartEditor({ data, onChange }: Props) {
                         value={row[c] ?? ''}
                         readOnly={readOnly}
                         inputMode={numeric ? 'decimal' : undefined}
-                        placeholder={data.chartType === 'timeline' && c === 0 ? t('chart.datePlaceholder') : ''}
+                        placeholder={data.chartType === 'timeline' && c === 0 ? t('chart.datePlaceholder') : data.chartType === 'waterfall' && c === 1 && data.options.totals?.includes(r) ? t('chart.autoTotal') : ''}
                         onChange={(e) => setCell(r, c, e.target.value)}
                         onPaste={onPaste(r, c)}
                         onKeyDown={(e) => {
@@ -241,6 +249,7 @@ function Options({ data, setOpt, onChange }: { data: ChartData; setOpt: (p: Part
       </div>
     )
   }
+  if (type === 'waterfall') rows.push(<WaterfallOptions key="waterfall" data={data} setOpt={setOpt} />)
   if (type === 'matrix') {
     const x = o.xAxis ?? ['', '']
     const y = o.yAxis ?? ['', '']
@@ -429,6 +438,78 @@ function AxisOptions({ type, o, setOpt, categories }: { type: ChartType; o: Char
         )}
       </div>
     </details>
+  )
+}
+
+/** Waterfall: which rows are (sub)totals, end total, connectors, value labels, bar colours. */
+function WaterfallOptions({ data, setOpt }: { data: ChartData; setOpt: (p: Partial<ChartOptions>) => void }) {
+  const o = data.options
+  const totals = new Set(o.totals ?? [])
+  const seg = (on: boolean) => cn('h-6 max-w-32 truncate rounded-md border px-2 text-xs', on ? 'border-brand bg-brand/10 text-brand' : 'text-muted-foreground hover:text-foreground')
+  const colorRow = (label: string, current: string | undefined, fallback: string, pick: (c: string) => void) => (
+    <div className="flex items-center gap-1">
+      <span className="w-20 text-muted-foreground">{label}</span>
+      {[1, 4, 0, 2, 3, 5, 6, 7, 8].map((i) => {
+        const c = colorAt(i)
+        return (
+          <button
+            key={i}
+            aria-label={c}
+            onClick={() => pick(c === fallback ? '' : c)}
+            className={cn('size-4 rounded-full border-2', (current || fallback) === c ? 'border-foreground/60' : 'border-transparent')}
+            style={{ background: c }}
+          />
+        )
+      })}
+    </div>
+  )
+  const switches: { label: string; checked: boolean; set: (v: boolean) => void }[] = [
+    { label: t('chart.showTotal'), checked: o.showTotal !== false, set: (v) => setOpt({ showTotal: v }) },
+    { label: t('chart.connectors'), checked: !o.hideConnectors, set: (v) => setOpt({ hideConnectors: !v }) },
+    { label: t('chart.valueLabels'), checked: !o.hideValues, set: (v) => setOpt({ hideValues: !v }) }
+  ]
+  return (
+    <div className="space-y-2 text-xs">
+      <div className="flex flex-wrap items-center gap-1">
+        <span className="mr-1 text-muted-foreground">{t('chart.asTotal')}</span>
+        {data.rows.map((r, i) => (
+          <button
+            key={i}
+            className={seg(totals.has(i))}
+            onClick={() => {
+              const next = new Set(totals)
+              if (next.has(i)) next.delete(i)
+              else next.add(i)
+              setOpt({ totals: [...next].sort((a, b) => a - b) })
+            }}
+          >
+            {r[0] || `#${i + 1}`}
+          </button>
+        ))}
+      </div>
+      <div className="flex flex-wrap gap-4">
+        {switches.map((sw) => (
+          <label key={sw.label} className="flex items-center gap-1.5">
+            <Switch checked={sw.checked} onCheckedChange={sw.set} className="scale-75" />
+            {sw.label}
+          </label>
+        ))}
+      </div>
+      {o.showTotal !== false && (
+        <input
+          value={o.totalLabel ?? ''}
+          placeholder={t('chart.totalLabel')}
+          onChange={(e) => setOpt({ totalLabel: e.target.value })}
+          onKeyDown={(e) => e.stopPropagation()}
+          className="h-7 w-full rounded-md bg-muted/50 px-2 outline-none focus:bg-background focus:ring-1 focus:ring-brand"
+        />
+      )}
+      <div className="space-y-1">
+        {colorRow(t('chart.up'), o.upColor, colorAt(1), (c) => setOpt({ upColor: c }))}
+        {colorRow(t('chart.down'), o.downColor, colorAt(4), (c) => setOpt({ downColor: c }))}
+        {colorRow(t('chart.totalColor'), o.totalColor, colorAt(0), (c) => setOpt({ totalColor: c }))}
+      </div>
+    </div>
   )
 }
 

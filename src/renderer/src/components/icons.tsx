@@ -29,6 +29,7 @@ import {
   IconBug as ObraBug,
   IconBarChart,
   IconBarChartBox,
+  IconBarChartThin,
   IconLineChartUp,
   IconLineChartFill,
   IconInsights,
@@ -277,6 +278,7 @@ export const Eraser = IconEraser
 
 // Charts & diagrams
 export const BarChart = IconBarChart
+export const WaterfallChart = IconBarChartThin
 export const ChartsMenu = IconBarChartBox
 export const LineChart = IconLineChartUp
 export const AreaChart = IconLineChartFill
