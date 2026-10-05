@@ -60,3 +60,12 @@
 .prose-canvas .toggle-block [data-type='detailsContent'] { padding-top: 0.25em; }
 .prose-canvas .toggle-block [data-type='detailsContent'] > * + * { margin-top: 0.5em; }
 .prose-canvas .toggle-block [data-type='detailsContent'][hidden] { display: none; }
+
+/* read-only card body on the board: compact like the old excerpt (unlayered, so it beats .prose-canvas above) */
+.card-preview .prose-canvas { font-size: 13px; line-height: 1.5; color: var(--muted-foreground); }
+.card-preview .prose-canvas > * + * { margin-top: 0.35em; }
+.card-preview .prose-canvas h1 { font-size: 1.25em; margin-top: 0.6em; }
+.card-preview .prose-canvas h2 { font-size: 1.15em; margin-top: 0.6em; }
+.card-preview .prose-canvas h3, .card-preview .prose-canvas h4 { font-size: 1.05em; margin-top: 0.5em; }
+.card-preview .prose-canvas :is(h1, h2, h3, h4, strong) { color: var(--foreground); }
+.card-preview .prose-canvas > :first-child { margin-top: 0; }

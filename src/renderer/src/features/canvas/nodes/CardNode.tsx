@@ -128,8 +128,8 @@ export const CardNode = memo(function CardNode({ id, data, selected }: NodeProps
             )}
             <div
               className={cn(
-                'pointer-events-none text-[13px] leading-relaxed text-muted-foreground',
-                autoSize ? 'max-h-[460px] overflow-hidden' : 'min-h-0 flex-1 overflow-hidden [mask-image:linear-gradient(to_bottom,black_70%,transparent)]'
+                'card-preview pointer-events-none text-[13px] leading-relaxed text-muted-foreground',
+                autoSize ? 'max-h-[280px] overflow-hidden' : 'min-h-0 flex-1 overflow-hidden [mask-image:linear-gradient(to_bottom,black_70%,transparent)]'
               )}
             >
               <CardPreview cardId={card.id} updatedAt={card.updatedAt} excerpt={card.excerpt} />
@@ -153,7 +153,7 @@ function CardPreview({ cardId, updatedAt, excerpt }: { cardId: string; updatedAt
       editable={false}
       placeholder=""
       onChange={() => undefined}
-      className="min-h-0 [&_.prose-canvas]:text-[13px]"
+      className="min-h-0"
     />
   )
 }
