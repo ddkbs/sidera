@@ -193,6 +193,13 @@ export const ChartView = memo(function ChartView({ data, onMoveItem }: Props) {
         if (max === min) return min >= split.value ? split.above : split.below
         return `url(#${uid}-${kind}${i})`
       }
+      // the hover dot would inherit the gradient stroke and paint itself half/half — give it a solid colour by its value
+      const activeDot = (n: string, r: number) =>
+        split
+          ? (p: { cx?: number; cy?: number; payload?: Record<string, unknown> }) => (
+              <circle cx={p.cx} cy={p.cy} r={r} fill={Number(p.payload?.[n]) >= split.value ? split.above : split.below} stroke="var(--background)" strokeWidth={2} />
+            )
+          : { r }
       const splitDefs = split && (
         <defs>
           {names.flatMap((n, i) => [gradient(`${uid}-stroke${i}`, range(n)), type === 'area' ? gradient(`${uid}-fill${i}`, range(n, split.value)) : null])}
@@ -222,7 +229,7 @@ export const ChartView = memo(function ChartView({ data, onMoveItem }: Props) {
               {options.legend !== false && names.length > 1 && legend}
               {splitDefs}
               {names.map((n, i) => (
-                <Line key={n} dataKey={n} type={curve} stroke={splitPaint(n, i, 'stroke')} strokeWidth={width} dot={split ? false : dot} activeDot={{ r: 5 }} />
+                <Line key={n} dataKey={n} type={curve} stroke={splitPaint(n, i, 'stroke')} strokeWidth={width} dot={split ? false : dot} activeDot={activeDot(n, 5)} />
               ))}
               {markers(data)}
             </LineChart>
@@ -247,7 +254,8 @@ export const ChartView = memo(function ChartView({ data, onMoveItem }: Props) {
                   fill={splitPaint(n, i, 'fill')}
                   fillOpacity={options.hideArea ? 0 : 0.25}
                   strokeWidth={options.lineWidth ?? 2}
-                  dot={options.hideDots === false ? { r: 3 } : false}
+                  dot={options.hideDots === false ? activeDot(n, 3) : false}
+                  activeDot={activeDot(n, 4)}
                 />
               ))}
               {markers(data)}
