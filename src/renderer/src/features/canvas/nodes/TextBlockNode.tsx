@@ -5,6 +5,7 @@ import { docToText } from '@shared/doc'
 import type { DocJSON, TextBlockStyle } from '@shared/types'
 import { Expand } from '@/components/icons'
 import { color as paletteColor } from '@/lib/colors'
+import { record } from '@/lib/undo'
 import { cn } from '@/lib/utils'
 import { useAppDispatch } from '@/store'
 import { api, useGetCardQuery, useUpdateCardMutation } from '@/store/api'
@@ -47,6 +48,8 @@ export const TextBlockNode = memo(function TextBlockNode({ id, data, selected, h
   const rotation = Number(data.object.data.rotation) || 0
   const tint = summary.color ? paletteColor(summary.color) : null
   const latest = useRef<DocJSON | null>(null)
+  /** content when editing started — one undo step per editing session */
+  const before = useRef<DocJSON | null>(null)
   // what was just typed, shown until the refetched card catches up (avoids flashing the old text)
   const [local, setLocal] = useState<DocJSON | null>(null)
   useEffect(() => setLocal(null), [card?.updatedAt])
@@ -56,9 +59,18 @@ export const TextBlockNode = memo(function TextBlockNode({ id, data, selected, h
   const { editing, setEditing, root } = useEditMode(
     selected,
     () => {
-      const text = latest.current ? docToText(latest.current) : summary.excerpt
+      const after = latest.current
+      const start = before.current
+      const text = after ? docToText(after) : summary.excerpt
       latest.current = null
-      if (text.trim()) return
+      before.current = null
+      if (text.trim()) {
+        if (after && start && JSON.stringify(after) !== JSON.stringify(start)) {
+          const cardId = summary.id
+          record({ label: t('undo.editText'), undo: () => window.api.updateCard({ id: cardId, content: start }), redo: () => window.api.updateCard({ id: cardId, content: after }) })
+        }
+        return
+      }
       // nothing written: take the block away again (card + placement), no undo entry needed
       void (async () => {
         await window.api.removeObjects([id])
@@ -68,6 +80,10 @@ export const TextBlockNode = memo(function TextBlockNode({ id, data, selected, h
     },
     !!data.autoEdit
   )
+
+  useEffect(() => {
+    if (editing && !before.current && card) before.current = card.content
+  }, [editing, card])
 
   // while typing, the board's selection toolbar would cover the text-formatting bubble menu → it hides on this flag
   useEffect(() => rf.updateNodeData(id, { editing }), [rf, id, editing])

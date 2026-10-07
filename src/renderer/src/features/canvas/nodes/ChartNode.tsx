@@ -1,6 +1,7 @@
 import { NodeToolbar, type NodeProps } from '@xyflow/react'
 import { memo, useEffect, useRef, useState } from 'react'
 import { Link2, Unlink } from '@/components/icons'
+import { record } from '@/lib/undo'
 import { cn } from '@/lib/utils'
 import { ChartEditor } from '@/features/charts/ChartEditor'
 import { ChartView } from '@/features/charts/ChartView'
@@ -23,7 +24,21 @@ export const ChartNode = memo(function ChartNode({ id, data, selected }: NodePro
     clearTimeout(timer.current)
     persist([{ id, data: { ...latest.current } as unknown as Record<string, unknown> }])
   }
-  const { editing, setEditing, root } = useEditMode(selected, save, !!data.autoEdit)
+  /** chart when editing started — one undo step per editing session */
+  const before = useRef<ChartData | null>(null)
+  const finish = () => {
+    save()
+    const start = before.current
+    const after = { ...latest.current }
+    before.current = null
+    if (!start || JSON.stringify(start) === JSON.stringify(after)) return
+    const apply = (c: ChartData) => persist([{ id, data: { ...c } as unknown as Record<string, unknown> }])
+    record({ label: t('undo.editChart'), undo: () => apply(start), redo: () => apply(after) })
+  }
+  const { editing, setEditing, root } = useEditMode(selected, finish, !!data.autoEdit)
+  useEffect(() => {
+    if (editing && !before.current) before.current = latest.current
+  }, [editing])
 
   const update = (next: ChartData) => {
     setChart(next)

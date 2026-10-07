@@ -1119,6 +1119,8 @@ export const en = {
   'undo.flowStep': 'Add flowchart step',
   'undo.flowRename': 'Rename flowchart box',
   'undo.editDiagram': 'Edit diagram',
+  'undo.editText': 'Edit text',
+  'undo.editChart': 'Edit chart',
   'mermaid.editFlowchart': 'Edit flowchart',
 
   // whiteboard properties

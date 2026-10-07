@@ -1111,6 +1111,8 @@ export const de: Dictionary = {
   'undo.flowStep': 'Schritt im Flussdiagramm hinzufügen',
   'undo.flowRename': 'Kästchen im Flussdiagramm umbenennen',
   'undo.editDiagram': 'Diagramm bearbeiten',
+  'undo.editText': 'Text bearbeiten',
+  'undo.editChart': 'Chart bearbeiten',
   'mermaid.editFlowchart': 'Flussdiagramm bearbeiten',
 
   // whiteboard properties
