@@ -15,57 +15,92 @@
 
 </div>
 
-Sidera is a free, open-source, local-first app for fast, visual note-taking on whiteboards. Mix text blocks,
-tables, charts and hand drawings — live on your iPad too — on one infinite board, instead
-of splitting the same idea across a dozen documents. Built **MCP-first**: every core action is exposed as an
-MCP tool, so Claude Desktop, Claude Code or any other MCP client can read and organize your boards alongside
-you.
+Sidera is a free, open-source, local-first app for fast, visual note-taking on whiteboards. Put text, tables,
+live charts, images and hand drawings on one infinite board — and take it to your iPad — instead of splitting the
+same idea across a dozen documents. Built **MCP-first**: every core action is an MCP tool, so Claude Desktop,
+Claude Code or any other MCP client can read and build your boards alongside you.
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/hero-dark.webp">
-  <img src="docs/screenshots/hero.webp" alt="A Sidera board about a fictional startup: key data and ideas as text blocks, a company-history timeline, a revenue table with a linked column chart, pen annotations and a sketched rocket booster">
+  <img src="docs/screenshots/hero.webp" alt="A large Sidera board about a fictional satellite-internet company: logo and illustrations, a hand-drawn orbit with satellites, a flywheel, a company timeline, a waterfall chart, an EBITDA table with a linked chart that turns from red to blue at break-even, subscriber, cash-flow and segment charts, coloured notes and a sketched rocket">
 </picture>
+
+<p align="center"><sub>Everything above is one board: text, a table, eight charts, images, sketches and pen ink — built in Sidera.</sub></p>
+
+## On your iPad, live
+
+Press the iPad button on any board and it opens on your iPad — both ways, in real time, over your own Wi-Fi. A finger
+pans and zooms, **Apple Pencil draws**, everything else stays editable. End-to-end encrypted, no cloud, no App Store.
+
+<table>
+<tr>
+<td width="50%"><img src="docs/screenshots/ipad.webp" alt="Sidera for iPad showing the whole satellite-internet board, with the pen palette at the bottom"></td>
+<td width="50%"><img src="docs/screenshots/ipad-dark.webp" alt="Sidera for iPad in dark mode, zoomed into the charts and notes of the board"></td>
+</tr>
+</table>
+
+## Charts that live on the board
+
+Sixteen chart types — column, bar, line, area, combo, radar, pie, donut, **waterfall**, scatter, bubble, heatmap,
+sankey, timeline, 2×2 matrix and Venn — each backed by a small table you can edit in place, or **linked to a table on
+the board** so it redraws whenever the numbers change. Colour by value (everything below break-even in red), labelled
+markers, own axis ticks and titles, smooth or straight lines — and you can circle the bar that matters with the pen.
+
+<img src="docs/screenshots/charts.webp" alt="Close-up of the board: a company timeline, a waterfall chart of unit economics, a table-linked EBITDA chart that switches colour at break-even with a hand-drawn circle around the first profitable quarter, subscriber and cash-flow area charts, a donut chart and coloured notes">
 
 ## Features
 
-- **Whiteboards, first** — an infinite canvas (React Flow) with text blocks, tables, colored sections,
-  labeled connections, mindmaps, Mermaid diagrams, and imported PDFs & images. Undo/redo, ⌘F find, minimap
-  and zoom.
-- **Charts** — drop revenue, timeline or comparison charts straight onto a board, linked to the data behind
-  them.
-- **Pen mode & Sidera for iPad** — sketch directly on a board, or open the board live on your iPad (a web app over
-  the local Wi-Fi, no App Store): edit everything, draw with Apple Pencil — end-to-end encrypted, no cloud in between.
-- **Cards & backlinks** — rich text (Tiptap) with `/` commands and `@` mentions that create real backlinks;
-  one card can live on any number of whiteboards.
-- **AI chat, bring your own key** — an in-app Claude assistant (⌘J) that uses the exact same tools as the MCP
-  server, so anything an external agent can do, it can do too. Optional native web search for Anthropic and
-  OpenAI models.
-- **MCP server for every core action** — dozens of tools over local HTTP or stdio, so Claude Desktop and
-  Claude Code can search, create and organize your whiteboards, cards, tags, kanban and tasks.
-- **Accounts & guest mode** — local accounts with an optional password, or a temporary guest workspace that's
-  wiped on sign-out. No cloud account, ever.
-- **Local-first** — everything lives in `~/Library/Application Support/Sidera/` (SQLite + imported files);
-  Markdown export/import any time.
+- **Whiteboards, first** — an infinite canvas with text boxes (plain or framed, any size), tables, charts, images &
+  PDFs, colored sections, labeled connectors, mindmaps, Mermaid diagrams and link previews. Rotate anything, undo/redo,
+  ⌘F find, minimap and zoom.
+- **Pen mode** — sketch straight onto the board (P), with pen, highlighter, eraser, colours and widths. Ink is part of the
+  board, not a layer on top.
+- **Sidera for iPad** — the board live on your iPad as a home-screen web app; pair once with a QR code.
+- **Cards & backlinks** — rich text (Tiptap) with `/` commands and `@` mentions that create real backlinks; one card
+  can live on any number of whiteboards.
+- **AI chat, bring your own key** — an in-app Claude assistant (⌘J) that uses the exact same tools as the MCP server,
+  so anything an external agent can do, it can do too. Optional native web search for Anthropic and OpenAI models.
+- **MCP server for every core action** — 50+ tools over local HTTP or stdio: Claude can build whole boards — tables,
+  linked charts, ink, flowcharts — and search and organize your cards, tags, kanban and tasks.
+- **Accounts & guest mode** — local accounts with an optional password, or a temporary guest workspace that's wiped on
+  sign-out. No cloud account, ever.
+- **Local-first** — everything lives in `~/Library/Application Support/Sidera/` (SQLite + imported files); Markdown
+  export/import any time.
 
 ### Also included
 
-A card library with tags, backlinks and SQLite FTS5 search (⌘K), tags-as-databases with kanban boards and
-lists, and a Tasks area with list/board views, priority, assignee, due dates and an activity timeline.
+A card library with tags, backlinks and SQLite FTS5 search (⌘K), tags-as-databases with kanban boards and lists, a
+split-screen PDF reader with highlights, and a Tasks area with list/board views, priority, assignee, due dates and an
+activity timeline.
 
-## Screenshots
+## More screenshots
 
 <table>
 <tr>
 <td width="50%">
 
-**Home — boards first, with live previews**
-<img src="docs/screenshots/home.webp" alt="Home with recent board tiles, each showing a mini preview of its text blocks, tables, charts and ink">
+**Pen mode — draw right on the board**
+<img src="docs/screenshots/pen-mode.webp" alt="Pen mode over the hand-drawn orbit: satellites, laser links, the user's dish and a ground station above the Earth">
 
 </td>
 <td width="50%">
 
-**Pen mode — draw right on the board**
-<img src="docs/screenshots/pen-mode.webp" alt="Pen mode with its colour palette, a circled chart bar and a sketched rocket booster">
+**Home — boards first, with live previews**
+<img src="docs/screenshots/home.webp" alt="Home with recent board tiles, each showing a mini preview of its text, tables, charts and ink">
+
+</td>
+</tr>
+<tr>
+<td width="50%">
+
+**AI chat, same tools as MCP**
+<img src="docs/screenshots/ai-chat.webp" alt="The in-app Claude chat summarizing the board next to it">
+
+</td>
+<td width="50%">
+
+**Connect Claude in one command**
+<img src="docs/screenshots/mcp-connect.webp" alt="The MCP settings panel with a one-line command to connect Claude Code">
 
 </td>
 </tr>
@@ -92,26 +127,14 @@ lists, and a Tasks area with list/board views, priority, assignee, due dates and
 </td>
 <td width="50%">
 
-**AI chat, same tools as MCP**
-<img src="docs/screenshots/ai-chat.webp" alt="The in-app Claude chat summarizing the board next to it">
-
-</td>
-</tr>
-<tr>
-<td width="50%">
-
-**Connect Claude in one command**
-<img src="docs/screenshots/mcp-connect.webp" alt="The MCP settings panel with a one-line command to connect Claude Code">
-
-</td>
-<td width="50%">
-
 **Guided onboarding**
 <img src="docs/screenshots/welcome.webp" alt="The welcome slides shown on first launch">
 
 </td>
 </tr>
 </table>
+
+<sub>All screenshots are generated from a scripted demo workspace (fictional companies) by `node scripts/readme/shoot.mjs`.</sub>
 
 ## Install
 
@@ -130,8 +153,8 @@ You'll land on the sign-in screen — create a local account (password optional)
 
 ## Connect to Claude (MCP)
 
-While Sidera is running, it exposes a local MCP server with all 34 tools (search, create and organize cards,
-whiteboards, tags, kanban and tasks). Easiest way in: **Settings → MCP & Claude → Connect everything**, which
+While Sidera is running, it exposes a local MCP server with all of its tools (build boards with tables, charts and
+ink; search, create and organize cards, whiteboards, tags, kanban and tasks). Easiest way in: **Settings → MCP & Claude → Connect everything**, which
 wires up both Claude Desktop and Claude Code. Or from a terminal:
 
 ```bash

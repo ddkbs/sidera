@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 200" width="1200" height="200">
+  <defs>
+    <radialGradient id="o" cx="50%" cy="100%" r="75%"><stop offset="0" stop-color="#1e3a8a"/><stop offset=".75" stop-color="#2563eb"/><stop offset="1" stop-color="#60a5fa"/></radialGradient>
+    <linearGradient id="a" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#93c5fd" stop-opacity="0"/><stop offset="1" stop-color="#93c5fd" stop-opacity=".6"/></linearGradient>
+    <linearGradient id="fade" x1="0" y1="0" x2="0" y2="1"><stop offset=".55" stop-color="#fff"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></linearGradient>
+    <mask id="m"><rect width="1200" height="200" fill="url(#fade)"/></mask>
+    <clipPath id="c"><ellipse cx="600" cy="1530" rx="1500" ry="1500"/></clipPath>
+  </defs>
+  <g mask="url(#m)">
+  <ellipse cx="600" cy="1530" rx="1530" ry="1530" fill="url(#a)" opacity=".7"/>
+  <ellipse cx="600" cy="1530" rx="1500" ry="1500" fill="url(#o)"/>
+  <g clip-path="url(#c)" fill="#6ee7b7" opacity=".45">
+    <path d="M150 120 C200 90 290 96 330 118 C370 140 340 180 280 190 C220 200 160 190 140 160 C128 140 132 130 150 120Z"/>
+    <path d="M520 70 C580 52 650 62 668 88 C684 114 640 126 626 150 C610 182 560 188 534 162 C510 136 486 90 520 70Z"/>
+    <path d="M840 104 C890 86 980 92 1010 118 C1036 144 996 176 940 182 C890 188 846 168 830 142 C822 124 828 112 840 104Z"/>
+  </g>
+  <g clip-path="url(#c)" fill="#fff" opacity=".28">
+    <path d="M280 70 C340 60 400 76 440 72 C400 92 320 96 280 70Z"/><path d="M740 60 C800 48 880 60 910 68 C860 82 780 80 740 60Z"/>
+  </g>
+  </g>
+</svg>

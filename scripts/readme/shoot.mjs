@@ -1,22 +1,28 @@
 #!/usr/bin/env node
 /**
  * Renders the README screenshots into docs/screenshots/ using the devShot hook (see CLAUDE.md).
- * Reuses the onboarding demo seed (scripts/onboarding/seed.js — a mixed "Tech Startups — Nimbus Aerospace"
- * board with text blocks, a timeline, a revenue table + linked chart, pen ink and a sketch) plus a sample PDF
- * with highlights added in its own step.
+ * Reuses the onboarding demo seed (scripts/onboarding/seed.js — smaller boards, cards, tasks) and adds the big
+ * showcase board (scripts/readme/showcase.js — "Orbitra", with images from scripts/readme/assets) plus a sample
+ * PDF with highlights.
  *
- *   node scripts/readme/shoot.mjs
+ * The iPad shots run the real iPad web app (out/ipad) in headless Google Chrome emulating an iPad (scripts/readme/cdp.mjs):
+ * the app shares the board and creates a pairing, Chrome pairs like a scanned QR code, captures the live board and
+ * frames it in a drawn iPad bezel.
  *
- * Needs `cwebp` (brew install webp). Never touches the real data dir — everything runs against a
- * throw-away scratch dir. Env: SIDERA_MCP_PORT (default 3860), README_SHOTS_DIR (scratch).
+ *   node scripts/readme/shoot.mjs            # everything
+ *   node scripts/readme/shoot.mjs ipad       # only the iPad shots
+ *
+ * Needs `cwebp` (brew install webp) and Google Chrome. Never touches the real data dir — everything runs against a
+ * throw-away scratch dir. Env: SIDERA_MCP_PORT (default 3860), SIDERA_IPAD_PORT (default 47890), README_SHOTS_DIR (scratch).
  */
-import { execFileSync, spawnSync } from 'node:child_process'
-import { existsSync, mkdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs'
+import { execFileSync, spawn, spawnSync } from 'node:child_process'
+import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { buildSamplePdf, SAMPLE_HIGHLIGHTS } from './sample-pdf.mjs'
 import { chatExchange, openBoard } from '../onboarding/shoot.mjs'
+import { launchIpadChrome } from './cdp.mjs'
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '../..')
 const outDir = join(root, 'docs/screenshots')
@@ -24,10 +30,24 @@ const scratch = process.env.README_SHOTS_DIR ?? join(tmpdir(), 'sidera-readme-sh
 const port = process.env.SIDERA_MCP_PORT ?? '3860'
 const onboardingSeed = readFileSync(join(root, 'scripts/onboarding/seed.js'), 'utf8')
 const pdfBase64 = buildSamplePdf().toString('base64')
+const ipadPort = process.env.SIDERA_IPAD_PORT ?? '47890'
+const assetDir = join(root, 'scripts/readme/assets')
+const assets = Object.fromEntries(readdirSync(assetDir).map((f) => [f, readFileSync(join(assetDir, f)).toString('base64')]))
+const showcaseSeed = readFileSync(join(root, 'scripts/readme/showcase.js'), 'utf8').replace('__ASSETS__', JSON.stringify(assets))
 
 const ZOOM = 1.25
 const WIDTH = 1600
-const HERO_WIDTH = 2000
+const HERO_WIDTH = 2400
+
+/** Opens the Orbitra showcase board at a board viewport; the sidebar stays closed so the board gets the whole window. */
+const showcase = `(await window.api.listWhiteboards()).find((b) => b.name.startsWith('Orbitra'))`
+const openShowcase = (viewport) => `(async () => {
+  const b = ${showcase}
+  await window.api.updateWhiteboard({ id: b.id, viewport: ${JSON.stringify(viewport)} })
+  localStorage['sidera.ui'] = JSON.stringify({ sidebarOpen: false, chatOpen: false, tabs: [{ id: 't1', view: { type: 'whiteboard', id: b.id } }], activeTabId: 't1' })
+  setTimeout(() => location.reload(), 50)
+})()`
+const settle = (ms = 1200) => `new Promise((r) => setTimeout(() => r(1), ${ms}))`
 
 const ui = (view, extra = '') => `(async () => {
   ${extra}
@@ -53,14 +73,16 @@ const extraSeedStep = `(async () => {
 const settings = (extra = {}) =>
   `(async () => { await window.app.setSettings({ theme: 'light', canvas: { showMinimap: false }, onboarding: { welcomeSeen: true }, ...${JSON.stringify(extra)} }); return 1 })()`
 
-/** Each shot: steps that lead to it (the last step's PNG is the one kept) + output width. */
+/** Each shot: steps that lead to it (the last step's PNG is the one kept) + output width. Showcase shots end with a
+ * click on empty board so no node shows its hover handles. */
 const shots = [
-  { name: 'hero', width: HERO_WIDTH, steps: [openBoard({ x: 96, y: 124, zoom: 0.5 }), zoomStep, '@click 864 720'] },
-  { name: 'home', steps: [ui({ expr: `{ type: 'home' }` }), zoomStep, '@click 1300 820'], noPark: true },
+  { name: 'hero', width: HERO_WIDTH, noPark: true, steps: [openShowcase({ x: 70, y: 84, zoom: 0.5 }), settle(), '@click 600 78'] },
+  { name: 'charts', width: HERO_WIDTH, noPark: true, steps: [openShowcase({ x: -218, y: -339, zoom: 0.72 }), settle(), '@click 936 353'] },
+  { name: 'home', steps: [ui({ expr: `{ type: 'home' }` }), zoomStep, settle(600)], noPark: true },
   {
     name: 'pen-mode',
     noPark: true,
-    steps: [openBoard({ x: -470, y: -100, zoom: 0.85 }), zoomStep, '@click 1080 792', '@click [aria-label="Pen"]', 'new Promise((r) => setTimeout(() => r(1), 400))']
+    steps: [openShowcase({ x: -360, y: 90, zoom: 0.95 }), zoomStep, '@click [aria-label="Pen"]', settle(400)]
   },
   {
     name: 'library-search',
@@ -95,7 +117,7 @@ function run(theme, list) {
   const dir = join(scratch, theme)
   rmSync(dir, { recursive: true, force: true })
   mkdirSync(dir, { recursive: true })
-  const steps = [onboardingSeed, settings({ theme }), extraSeedStep]
+  const steps = [onboardingSeed, showcaseSeed, settings({ theme }), extraSeedStep]
   const keep = []
   for (const s of list) {
     steps.push(...s.steps)
@@ -191,8 +213,112 @@ function runWelcome() {
   console.log(`  → ${out.replace(root + '/', '')} (${Math.round(statSync(out).size / 1024)} KB)`)
 }
 
-run('light', shots)
-run('dark', shots.filter((s) => s.name === 'hero'))
-runSignIn()
-runWelcome()
+/** iPad screen in CSS px (iPad Air 11", landscape) and the drawn bezel around it. */
+const IPAD = { width: 1180, height: 820, scale: 2 }
+const IPAD_WIDTH = 1600
+
+/** Draws the iPad bezel around a screen capture (headless Chrome, transparent page) → PNG. */
+async function frameIpad(chrome, screenPng, dir) {
+  const [w, h] = [IPAD.width, IPAD.height]
+  const html = `<!doctype html><meta charset="utf-8"><style>
+    html,body{margin:0;background:transparent}
+    .wrap{padding:44px 56px 64px}
+    .ipad{width:${w}px;height:${h}px;padding:26px;border-radius:52px;background:#1a1a1c;
+      box-shadow:0 0 0 2px #3a3a3e inset,0 0 0 1.5px #9a9aa0,0 30px 60px -18px rgba(15,23,42,.45),0 12px 24px -12px rgba(15,23,42,.3);position:relative}
+    .ipad::before{content:'';position:absolute;left:50%;top:11px;width:7px;height:7px;margin-left:-3.5px;border-radius:50%;background:#2c2c30;box-shadow:inset 0 0 0 1.5px #111}
+    img{display:block;width:${w}px;height:${h}px;border-radius:20px}
+  </style><div class="wrap"><div class="ipad"><img src="data:image/png;base64,${screenPng.toString('base64')}"></div></div>`
+  const file = join(dir, 'frame.html')
+  writeFileSync(file, html)
+  const fw = w + 52 + 112
+  const fh = h + 52 + 108
+  await chrome.send('Emulation.setDeviceMetricsOverride', { width: fw, height: fh, deviceScaleFactor: IPAD.scale, mobile: false })
+  await chrome.send('Emulation.setDefaultBackgroundColorOverride', { color: { r: 0, g: 0, b: 0, a: 0 } })
+  await chrome.goto(`file://${file}`, 800)
+  return chrome.shot()
+}
+
+/**
+ * One iPad shot: the dev app seeds + shares the showcase board and creates a pairing (step output `IPADURL`), then
+ * waits while headless Chrome pairs (like a scanned QR code), reloads as the paired home-screen app and captures.
+ */
+async function runIpad({ name, theme, viewport }) {
+  const dir = join(scratch, `ipad-${name}`)
+  rmSync(dir, { recursive: true, force: true })
+  mkdirSync(dir, { recursive: true })
+  const steps = [
+    onboardingSeed,
+    showcaseSeed,
+    // the iPad mirrors the Mac's language setting; pin it, null would follow this Mac's system language
+    settings({ theme, language: 'en' }),
+    `(async () => {
+      const b = ${showcase}
+      await window.api.updateWhiteboard({ id: b.id, viewport: ${JSON.stringify(viewport)} })
+      const s = await window.ipad.share(b.id)
+      const p = await window.ipad.pair()
+      return { IPADURL: p.ipUrl, share: s }
+    })()`,
+    settle(90_000)
+  ]
+  writeFileSync(join(dir, 'steps.js'), steps.join('\n---\n'))
+  console.log(`[ipad ${name}] capturing…`)
+  // own process group: killing it also ends Electron (a plain kill would only stop npx)
+  const app = spawn('npx', ['electron-vite', 'dev'], {
+    cwd: root,
+    detached: true,
+    stdio: ['ignore', 'pipe', 'pipe'],
+    env: {
+      ...process.env,
+      SIDERA_MCP_PORT: port,
+      SIDERA_IPAD_PORT: ipadPort,
+      SIDERA_DATA_DIR: join(dir, 'data'),
+      SIDERA_SHOT: join(dir, 's.png'),
+      SIDERA_SCRIPT: join(dir, 'steps.js'),
+      SIDERA_QUIT: '1'
+    }
+  })
+  let log = ''
+  const url = await new Promise((res, rej) => {
+    const timer = setTimeout(() => rej(new Error('no pairing URL within 3 min')), 180_000)
+    const on = (d) => {
+      log += d
+      const m = /"IPADURL":"([^"]+)"/.exec(log)
+      if (m) clearTimeout(timer), res(m[1])
+    }
+    app.stdout.on('data', on)
+    app.stderr.on('data', on)
+    app.on('exit', () => rej(new Error(`app exited before pairing:\n${log.slice(-2000)}`)))
+  })
+  const chrome = await launchIpadChrome({ profileDir: join(dir, 'chrome'), ...IPAD, dark: theme === 'dark' })
+  try {
+    await chrome.goto(url, 4000)
+    await chrome.goto(url.replace(/#.*$/, ''), 6000)
+    // the status bar shows the Mac's own name — swap in a generic one
+    await chrome.eval(`(() => { const walk = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT); let n; while ((n = walk.nextNode())) if (/^· /.test(n.textContent)) n.textContent = '· MacBook Pro'; return 1 })()`)
+    const screen = await chrome.shot()
+    writeFileSync(join(dir, 'screen.png'), screen)
+    const framed = await frameIpad(chrome, screen, dir)
+    writeFileSync(join(dir, 'framed.png'), framed)
+    const out = join(outDir, `${name}.webp`)
+    execFileSync('cwebp', ['-quiet', '-q', '84', '-m', '6', '-alpha_q', '100', '-resize', String(IPAD_WIDTH), '0', join(dir, 'framed.png'), '-o', out])
+    console.log(`  → ${out.replace(root + '/', '')} (${Math.round(statSync(out).size / 1024)} KB)`)
+  } finally {
+    chrome.close()
+    process.kill(-app.pid)
+  }
+}
+
+const ipadShots = [
+  { name: 'ipad', theme: 'light', viewport: { x: 96, y: 58, zoom: 0.42 } },
+  { name: 'ipad-dark', theme: 'dark', viewport: { x: -176, y: -302, zoom: 0.62 } }
+]
+
+const only = process.argv[2]
+if (!only || only === 'desktop') {
+  run('light', shots)
+  run('dark', shots.filter((s) => s.name === 'hero'))
+  runSignIn()
+  runWelcome()
+}
+if (!only || only === 'ipad') for (const s of ipadShots) await runIpad(s)
 console.log('done')
