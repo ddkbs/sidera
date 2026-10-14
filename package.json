@@ -128,7 +128,7 @@
         }
       ],
       "icon": "build/icon.icns",
-      "identity": "-",
+      "identity": null,
       "hardenedRuntime": false,
       "gatekeeperAssess": false
     },
@@ -137,6 +137,7 @@
       "artifactName": "Sidera-${version}-${arch}.${ext}"
     },
     "afterPack": "scripts/after-pack.cjs",
+    "afterSign": "scripts/sign-mac.cjs",
     "extraResources": [
       {
         "from": "build/THIRD_PARTY_NOTICES.txt",
