@@ -26,7 +26,16 @@ function certificate() {
   return { bytes: existsSync(p12) ? readFileSync(p12) : Buffer.from(p12, 'base64'), password: password ?? '' }
 }
 
-const run = (cmd, args) => execFileSync(cmd, args, { stdio: ['ignore', 'pipe', 'pipe'] }).toString()
+function run(cmd, args) {
+  try {
+    return execFileSync(cmd, args, { stdio: ['ignore', 'pipe', 'pipe'] }).toString()
+  } catch (e) {
+    throw new Error(`sign-mac: ${cmd} ${args[0]} failed: ${e.stderr?.toString().trim() || e.message}`)
+  }
+}
+
+/** Current user keychain search list (quoted paths from `security list-keychains`). */
+const searchList = () => run('security', ['list-keychains', '-d', 'user']).split('\n').map((l) => l.trim().replace(/^"|"$/g, '')).filter(Boolean)
 
 module.exports = async function signMac(context) {
   if (context.electronPlatformName !== 'darwin') return
@@ -37,11 +46,14 @@ module.exports = async function signMac(context) {
     run('codesign', ['--force', '--deep', '--sign', '-', app])
     return
   }
-  // Throwaway keychain, never added to the user's keychain search list.
+  // Throwaway keychain. On CI runners codesign only finds the private key when the keychain is in the search list,
+  // so it's added there (and the list restored afterwards); on a developer Mac the list is left alone.
   const dir = mkdtempSync(join(tmpdir(), 'sidera-sign-'))
   const keychain = join(dir, 'sign.keychain-db')
   const p12 = join(dir, 'cert.p12')
   const kcPassword = randomBytes(16).toString('hex')
+  const onCi = !!process.env.CI
+  const previousList = onCi ? searchList() : null
   try {
     writeFileSync(p12, cert.bytes, { mode: 0o600 })
     run('security', ['create-keychain', '-p', kcPassword, keychain])
@@ -49,6 +61,7 @@ module.exports = async function signMac(context) {
     run('security', ['unlock-keychain', '-p', kcPassword, keychain])
     run('security', ['import', p12, '-k', keychain, '-P', cert.password, '-T', '/usr/bin/codesign'])
     run('security', ['set-key-partition-list', '-S', 'apple-tool:,apple:', '-s', '-k', kcPassword, keychain])
+    if (previousList) run('security', ['list-keychains', '-d', 'user', '-s', keychain, ...previousList])
     const hash = run('security', ['find-identity', '-p', 'codesigning', keychain])
       .split('\n')
       .find((l) => l.includes(`"${IDENTITY}"`))
@@ -59,6 +72,13 @@ module.exports = async function signMac(context) {
     run('codesign', ['--verify', '--deep', '--strict', app])
     console.log(`  • sign-mac: signed with "${IDENTITY}"`)
   } finally {
+    if (previousList) {
+      try {
+        run('security', ['list-keychains', '-d', 'user', '-s', ...previousList])
+      } catch {
+        // best effort
+      }
+    }
     try {
       run('security', ['delete-keychain', keychain])
     } catch {
