@@ -973,6 +973,7 @@ export const en = {
   'insert.flowchart': 'Flowchart',
   'insert.nestedBoard': 'Nested whiteboard',
   'insert.stock': 'Stock chart…',
+  'stock.interact': 'Double-click to use the chart',
   'stock.add': 'Add stock chart',
   'stock.hint': 'TradingView symbol or link, e.g. NASDAQ:AAPL, XETR:SAP, BINANCE:BTCUSDT',
   'stock.invalid': 'Not a valid symbol',

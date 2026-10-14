@@ -965,6 +965,7 @@ export const de: Dictionary = {
   'insert.flowchart': 'Flussdiagramm',
   'insert.nestedBoard': 'Verschachteltes Whiteboard',
   'insert.stock': 'Aktienchart …',
+  'stock.interact': 'Doppelklick, um den Chart zu bedienen',
   'stock.add': 'Aktienchart hinzufügen',
   'stock.hint': 'TradingView-Symbol oder -Link, z. B. NASDAQ:AAPL, XETR:SAP, BINANCE:BTCUSDT',
   'stock.invalid': 'Kein gültiges Symbol',
