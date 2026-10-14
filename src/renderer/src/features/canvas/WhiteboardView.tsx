@@ -22,6 +22,7 @@ import type { Connection, ObjectKind, ObjectPatch, TextBlockStyle, WhiteboardDet
 import { emptyTable } from '@shared/tables'
 import { PALETTE } from '@/lib/colors'
 import { firstUrl } from '@shared/util'
+import { normalizeSymbol, symbolFromTradingViewUrl, type StockVariant } from '@shared/stocks'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
@@ -214,6 +215,9 @@ function Canvas({ detail }: { detail: WhiteboardDetail }) {
   const [sketchId, setSketchId] = useState<string | null>(null)
   const [linkDialog, setLinkDialog] = useState(false)
   const [linkUrl, setLinkUrl] = useState('')
+  const [stockDialog, setStockDialog] = useState(false)
+  const [stockSymbol, setStockSymbol] = useState('')
+  const [stockVariant, setStockVariant] = useState<StockVariant>('overview')
   useEffect(() => {
     const onEdit = (e: Event) => setSketchId((e as CustomEvent<string>).detail)
     window.addEventListener(EDIT_SKETCH_EVENT, onEdit)
@@ -303,6 +307,22 @@ function Canvas({ detail }: { detail: WhiteboardDetail }) {
       return 'data' in res ? res.data : undefined
     },
     [addObject, boardId]
+  )
+
+  const placeStock = useCallback(
+    (symbol: string, variant: StockVariant, c: { x: number; y: number }) =>
+      place('stock', { x: c.x - 210, y: c.y - 150 }, { data: { symbol, variant }, width: 420, height: variant === 'chart' ? 340 : 300 }),
+    [place]
+  )
+
+  /** A dropped/pasted/entered URL: TradingView symbol pages become stock widgets, everything else a link preview. */
+  const placeUrl = useCallback(
+    async (url: string, c: { x: number; y: number }) => {
+      const symbol = symbolFromTradingViewUrl(url)
+      if (symbol) await placeStock(symbol, 'overview', c)
+      else await place('link', { x: c.x - 160, y: c.y - 100 }, { data: { url } })
+    },
+    [place, placeStock]
   )
 
   // "Save as card" on a link node: clip the page to a card and connect it to the link node.
@@ -649,9 +669,9 @@ function Canvas({ detail }: { detail: WhiteboardDetail }) {
       }
       const url = firstUrl(text)
       if (!url) return
-      await place('link', { x: pos.x - 160, y: pos.y - 100 }, { data: { url } })
+      await placeUrl(url, pos)
     },
-    [pasteObjects, place]
+    [pasteObjects, place, placeUrl]
   )
 
   const selectAll = useCallback(() => setNodes((ns) => ns.map((n) => ({ ...n, selected: true }))), [])
@@ -869,6 +889,12 @@ function Canvas({ detail }: { detail: WhiteboardDetail }) {
       if (a === 'mermaid') {
         const o = await place('mermaid', { x: c.x - 210, y: c.y - 150 }, { data: {} })
         if (o) autoEdit.current = o.id
+        return
+      }
+      if (a === 'stock') {
+        insertPos.current = c
+        setStockSymbol('')
+        setStockDialog(true)
         return
       }
       if (a === 'link') {
@@ -1112,7 +1138,7 @@ function Canvas({ detail }: { detail: WhiteboardDetail }) {
           const url = firstUrl(e.dataTransfer.getData('text/uri-list') || e.dataTransfer.getData('text/plain'))
           if (url) {
             e.preventDefault()
-            await place('link', { x: pos.x - 160, y: pos.y - 100 }, { data: { url } })
+            await placeUrl(url, pos)
             return
           }
         }
@@ -1321,11 +1347,44 @@ function Canvas({ detail }: { detail: WhiteboardDetail }) {
               if (!raw) return
               const url = /^https?:\/\//i.test(raw) ? raw : `https://${raw}`
               setLinkDialog(false)
-              const c = insertPos.current ?? center()
-              await place('link', { x: c.x - 160, y: c.y - 100 }, { data: { url } })
+              await placeUrl(url, insertPos.current ?? center())
             }}
           >
             <Input autoFocus placeholder="https://example.com" value={linkUrl} onChange={(e) => setLinkUrl(e.target.value)} />
+            <DialogFooter className="mt-4">
+              <Button type="submit">{t('common.add')}</Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+      <Dialog open={stockDialog} onOpenChange={setStockDialog}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle>{t('stock.add')}</DialogTitle>
+          </DialogHeader>
+          <form
+            onSubmit={async (e) => {
+              e.preventDefault()
+              const symbol = symbolFromTradingViewUrl(stockSymbol.trim()) ?? normalizeSymbol(stockSymbol)
+              if (!symbol) return void toast.error(t('stock.invalid'))
+              setStockDialog(false)
+              await placeStock(symbol, stockVariant, insertPos.current ?? center())
+            }}
+          >
+            <Input autoFocus placeholder="NASDAQ:AAPL" value={stockSymbol} onChange={(e) => setStockSymbol(e.target.value)} />
+            <p className="mt-2 text-xs text-muted-foreground">{t('stock.hint')}</p>
+            <div className="mt-3 flex gap-1 rounded-lg bg-muted p-1">
+              {(['overview', 'chart'] as const).map((v) => (
+                <button
+                  key={v}
+                  type="button"
+                  className={cn('flex-1 rounded-md px-2 py-1 text-xs font-medium text-muted-foreground', stockVariant === v && 'bg-background text-foreground shadow-sm')}
+                  onClick={() => setStockVariant(v)}
+                >
+                  {t(v === 'overview' ? 'stock.overview' : 'stock.chart')}
+                </button>
+              ))}
+            </div>
             <DialogFooter className="mt-4">
               <Button type="submit">{t('common.add')}</Button>
             </DialogFooter>

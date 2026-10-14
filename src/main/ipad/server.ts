@@ -117,7 +117,7 @@ export function appHeaders(host: string): Record<string, string> {
     "font-src 'self' data:",
     `connect-src 'self' ws://${host}`,
     "worker-src 'self' blob:",
-    'frame-src blob:',
+    'frame-src blob: https://www.tradingview-widget.com',
     "object-src 'none'",
     "base-uri 'none'",
     "form-action 'none'",

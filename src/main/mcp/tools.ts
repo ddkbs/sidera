@@ -63,7 +63,7 @@ export function createMcpServer(api: Services, version: string, onCall?: ToolCal
       instructions:
         `${APP_NAME} is a local-first visual notes app. Whiteboards are the main surface: text boxes (the one text element — ` +
         'plain or framed, any size and font size), tables, charts (also linked to a table), Mermaid diagrams, mindmaps, sections, ' +
-        'shapes and pen ink, images/files, link previews, cards and nested whiteboards, joined by labelled connectors. ' +
+        'shapes and pen ink, images/files, link previews, live stock charts (TradingView), cards and nested whiteboards, joined by labelled connectors. ' +
         'Cards hold Markdown-like notes in a library; tags group cards and power kanban boards and tasks. ' +
         'Read a board with get_whiteboard (object ids, positions in board px, kinds and data) before editing it; ' +
         'add_* tools place new objects (without x/y right of existing content); update_objects moves/resizes/rotates/recolours/restacks; ' +
@@ -342,7 +342,7 @@ export function createMcpServer(api: Services, version: string, onCall?: ToolCal
       description:
         'Get a whiteboard: its properties, objects and connections (connectors). Every object has id, kind, x/y/width/height (board px), z (stacking) and color; ' +
         'kind-specific details live in `data` (rotation in degrees; text boxes: style plain|framed, fontSize, minHeight + their markdown; sections: title; ' +
-        'mermaid/mindmap: source; charts: chartType/columns/rows (source.tableId when linked to a table); tables: columns/rows; links: url; files: name/mime; ' +
+        'mermaid/mindmap: source; charts: chartType/columns/rows (source.tableId when linked to a table); tables: columns/rows; links: url; stock charts: symbol/variant; files: name/mime; ' +
         'sketches: element counts, frameless = shape or pen ink directly on the board). Card objects (kind "card") carry card_id, title and card_kind ("block" = text box).',
       inputSchema: { whiteboard_id: z.string() },
       annotations: { readOnlyHint: true }
@@ -941,6 +941,33 @@ export function createMcpServer(api: Services, version: string, onCall?: ToolCal
       try {
         const pos = x !== undefined && y !== undefined ? { x, y } : freeSpot(api, whiteboard_id)
         return ok({ object_id: api.addLink({ whiteboardId: whiteboard_id, url, ...pos, width, height }).id })
+      } catch (e) {
+        return errorText(e)
+      }
+    }
+  )
+
+  server.registerTool(
+    'add_stock_chart',
+    {
+      description:
+        'Add a live TradingView stock/crypto/index chart widget to a whiteboard. symbol in TradingView notation, e.g. "NASDAQ:AAPL", ' +
+        '"XETR:SAP", "BINANCE:BTCUSDT", "TVC:SPX" (a bare ticker also works). variant: overview (price, change, area chart with date ranges; default) or chart (full interactive candle chart).',
+      inputSchema: {
+        whiteboard_id: z.string(),
+        symbol: z.string(),
+        variant: z.enum(['overview', 'chart']).optional(),
+        x: z.number().optional(),
+        y: z.number().optional(),
+        width: z.number().optional(),
+        height: z.number().optional()
+      }
+    },
+    async ({ whiteboard_id, symbol, variant, x, y, width, height }) => {
+      try {
+        const pos = x !== undefined && y !== undefined ? { x, y } : freeSpot(api, whiteboard_id)
+        const obj = api.addStock({ whiteboardId: whiteboard_id, symbol, variant, ...pos, width, height })
+        return ok({ object_id: obj.id, symbol: obj.data.symbol })
       } catch (e) {
         return errorText(e)
       }

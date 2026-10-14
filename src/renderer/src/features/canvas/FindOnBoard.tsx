@@ -1,12 +1,12 @@
 import { useReactFlow } from '@xyflow/react'
-import { BoxSelect, FileText, Globe, LayoutDashboard, Network, PenTool, BarChart, Table2, Type, Workflow, File } from '@/components/icons'
+import { BoxSelect, FileText, Globe, TrendingUp, LayoutDashboard, Network, PenTool, BarChart, Table2, Type, Workflow, File } from '@/components/icons'
 import { useState } from 'react'
 import { t } from '@/lib/i18n'
 import { useCommands } from '@/lib/shortcuts'
 import { CommandDialog, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command'
 import type { ObjectNode } from './types'
 
-const ICONS = { card: FileText, section: BoxSelect, whiteboard: LayoutDashboard, file: File, mindmap: Network, mermaid: Workflow, sketch: PenTool, chart: BarChart, link: Globe, table: Table2 }
+const ICONS = { card: FileText, section: BoxSelect, whiteboard: LayoutDashboard, file: File, mindmap: Network, mermaid: Workflow, sketch: PenTool, chart: BarChart, link: Globe, table: Table2, stock: TrendingUp }
 
 const label = (n: ObjectNode): string => {
   const o = n.data.object
@@ -24,6 +24,8 @@ const label = (n: ObjectNode): string => {
       return String(o.data.title || t('library.table'))
     case 'file':
       return String(o.data.name ?? t('canvas.file'))
+    case 'stock':
+      return String(o.data.symbol ?? t('insert.stock'))
     case 'link':
       return String(o.data.title ?? o.data.url ?? t('format.link'))
     default:

@@ -94,6 +94,10 @@ function toItem(o: PreviewSource): BoardPreviewItem {
       label = clip(o.data.title)
       if (typeof o.data.chartType === 'string') extra.chartType = o.data.chartType
       break
+    case 'stock':
+      kind = 'chart'
+      label = clip(o.data.symbol)
+      break
     case 'sketch':
       if (o.data.frameless === true) {
         const strokes = inkStrokes(o)

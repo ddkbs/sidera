@@ -16,6 +16,7 @@ import {
   VennChart,
   BoxSelect,
   Globe,
+  TrendingUp,
   LayoutDashboard,
   Network,
   PenTool,
@@ -54,6 +55,7 @@ export type CanvasAction =
   | 'connector'
   | 'sketch'
   | 'link'
+  | 'stock'
   | 'mindmap'
   | 'mermaid'
   | 'whiteboard'
@@ -83,6 +85,7 @@ export const INSERT_ITEMS: { action: CanvasAction; label: MessageKey; icon: AppI
   { action: 'mermaid', label: 'insert.flowchart', icon: Workflow },
   { action: 'whiteboard', label: 'insert.nestedBoard', icon: LayoutDashboard },
   { action: 'link', label: 'insert.link', icon: Globe },
+  { action: 'stock', label: 'insert.stock', icon: TrendingUp },
   { action: 'import', label: 'insert.import', icon: Upload },
   { action: 'table', label: 'library.table', icon: Table2 }
   ] as { action: CanvasAction; label: MessageKey; icon: AppIcon }[]

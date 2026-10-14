@@ -19,6 +19,7 @@ import {
   IconMedal as ObraTrophy,
   IconCompass as ObraCompass,
   IconGlobe as ObraGlobe,
+  IconTrendingUp as ObraTrendingUp,
   IconBriefcase as ObraBriefcase,
   IconUsers as ObraUsers,
   IconMegaphone as ObraMegaphone,
@@ -308,6 +309,7 @@ export const Bookmark = ObraBookmark
 export const Trophy = ObraTrophy
 export const Compass = ObraCompass
 export const Globe = ObraGlobe
+export const TrendingUp = ObraTrendingUp
 export const Briefcase = ObraBriefcase
 export const Users = ObraUsers
 export const Megaphone = ObraMegaphone

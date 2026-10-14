@@ -18,7 +18,7 @@ const deny = (why = 'Not available on iPad'): never => {
   throw new PolicyError(why)
 }
 
-const OBJECT_KINDS: ObjectKind[] = ['card', 'section', 'whiteboard', 'file', 'mindmap', 'mermaid', 'sketch', 'chart', 'link', 'table']
+const OBJECT_KINDS: ObjectKind[] = ['card', 'section', 'whiteboard', 'file', 'mindmap', 'mermaid', 'sketch', 'chart', 'link', 'table', 'stock']
 const MAX_IDS = 5000
 
 const isId = (v: unknown): v is string => typeof v === 'string' && v.length > 0 && v.length <= 64

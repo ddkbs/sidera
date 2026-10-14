@@ -45,6 +45,7 @@ import { layoutGroups } from './organize'
 import { contentMatchesMime, storeFileBytes, storeFileFromPath } from './files'
 import { buildShape, inkColor, INK_STROKE, styledShape, type ShapeKind, type ShapeStyle } from '@shared/shapes'
 import { seedInk, type SeedStroke } from '@shared/inkSeed'
+import { normalizeSymbol, type StockData, type StockVariant } from '@shared/stocks'
 
 type Electronish = 'importFiles' | 'importFileData' | 'getFileUrl' | 'openFile' | 'getMcpInfo' | 'exportMarkdown' | 'importMarkdown' | 'fetchLinkPreview' | 'clipUrl'
 export type ServiceMethods = {
@@ -84,6 +85,8 @@ export type Services = ServiceMethods & {
   addInk(input: { whiteboardId: string; strokes: SeedStroke[] }): WhiteboardObject
   /** A web link preview card (http/https only); the renderer fetches the preview. */
   addLink(input: { whiteboardId: string; url: string; x: number; y: number; width?: number; height?: number }): WhiteboardObject
+  /** TradingView stock widget (symbol like "NASDAQ:AAPL"). */
+  addStock(input: { whiteboardId: string; symbol: string; variant?: StockVariant; x: number; y: number; width?: number; height?: number }): WhiteboardObject
   /** Place an imported file (image, PDF, …) on a board. */
   addFileObject(input: { whiteboardId: string; fileId: string; x: number; y: number; width?: number; height?: number }): WhiteboardObject
   /** A section frame around the given objects (the "Group" action). */
@@ -1694,6 +1697,14 @@ export function createServices(
       }
       if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') throw new Error('Only http(s) links can be added')
       return api.addObject({ whiteboardId, kind: 'link', x, y, width, height, data: { url: parsed.href } })
+    },
+
+    addStock({ whiteboardId, symbol, variant, x, y, width, height }) {
+      requireBoard(whiteboardId)
+      const s = normalizeSymbol(symbol)
+      if (!s) throw new Error(`Not a valid symbol: ${symbol}`)
+      const data: StockData = { symbol: s, variant: variant === 'chart' ? 'chart' : 'overview' }
+      return api.addObject({ whiteboardId, kind: 'stock', x, y, width: width ?? 420, height: height ?? (data.variant === 'chart' ? 340 : 300), data: { ...data } })
     },
 
     addFileObject({ whiteboardId, fileId, x, y, width, height }) {

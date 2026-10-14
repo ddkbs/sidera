@@ -130,7 +130,7 @@ export interface Folder {
   updatedAt: number
 }
 
-export type ObjectKind = 'card' | 'section' | 'whiteboard' | 'file' | 'mindmap' | 'mermaid' | 'sketch' | 'chart' | 'link' | 'table'
+export type ObjectKind = 'card' | 'section' | 'whiteboard' | 'file' | 'mindmap' | 'mermaid' | 'sketch' | 'chart' | 'link' | 'table' | 'stock'
 
 export interface WhiteboardObject {
   id: ID

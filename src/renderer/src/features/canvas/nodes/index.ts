@@ -10,6 +10,7 @@ import { MermaidNode } from './MermaidNode'
 import { MindmapNode } from './MindmapNode'
 import { SectionNode } from './SectionNode'
 import { SketchNode } from './SketchNode'
+import { StockNode } from './StockNode'
 import { TableNode } from './TableNode'
 import { TextBlockNode } from './TextBlockNode'
 import { WhiteboardNode } from './WhiteboardNode'
@@ -39,5 +40,6 @@ export const nodeTypes: NodeTypes = {
   mermaid: safe(MermaidNode),
   sketch: safe(SketchNode),
   chart: safe(ChartNode),
-  table: safe(TableNode)
+  table: safe(TableNode),
+  stock: safe(StockNode)
 }
