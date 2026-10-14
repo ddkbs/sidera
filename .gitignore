@@ -34,3 +34,6 @@ anthropic-key.bin
 
 # Generated at build time (scripts/third-party-notices.cjs)
 build/THIRD_PARTY_NOTICES.txt
+
+# Local Claude Code agent configs
+.claude/

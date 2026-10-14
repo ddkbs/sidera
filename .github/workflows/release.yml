@@ -1,0 +1,43 @@
+# Push a tag like v0.1.0 (matching package.json "version") → builds the DMGs for Apple Silicon and Intel
+# and publishes them as a GitHub release with notes from CHANGELOG.md.
+name: Release
+on:
+  push:
+    tags: ['v*']
+permissions:
+  contents: write
+jobs:
+  release:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - name: Tag must match package.json version
+        run: |
+          v=$(node -p "require('./package.json').version")
+          test "v$v" = "$GITHUB_REF_NAME" || { echo "Tag $GITHUB_REF_NAME != package.json v$v"; exit 1; }
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm test
+      - name: Build DMGs (ad-hoc signed, not notarized)
+        run: npm run dist
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+      - name: Release notes from CHANGELOG.md
+        run: |
+          v=${GITHUB_REF_NAME#v}
+          awk -v v="$v" '/^## /{p = index($0, "## " v) == 1; next} p' CHANGELOG.md > notes.md
+          cat >> notes.md <<'MD'
+
+          ### Install
+          Download the DMG for your Mac (`arm64` = Apple Silicon, `x64` = Intel), open it and drag Sidera into Applications.
+          Sidera isn't notarized yet: on first launch open **System Settings → Privacy & Security → Open Anyway**,
+          or run `xattr -dr com.apple.quarantine /Applications/Sidera.app` once.
+          MD
+      - name: Publish release
+        run: gh release create "$GITHUB_REF_NAME" dist/*.dmg --title "Sidera ${GITHUB_REF_NAME#v}" --notes-file notes.md
+        env:
+          GH_TOKEN: ${{ github.token }}

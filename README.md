@@ -53,6 +53,8 @@ markers, own axis ticks and titles, smooth or straight lines — and you can cir
 - **Whiteboards, first** — an infinite canvas with text boxes (plain or framed, any size), tables, charts, images &
   PDFs, colored sections, labeled connectors, mindmaps, Mermaid diagrams and link previews. Rotate anything, undo/redo,
   ⌘F find, minimap and zoom.
+- **Live stock charts** — drop a TradingView chart for any stock, index or crypto onto a board (overview or full candle
+  chart): pick *Stock chart…* from the insert menu, paste a TradingView link, or ask Claude.
 - **Pen mode** — sketch straight onto the board (P), with pen, highlighter, eraser, colours and widths. Ink is part of the
   board, not a layer on top.
 - **Sidera for iPad** — the board live on your iPad as a home-screen web app; pair once with a QR code.
@@ -138,14 +140,16 @@ activity timeline.
 
 ## Install
 
-Download the DMG for your Mac (Apple Silicon or Intel) from the [Releases](../../releases) page and drag
-Sidera into Applications. The app isn't notarized yet, so on first launch either run:
+Download the latest DMG for your Mac (Apple Silicon `arm64` or Intel `x64`) from
+[Releases](https://github.com/ddkbs/sidera/releases/latest) and drag Sidera into Applications. Sidera tells you when a
+new version is out (Settings → About; you can turn the check off).
+
+Sidera is free and not yet notarized by Apple, so macOS blocks the first launch. Either open
+**System Settings → Privacy & Security** and click **Open Anyway** next to the Sidera message, or run once:
 
 ```bash
-xattr -cr /Applications/Sidera.app
+xattr -dr com.apple.quarantine /Applications/Sidera.app
 ```
-
-or allow it under **System Settings → Privacy & Security → Open Anyway**.
 
 You'll land on the sign-in screen — create a local account (password optional) or continue as a guest:
 
@@ -194,12 +198,26 @@ Electron · electron-vite · React · TypeScript · Tailwind v4 · shadcn/ui · 
 
 ## Privacy
 
-Sidera is local-first: your database and imported files live in
-`~/Library/Application Support/Sidera/` and never touch a server unless you explicitly connect an AI
-provider or MCP client. Accounts are local (scrypt-hashed passwords, no cloud sync); guest workspaces are
-ephemeral and deleted on sign-out. Bring your own Anthropic/OpenAI API key for the in-app assistant — it's
-stored encrypted with the macOS Keychain.
+Sidera is local-first: your database and imported files live in `~/Library/Application Support/Sidera/`. There is no
+Sidera server, no account in the cloud, no analytics and no telemetry. Accounts are local (scrypt-hashed passwords);
+guest workspaces are deleted on sign-out.
+
+Sidera only goes online for things you trigger or can switch off:
+
+- **AI assistant** — your messages go to the provider you picked (Anthropic, OpenAI, Gemini, Mistral, xAI, OpenRouter
+  or your own endpoint), with your own API key. Keys are stored encrypted via the macOS Keychain (Electron
+  `safeStorage`) or read from environment variables (see [`.env.example`](.env.example)).
+- **Link previews & web clipper** — fetch the page you add (private network addresses are blocked).
+- **Stock charts** — load TradingView's embed widget for the symbol on the board.
+- **Update check** — one request to the GitHub API per launch (Settings → About to turn it off).
+
+The MCP server and the iPad sync only listen on your Mac (`127.0.0.1`) and your local network.
+
+## Contributing & security
+
+Bug reports and pull requests are welcome — see [CONTRIBUTING.md](CONTRIBUTING.md). Please report security issues
+privately as described in [SECURITY.md](SECURITY.md).
 
 ## License
 
-[MIT](LICENSE)
+[MIT](LICENSE). Third-party licenses ship with the app (Settings → About → Open-source licenses).
