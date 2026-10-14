@@ -31,3 +31,6 @@ anthropic-key.bin
 *.crt
 *.mobileprovision
 *.provisionprofile
+
+# Generated at build time (scripts/third-party-notices.cjs)
+build/THIRD_PARTY_NOTICES.txt

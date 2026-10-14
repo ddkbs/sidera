@@ -107,6 +107,8 @@ export function installBridge(client: SyncClient): void {
     onSettingsChanged: (cb) => (settingsCbs.add(cb), () => void settingsCbs.delete(cb)),
     getDataInfo: () => Promise.reject(new Error(t('ipadApp.notAvailable'))),
     revealDataDir: async () => undefined,
+    checkForUpdate: async () => null,
+    openLicenses: async () => undefined,
     getMcpConnections: () => Promise.reject(new Error(t('ipadApp.notAvailable'))),
     connectClaude: async () => ({ ok: false, message: t('ipadApp.notAvailable') }),
     openCapture: async () => undefined,

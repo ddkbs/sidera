@@ -5,6 +5,14 @@
   "description": "Free, open-source, local-first visual notes: whiteboards with text blocks, tables, charts and sketches — MCP-ready.",
   "main": "./out/main/index.js",
   "author": "ddkbs",
+  "homepage": "https://github.com/ddkbs/sidera#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ddkbs/sidera.git"
+  },
+  "bugs": {
+    "url": "https://github.com/ddkbs/sidera/issues"
+  },
   "license": "MIT",
   "scripts": {
     "dev": "electron-vite dev",
@@ -15,12 +23,13 @@
     "test": "ELECTRON_RUN_AS_NODE=1 electron ./node_modules/vitest/vitest.mjs run",
     "postinstall": "electron-builder install-app-deps",
     "rebuild:node": "npm rebuild better-sqlite3",
-    "dist": "node scripts/copy-assets.cjs && node scripts/build-ipad.mjs && electron-vite build && electron-builder --mac",
+    "dist": "node scripts/copy-assets.cjs && node scripts/third-party-notices.cjs && node scripts/build-ipad.mjs && electron-vite build && electron-builder --mac",
     "db:generate": "drizzle-kit generate",
     "mcp": "electron . --mcp-stdio",
     "icon": "electron scripts/make-icon.cjs",
     "predev": "node scripts/copy-assets.cjs && node scripts/build-ipad.mjs && node scripts/brand-electron.cjs",
-    "prebuild": "node scripts/copy-assets.cjs && node scripts/build-ipad.mjs"
+    "prebuild": "node scripts/copy-assets.cjs && node scripts/build-ipad.mjs",
+    "notices": "node scripts/third-party-notices.cjs"
   },
   "devDependencies": {
     "@dnd-kit/core": "^6.3.1",
@@ -92,7 +101,7 @@
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.126.0",
-    "@modelcontextprotocol/sdk": "^1.30.0",
+    "@modelcontextprotocol/sdk": "^1.32.1",
     "better-sqlite3": "^13.0.3",
     "drizzle-orm": "^0.45.2",
     "nanoid": "^6.0.1",
@@ -128,6 +137,16 @@
       "artifactName": "Sidera-${version}-${arch}.${ext}"
     },
     "afterPack": "scripts/after-pack.cjs",
+    "extraResources": [
+      {
+        "from": "build/THIRD_PARTY_NOTICES.txt",
+        "to": "THIRD_PARTY_NOTICES.txt"
+      },
+      {
+        "from": "LICENSE",
+        "to": "LICENSE.txt"
+      }
+    ],
     "files": [
       "out/**/*",
       "package.json",

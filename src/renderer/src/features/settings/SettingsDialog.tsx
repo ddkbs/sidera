@@ -2,6 +2,7 @@ import { useEffect, useState, type ReactNode } from 'react'
 import { toast } from 'sonner'
 import type { DataInfo, McpConnections, ProviderStatus } from '@shared/api'
 import { APP_NAME } from '@shared/brand'
+import { REPO_URL } from '@shared/updates'
 import { AI_PROVIDERS, getProviderMeta, type AiProviderId } from '@shared/ai'
 import { LANG_NAMES, LANGS, type Lang } from '@shared/i18n'
 import type { FontPref, ThemePref } from '@shared/settings'
@@ -734,8 +735,18 @@ function DataSettings() {
 }
 
 function About() {
+  const dispatch = useAppDispatch()
+  const checkUpdates = useAppSelector((s) => s.settings.updates.check)
   const [version, setVersion] = useState('')
+  const [checking, setChecking] = useState(false)
   useEffect(() => void window.app.getDataInfo().then((i) => setVersion(i.version)), [])
+  const checkNow = async () => {
+    setChecking(true)
+    const u = await window.app.checkForUpdate()
+    setChecking(false)
+    if (u) toast(t('update.available', { version: u.version }), { action: { label: t('update.download'), onClick: () => window.open(u.url, '_blank') } })
+    else toast.success(t('update.upToDate'))
+  }
   return (
     <div className="space-y-4 text-sm">
       <div className="flex items-center gap-3">
@@ -751,6 +762,20 @@ function About() {
         <Kbd>⌘/</Kbd>
         {t('settings.about.shortcutsAfter')}
       </p>
+      <div className="flex flex-wrap gap-2">
+        <Button variant="outline" size="sm" onClick={() => window.open(REPO_URL, '_blank')}>
+          <ArrowUpRight /> GitHub
+        </Button>
+        <Button variant="outline" size="sm" disabled={checking} onClick={() => void checkNow()}>
+          <RotateCcw /> {t('update.checkNow')}
+        </Button>
+        <Button variant="outline" size="sm" onClick={() => void window.app.openLicenses()}>
+          <File /> {t('settings.about.licenses')}
+        </Button>
+      </div>
+      <Row title={t('update.auto')} description={t('update.autoDesc')}>
+        <Switch checked={checkUpdates} onCheckedChange={(v) => dispatch(updateSettings({ updates: { check: v } }))} />
+      </Row>
     </div>
   )
 }

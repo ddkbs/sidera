@@ -83,6 +83,8 @@ const appBridge: AppBridge = {
   },
   getDataInfo: () => ipcRenderer.invoke('app:getDataInfo'),
   revealDataDir: () => ipcRenderer.invoke('app:revealDataDir'),
+  checkForUpdate: () => ipcRenderer.invoke('app:checkForUpdate'),
+  openLicenses: () => ipcRenderer.invoke('app:openLicenses'),
   getMcpConnections: () => ipcRenderer.invoke('app:getMcpConnections'),
   connectClaude: (target) => ipcRenderer.invoke('app:connectClaude', target),
   openCapture: () => ipcRenderer.invoke('app:openCapture'),

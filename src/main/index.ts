@@ -31,6 +31,7 @@ import { freeSpot } from './mcp/tools'
 import { captureScreenRegion } from './screenshot'
 import { Session } from './session'
 import { hardenWindow, rendererUrl } from './windowSecurity'
+import { checkForUpdate } from './updates'
 
 const STDIO = process.argv.includes('--mcp-stdio')
 // Moves the pre-rename `CanvasCL` folder to `Sidera` once (before anything opens it); keeps using the old
@@ -413,6 +414,10 @@ async function bootstrap(): Promise<void> {
     }
   })
   ipcMain.handle('app:revealDataDir', () => shell.openPath(requireSession().dataDir))
+  ipcMain.handle('app:checkForUpdate', () => checkForUpdate())
+  ipcMain.handle('app:openLicenses', () =>
+    shell.openPath(app.isPackaged ? join(process.resourcesPath, 'THIRD_PARTY_NOTICES.txt') : join(app.getAppPath(), 'build', 'THIRD_PARTY_NOTICES.txt'))
+  )
   ipcMain.handle('app:getMcpConnections', async () => {
     const s = requireSession()
     return { desktop: isInClaudeDesktop(), code: await isInClaudeCode(), httpUrl: s.mcpUrl, stdio: s.stdioSpec() }

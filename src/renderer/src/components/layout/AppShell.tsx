@@ -14,6 +14,7 @@ import { back, closeTab, cycleTab, forward, navigate, openSettings, openTab, set
 import { useCommands } from '@/lib/shortcuts'
 import { SettingsDialog } from '@/features/settings/SettingsDialog'
 import { Onboarding } from '@/features/onboarding/Onboarding'
+import { UpdateCheck } from '@/features/settings/UpdateCheck'
 import { TabBar } from './TabBar'
 import { ChatPanel } from '@/features/chat/ChatPanel'
 import { PdfReader } from '@/features/pdf/PdfReader'
@@ -79,6 +80,7 @@ export function AppShell() {
       <ProfileDialog />
       <AccountDialogs />
       <Onboarding />
+      <UpdateCheck />
     </div>
   )
 }

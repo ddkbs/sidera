@@ -1,5 +1,6 @@
 import type { AiProviderId } from './ai'
 import type { AppSettings, SettingsPatch } from './settings'
+import type { UpdateInfo } from './updates'
 import type {
   ArrowEnds,
   Card,
@@ -353,6 +354,10 @@ export interface AppBridge {
   onSettingsChanged(cb: (s: AppSettings) => void): () => void
   getDataInfo(): Promise<DataInfo>
   revealDataDir(): Promise<void>
+  /** Newer release on GitHub, or null (also when offline). */
+  checkForUpdate(): Promise<UpdateInfo | null>
+  /** Open the bundled third-party license notices. */
+  openLicenses(): Promise<void>
   getMcpConnections(): Promise<McpConnections>
   connectClaude(target: 'desktop' | 'code'): Promise<{ ok: boolean; message: string }>
   /** Quick-capture window (see src/main/capture.ts). */

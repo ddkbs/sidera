@@ -32,6 +32,8 @@ export interface AppSettings {
   ai: { provider: AiProviderId; model: string; baseUrl?: string; /** Let the assistant use the provider's native web search (OpenAI/Anthropic only; costs extra). */ webSearch: boolean }
   /** Profile that authors comments etc. Created on first start when null. */
   activeProfileId: string | null
+  /** Look for a newer release on GitHub at startup (one request to api.github.com, nothing else is sent). */
+  updates: { check: boolean }
 }
 
 export const DEFAULT_SETTINGS: AppSettings = {
@@ -47,7 +49,8 @@ export const DEFAULT_SETTINGS: AppSettings = {
   quickCapture: { enabled: true, accelerator: 'Ctrl+Alt+Space' },
   onboarding: { welcomeSeen: false, tourCompletedAt: null },
   ai: { provider: 'anthropic', model: 'claude-opus-5', webSearch: false },
-  activeProfileId: null
+  activeProfileId: null,
+  updates: { check: true }
 }
 
 type DeepPartial<T> = { [K in keyof T]?: T[K] extends object ? (T[K] extends unknown[] ? T[K] : DeepPartial<T[K]>) : T[K] }

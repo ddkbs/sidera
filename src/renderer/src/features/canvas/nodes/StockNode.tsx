@@ -32,7 +32,7 @@ export const StockNode = memo(function StockNode({ data, selected }: NodeProps<O
           key={src}
           src={src}
           title={stock.symbol}
-          sandbox="allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox"
+          sandbox="allow-scripts allow-same-origin allow-popups"
           referrerPolicy="origin"
           className={cn('h-full w-full border-0', editing ? 'nodrag nowheel' : 'pointer-events-none')}
         />
