@@ -1,22 +1,22 @@
-/* Official Geist from the `geist` package (full glyph set + OpenType features, same as vercel.com).
+/* Official Geist (vendored from the `geist` package, SIL OFL 1.1 — see assets/fonts/Geist-OFL.txt) (full glyph set + OpenType features, same as vercel.com).
    The Fontsource build is a Google Fonts subset without stylistic sets and many glyphs. */
 @font-face {
   font-family: 'Geist';
-  src: url('../../../node_modules/geist/dist/fonts/geist-sans/Geist-Variable.woff2') format('woff2');
+  src: url('./assets/fonts/Geist-Variable.woff2') format('woff2');
   font-weight: 100 900;
   font-style: normal;
   font-display: swap;
 }
 @font-face {
   font-family: 'Geist';
-  src: url('../../../node_modules/geist/dist/fonts/geist-sans/Geist-Italic[wght].woff2') format('woff2');
+  src: url('./assets/fonts/Geist-Italic[wght].woff2') format('woff2');
   font-weight: 100 900;
   font-style: italic;
   font-display: swap;
 }
 @font-face {
   font-family: 'Geist Mono';
-  src: url('../../../node_modules/geist/dist/fonts/geist-mono/GeistMono-Variable.woff2') format('woff2');
+  src: url('./assets/fonts/GeistMono-Variable.woff2') format('woff2');
   font-weight: 100 900;
   font-style: normal;
   font-display: swap;
