@@ -9,6 +9,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@vercel/analytics": "^2.0.1",
     "motion": "^14.2.0",
     "obra-icons-react": "^1.25.0",
     "react": "^19.3.1",
