@@ -46,6 +46,10 @@ const AUTH_ROOT = !app.isPackaged && !DEV_DATA_DIR ? process.env.SIDERA_AUTH_ROO
 if (process.env.SIDERA_SHOT && DEV_DATA_DIR) app.setPath('userData', join(DEV_DATA_DIR, 'userdata'))
 if (AUTH_ROOT) app.setPath('userData', join(AUTH_ROOT, 'userdata'))
 // Screenshots (onboarding slides, README) should read the same on every machine: English dates and numbers.
+// Never touch the macOS Keychain: Chromium would otherwise keep a "Sidera Safe Storage" item for cookie encryption
+// (e.g. the TradingView widget) and ask for the login password whenever the app's signature changes (every update of
+// a non-notarized build). Our own secrets use `fileSecretBox` (secretBox.ts).
+if (process.platform === 'darwin') app.commandLine.appendSwitch('use-mock-keychain')
 if (!app.isPackaged && process.env.SIDERA_SHOT) app.commandLine.appendSwitch('lang', process.env.SIDERA_SHOT_LANG ?? 'en-US')
 const registry = new AccountRegistry(AUTH_ROOT ?? app.getPath('userData'))
 

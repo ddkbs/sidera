@@ -1,6 +1,6 @@
 import { existsSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { safeStorage } from 'electron'
+import type { SecretBox } from '../ipad/devices'
 import type { AiProviderId } from '@shared/ai'
 
 /** Env var fallbacks, checked in order, per provider. */
@@ -17,7 +17,7 @@ const ENV_VARS: Record<AiProviderId, string[]> = {
 
 /**
  * Encrypted per-provider API key store, one file (`ai-keys.bin`) holding a JSON map,
- * encrypted at rest with Electron `safeStorage`. Migrates a legacy standalone
+ * encrypted at rest with the data folder's secret box (see `fileSecretBox`, no Keychain). Migrates a legacy standalone
  * `anthropic-key.bin` (from before multi-provider support) on first load.
  */
 export class KeyStore {
@@ -25,14 +25,16 @@ export class KeyStore {
   private legacyFile: string
   private cache: Partial<Record<AiProviderId, string>> = {}
   /**
-   * True when an encrypted key file exists but couldn't be decrypted — e.g. the macOS Keychain item
-   * (named after the OS-level app name) doesn't match after a product rename, or Keychain access was
-   * denied. Treated as "no key stored" rather than a crash; the UI can use this to show a one-time
+   * True when an encrypted key file exists but couldn't be decrypted — e.g. one written by an older
+   * version that used the macOS Keychain. Treated as "no key stored" rather than a crash; the UI can use this to show a one-time
    * "please re-enter your API key" hint instead of silently looking like the key was just never set.
    */
   private decryptError = false
 
-  constructor(dataDir: string) {
+  constructor(
+    dataDir: string,
+    private box: SecretBox
+  ) {
     this.file = join(dataDir, 'ai-keys.bin')
     this.legacyFile = join(dataDir, 'anthropic-key.bin')
     this.load()
@@ -40,9 +42,9 @@ export class KeyStore {
   }
 
   private load(): void {
-    if (!existsSync(this.file) || !safeStorage.isEncryptionAvailable()) return
+    if (!existsSync(this.file)) return
     try {
-      const json = safeStorage.decryptString(readFileSync(this.file))
+      const json = this.box.decrypt(readFileSync(this.file))
       const parsed = JSON.parse(json) as Record<string, string>
       this.cache = parsed
     } catch {
@@ -57,9 +59,9 @@ export class KeyStore {
   }
 
   private migrateLegacy(): void {
-    if (!existsSync(this.legacyFile) || this.cache.anthropic || !safeStorage.isEncryptionAvailable()) return
+    if (!existsSync(this.legacyFile) || this.cache.anthropic) return
     try {
-      const key = safeStorage.decryptString(readFileSync(this.legacyFile))
+      const key = this.box.decrypt(readFileSync(this.legacyFile))
       this.cache.anthropic = key
       this.save()
     } catch {
@@ -74,8 +76,7 @@ export class KeyStore {
   }
 
   private save(): void {
-    if (!safeStorage.isEncryptionAvailable()) throw new Error('Keychain encryption unavailable')
-    writeFileSync(this.file, safeStorage.encryptString(JSON.stringify(this.cache)))
+    writeFileSync(this.file, this.box.encrypt(JSON.stringify(this.cache)), { mode: 0o600 })
   }
 
   /** Stored (not env) key for a provider, or null. */

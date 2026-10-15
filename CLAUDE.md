@@ -11,7 +11,7 @@ Internal identifiers were renamed from `canvascl`/`CANVASCL_*` to `sidera`/`SIDE
 - Done-criteria for any goal: `npm test && npm run typecheck` both green
 - Add UI primitives via CLI: `npx shadcn@latest add <name>` (never hand-write shadcn components). Afterwards run `sed -i "" "s#from \"cn\"#from \"@/lib/utils\"#" src/renderer/src/components/ui/*.tsx` and `npm uninstall cn` — we use tailwind-merge via @/lib/utils
 - After adding native deps: `npx electron-builder install-app-deps`
-- Signing: `scripts/sign-mac.cjs` (afterSign) signs with the self-signed "Sidera Self-Signed" cert (`~/.sidera-signing/` locally, `SIDERA_SIGN_P12`/`SIDERA_SIGN_PASSWORD` secrets in the release workflow) so the Keychain keeps trusting the app across updates; ad-hoc without it. Release = bump version + CHANGELOG, push tag `vX.Y.Z`.
+- Signing: `scripts/sign-mac.cjs` (afterSign) signs with the self-signed "Sidera Self-Signed" cert (`~/.sidera-signing/` locally, `SIDERA_SIGN_P12`/`SIDERA_SIGN_PASSWORD` secrets in the release workflow) (stable code identity; ad-hoc without it). The app never uses the Keychain: secrets go through `main/secretBox.ts` (AES-GCM, key file in the data dir) and Chromium runs with `use-mock-keychain`. Release = bump version + CHANGELOG, push tag `vX.Y.Z`.
 
 ## Visual verification (no manual clicking)
 Dev-only hook in `src/main/index.ts` (`devShot`). Steps separated by `\n---\n`; each step is renderer JS **or** `@click x y` / `@click <css>` / `@click text=Label`, `@dblclick …`, `@drag x1 y1 x2 y2`, `@key meta+z`, `@type text` (CSS px). A PNG is written after every step.

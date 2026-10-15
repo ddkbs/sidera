@@ -4,7 +4,7 @@ import { DEVICE_ID_BYTES, cleanDeviceName } from '@shared/sync/protocol'
 import { KEY_BYTES, toB64u } from '@shared/sync/crypto'
 import type { PairedDevice } from '@shared/ipad'
 
-/** Encryption at rest for the device keys (Electron safeStorage in the app; null = plain file, tests only). */
+/** Encryption at rest for the device keys (`fileSecretBox` in the app; null = plain file, tests only). */
 export interface SecretBox {
   encrypt(plain: string): Buffer
   decrypt(data: Buffer): string
@@ -37,7 +37,7 @@ export class DeviceStore {
       const list = JSON.parse(json) as StoredDevice[]
       this.devices = Array.isArray(list) ? list.filter((d) => d && typeof d.id === 'string' && typeof d.key === 'string') : []
     } catch {
-      // unreadable (e.g. Keychain item changed): behave as if nothing was paired — devices simply pair again
+      // unreadable (e.g. written by an older, Keychain-based version): behave as if nothing was paired — devices simply pair again
       this.devices = []
     }
   }

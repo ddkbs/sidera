@@ -205,8 +205,8 @@ guest workspaces are deleted on sign-out.
 Sidera only goes online for things you trigger or can switch off:
 
 - **AI assistant** — your messages go to the provider you picked (Anthropic, OpenAI, Gemini, Mistral, xAI, OpenRouter
-  or your own endpoint), with your own API key. Keys are stored encrypted via the macOS Keychain (Electron
-  `safeStorage`) or read from environment variables (see [`.env.example`](.env.example)).
+  or your own endpoint), with your own API key. Keys are stored AES-encrypted in your data folder (readable only by
+  your macOS user — no Keychain password prompts) or read from environment variables (see [`.env.example`](.env.example)).
 - **Link previews & web clipper** — fetch the page you add (private network addresses are blocked).
 - **Stock charts** — load TradingView's embed widget for the symbol on the board.
 - **Update check** — one request to the GitHub API per launch (Settings → About to turn it off).

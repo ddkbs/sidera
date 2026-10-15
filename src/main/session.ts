@@ -2,7 +2,8 @@ import { mkdirSync } from 'node:fs'
 import type { Server } from 'node:http'
 import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import { basename, dirname, extname, isAbsolute, join, relative } from 'node:path'
-import { app, dialog, safeStorage, shell, type BrowserWindow } from 'electron'
+import { app, dialog, shell, type BrowserWindow } from 'electron'
+import { fileSecretBox } from './secretBox'
 import { nanoid } from 'nanoid'
 import { DB_CHANGED, MCP_ACTIVITY, type ApiMethod, type CanvasApi, type DbChangeScope } from '@shared/api'
 import type { AiProviderId } from '@shared/ai'
@@ -91,13 +92,14 @@ export class Session {
     // deleted cards/whiteboards stay restorable (undo) for 30 days
     this.services.purgeDeleted(30 * 24 * 60 * 60 * 1000)
     this.services.refreshCardText()
-    this.keys = new KeyStore(this.dataDir)
+    const box = fileSecretBox(this.dataDir)
+    this.keys = new KeyStore(this.dataDir, box)
     this.chat = new ChatAgent(this.services, opts.version, () => this.activeAiConfig(), (tool, args) => this.reportActivity(tool, args))
     this.handlers = this.buildHandlers()
     this.ipad = new IpadController({
       dataDir: this.dataDir,
       services: this.services,
-      box: safeStorage.isEncryptionAvailable() ? { encrypt: (t) => safeStorage.encryptString(t), decrypt: (b) => safeStorage.decryptString(b) } : null,
+      box,
       call: async (method, args) => (this.handlers[method] as (...a: unknown[]) => unknown)(...args),
       readFile: (id) => this.readFileForDevice(id),
       settings: () => mirroredSettings(this.settings.get(), this.uiLang()),
