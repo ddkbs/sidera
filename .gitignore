@@ -37,3 +37,5 @@ build/THIRD_PARTY_NOTICES.txt
 
 # Local Claude Code agent configs
 .claude/
+.vercel
+.env*

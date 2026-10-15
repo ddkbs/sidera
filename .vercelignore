@@ -1,0 +1,5 @@
+# CLI deploys upload only the website (Vercel project root = website/)
+/*
+!/website
+/website/node_modules
+/website/dist
