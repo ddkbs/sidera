@@ -11,6 +11,7 @@
  *
  *   node scripts/readme/shoot.mjs            # everything
  *   node scripts/readme/shoot.mjs ipad       # only the iPad shots
+ *   node scripts/readme/shoot.mjs site       # every desktop view in dark mode for the website (website/public/shots)
  *
  * Needs `cwebp` (brew install webp) and Google Chrome. Never touches the real data dir — everything runs against a
  * throw-away scratch dir. Env: SIDERA_MCP_PORT (default 3860), SIDERA_IPAD_PORT (default 47890), README_SHOTS_DIR (scratch).
@@ -25,7 +26,7 @@ import { chatExchange, openBoard } from '../onboarding/shoot.mjs'
 import { launchIpadChrome } from './cdp.mjs'
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '../..')
-const outDir = join(root, 'docs/screenshots')
+const outDir = join(root, process.argv[2] === 'site' ? 'website/public/shots' : 'docs/screenshots')
 const scratch = process.env.README_SHOTS_DIR ?? join(tmpdir(), 'sidera-readme-shots')
 const port = process.env.SIDERA_MCP_PORT ?? '3860'
 const onboardingSeed = readFileSync(join(root, 'scripts/onboarding/seed.js'), 'utf8')
@@ -320,5 +321,6 @@ if (!only || only === 'desktop') {
   runSignIn()
   runWelcome()
 }
+if (only === 'site') run('dark', shots)
 if (!only || only === 'ipad') for (const s of ipadShots) await runIpad(s)
 console.log('done')

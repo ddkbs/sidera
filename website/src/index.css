@@ -1,0 +1,125 @@
+@import 'tailwindcss';
+
+@font-face {
+  font-family: 'Geist';
+  src: url('/fonts/Geist-Variable.woff2') format('woff2');
+  font-weight: 100 900;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Geist Mono';
+  src: url('/fonts/GeistMono-Variable.woff2') format('woff2');
+  font-weight: 100 900;
+  font-display: swap;
+}
+
+/* Same neutral palette as the app's dark theme, a touch deeper for the page. */
+:root {
+  --background: #09090b;
+  --foreground: #f4f4f5;
+  --muted-foreground: #8b8b93;
+  --faint: #55555c;
+  --border: rgb(255 255 255 / 8%);
+  --border-strong: rgb(255 255 255 / 14%);
+  --panel: #0f0f12;
+  --panel-2: #141418;
+  --brand: oklch(0.62 0.19 264);
+  --c-blue: #3b82f6;
+  --c-green: #22c55e;
+  --c-red: #f0506e;
+  --c-orange: #f59e0b;
+  --c-purple: #a78bfa;
+}
+
+@theme inline {
+  --font-sans: 'Geist', ui-sans-serif, system-ui, sans-serif;
+  --font-mono: 'Geist Mono', ui-monospace, monospace;
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-faint: var(--faint);
+  --color-border: var(--border);
+  --color-border-strong: var(--border-strong);
+  --color-panel: var(--panel);
+  --color-panel-2: var(--panel-2);
+  --color-brand: var(--brand);
+  --color-c-blue: var(--c-blue);
+  --color-c-green: var(--c-green);
+  --color-c-red: var(--c-red);
+  --color-c-orange: var(--c-orange);
+  --color-c-purple: var(--c-purple);
+  --animate-blink: blink 1.1s steps(1) infinite;
+  --animate-marquee: marquee 40s linear infinite;
+}
+
+@keyframes blink {
+  50% {
+    opacity: 0;
+  }
+}
+@keyframes marquee {
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+html {
+  scroll-behavior: smooth;
+  color-scheme: dark;
+}
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+::selection {
+  background: color-mix(in oklch, var(--brand) 45%, transparent);
+}
+
+/* A halo in the page colour, so lit grid cells never crowd the letters. */
+.guard {
+  text-shadow:
+    0 0 6px var(--background),
+    0 0 14px var(--background),
+    0 0 30px var(--background),
+    0 0 52px var(--background);
+}
+
+/* Dashed hairlines like a technical drawing. */
+.dash-x {
+  background-image: linear-gradient(to right, var(--border-strong) 50%, transparent 50%);
+  background-size: 8px 1px;
+  background-repeat: repeat-x;
+}
+.dash-y {
+  background-image: linear-gradient(to bottom, var(--border-strong) 50%, transparent 50%);
+  background-size: 1px 8px;
+  background-repeat: repeat-y;
+}
+
+/* The app's canvas dot grid. */
+.dots {
+  background-image: radial-gradient(circle at 1px 1px, rgb(255 255 255 / 9%) 1px, transparent 0);
+  background-size: 22px 22px;
+}
+
+.text-gradient {
+  background: linear-gradient(180deg, #fff 30%, rgb(255 255 255 / 55%));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
