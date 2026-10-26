@@ -53,8 +53,49 @@ export const liveElements = <T extends InkElement>(elements: readonly unknown[] 
 
 // ─── freedraw outline (identical to Excalidraw's `getFreeDrawSvgPath`) ─────────────────────────────
 
+/**
+ * Outlines of written strokes, by geometry: every pen-up rewrites the ink object and the board re-renders all of its
+ * strokes (bounds, SVG paths, append) — without the cache a page of handwriting recomputed hundreds of outlines per
+ * stroke, and on the iPad the stalled frames dropped Pencil samples of the next stroke.
+ */
+const outlineCache = new Map<string, [number, number][]>()
+const OUTLINE_CACHE_MAX = 20000
+
+const outlineKey = (el: InkElement): string => {
+  const pts = el.points ?? []
+  const last = pts[pts.length - 1]
+  const pr = el.pressures ?? []
+  return [
+    el.id ?? '',
+    (el as { version?: number }).version ?? '',
+    el.x,
+    el.y,
+    el.strokeWidth ?? 1,
+    el.simulatePressure ? 1 : 0,
+    el.lastCommittedPoint ? 1 : 0,
+    pts.length,
+    last?.[0],
+    last?.[1],
+    pr.length,
+    pr[pr.length - 1] ?? ''
+  ].join('|')
+}
+
 /** Outline polygon of a freedraw element in absolute scene coordinates — same perfect-freehand options as Excalidraw. */
 export function freedrawOutline(el: InkElement): [number, number][] {
+  // a live (unfinished) stroke changes every frame: never cached
+  if (!el.id || !el.lastCommittedPoint) return computeOutline(el)
+  const key = outlineKey(el)
+  let hit = outlineCache.get(key)
+  if (!hit) {
+    if (outlineCache.size >= OUTLINE_CACHE_MAX) outlineCache.clear()
+    hit = computeOutline(el)
+    outlineCache.set(key, hit)
+  }
+  return hit
+}
+
+function computeOutline(el: InkElement): [number, number][] {
   const pts = el.points ?? []
   const input = el.simulatePressure
     ? pts.map(([x, y]) => [x, y])
@@ -88,6 +129,16 @@ export function outlinePath(points: readonly (readonly [number, number])[]): str
   }
   parts.push(`L${f2(points[0][0])},${f2(points[0][1])} Z`)
   return parts.join(' ')
+}
+
+const pathCache = new WeakMap<readonly (readonly [number, number])[], string>()
+
+/** SVG path of a freedraw element (cached with its outline). */
+export function freedrawPath(el: InkElement): string {
+  const outline = freedrawOutline(el)
+  let d = pathCache.get(outline)
+  if (d === undefined) pathCache.set(outline, (d = outlinePath(outline)))
+  return d
 }
 
 // ─── bounds ──────────────────────────────────────────────────────────────────────────────────────────

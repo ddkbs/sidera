@@ -8,6 +8,7 @@ import {
   elementsHit,
   fitTransform,
   freedrawOutline,
+  freedrawPath,
   hitInkObject,
   inkBounds,
   joinsGroup,
@@ -57,6 +58,17 @@ describe('ink elements', () => {
     expect(d.startsWith('M')).toBe(true)
     expect(d).toContain(' Q')
     expect(d.endsWith('Z')).toBe(true)
+  })
+
+  it('written strokes reuse their outline (a refetched copy too); moved or live strokes are recomputed', () => {
+    const a = freedrawOutline(underline)
+    expect(freedrawOutline(JSON.parse(JSON.stringify(underline)))).toBe(a)
+    expect(freedrawPath(underline)).toBe(outlinePath(a))
+    const moved = freedrawOutline({ ...underline, x: underline.x + 5 })
+    expect(moved).not.toBe(a)
+    expect(moved[0][0]).toBeCloseTo(a[0][0] + 5, 5)
+    const live = { ...underline, lastCommittedPoint: null }
+    expect(freedrawOutline(live)).not.toBe(freedrawOutline(live))
   })
 
   it('bounds hug the ink (stroke width included)', () => {

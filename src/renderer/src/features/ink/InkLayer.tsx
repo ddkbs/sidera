@@ -347,6 +347,17 @@ export function InkLayer({
       endHold()
       hold = { x: e.clientX, y: e.clientY, timer: setTimeout(straighten, STRAIGHTEN_HOLD_MS) }
     }
+    // Pencil samples of the stroke from both event streams. The iPad app is served over plain http on the LAN, so
+    // Safari has no getCoalescedEvents (secure contexts only) and drops pointermoves on slow frames; its stylus
+    // touchmoves are often denser. The live stroke uses whichever stream has more samples.
+    let fromPointer: [number, number, number][] = []
+    let fromTouch: [number, number, number][] = []
+    const addSample = (into: [number, number, number][], p: Point, pr: number, zoom: number): void => {
+      const last = into[into.length - 1]
+      if (last && Math.hypot(p.x - last[0], p.y - last[1]) * zoom < 0.75) return
+      into.push([p.x, p.y, pr])
+      if (drawing) drawing.points = fromTouch.length > fromPointer.length ? fromTouch : fromPointer
+    }
     // measured once per stroke: getBoundingClientRect on every (coalesced) move forces layout
     let originCache: Point | null = null
 
@@ -355,7 +366,7 @@ export function InkLayer({
       const r = el.getBoundingClientRect()
       return { x: r.left, y: r.top }
     }
-    const toBoard = (e: PointerEvent): Point => screenToBoard({ x: e.clientX, y: e.clientY }, origin(), rf.getViewport())
+    const toBoard = (e: { clientX: number; clientY: number }): Point => screenToBoard({ x: e.clientX, y: e.clientY }, origin(), rf.getViewport())
     const pressure = (e: PointerEvent): number => (e.pointerType === 'pen' ? Math.max(0.05, Math.min(1, e.pressure || 0.5)) : 0.5)
 
     const eraseAt = (p: Point): void => {
@@ -440,7 +451,9 @@ export function InkLayer({
         const t = appendTarget(candidates, p, gap / 4)
         group.current = { strokes: [], bounds: t ? t.box : { x: p.x, y: p.y, width: 0, height: 0 }, lastAt: now, target: t?.id ?? null }
       }
-      drawing = { points: [[p.x, p.y, pressure(e)]], settings: s, realPressure: e.pointerType === 'pen', elementId: nanoid(), done: false }
+      fromPointer = [[p.x, p.y, pressure(e)]]
+      fromTouch = [fromPointer[0]]
+      drawing = { points: fromPointer, settings: s, realPressure: e.pointerType === 'pen', elementId: nanoid(), done: false }
       group.current!.strokes.push(drawing)
       strokes.current.push(drawing)
       straight = null
@@ -465,10 +478,7 @@ export function InkLayer({
           drawing.points = straightLine(drawing.points[0], [p.x, p.y], straight.pressure)
           continue
         }
-        const zoom = vpZoom
-        const last = drawing.points[drawing.points.length - 1]
-        if (Math.hypot(p.x - last[0], p.y - last[1]) * zoom < 0.75) continue
-        drawing.points.push([p.x, p.y, pressure(ev)])
+        addSample(fromPointer, p, pressure(ev), vpZoom)
       }
       if (drawing && !straight && !shaped && (!hold || Math.hypot(e.clientX - hold.x, e.clientY - hold.y) > STRAIGHTEN_SLOP_PX)) armHold(e)
       if (drawing) schedule()
@@ -521,6 +531,13 @@ export function InkLayer({
       if (!t.closest('.react-flow') || t.closest('.react-flow__panel, [data-pen-ui], [contenteditable="true"], input, textarea, select, button')) return
       e.stopPropagation()
       if (e.cancelable) e.preventDefault()
+      if (e.type !== 'touchmove' || !drawing || drawing.done || straight || shaped) return
+      const zoom = rf.getViewport().zoom
+      for (const t of Array.from(e.changedTouches)) {
+        if ((t as Touch & { touchType?: string }).touchType !== 'stylus') continue
+        addSample(fromTouch, toBoard(t), Math.max(0.05, Math.min(1, t.force || 0.5)), zoom)
+      }
+      schedule()
     }
 
     el.addEventListener('touchstart', swallowStylus, { capture: true, passive: false })

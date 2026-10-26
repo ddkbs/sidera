@@ -1,6 +1,6 @@
 import { memo, useMemo, type CSSProperties, type ReactNode } from 'react'
 import { t } from '@/lib/i18n'
-import { absPoints, smoothPath, darkInk, freedrawOutline, inkBounds, liveElements, outlinePath, type InkElement } from './geometry'
+import { absPoints, smoothPath, darkInk, freedrawPath, inkBounds, liveElements, type InkElement } from './geometry'
 
 /** Only raster data URLs may be shown from stored sketch files. */
 const SAFE_IMAGE = /^data:image\/(png|jpeg|webp|gif);base64,[A-Za-z0-9+/=]+$/
@@ -46,7 +46,7 @@ export const InkSvg = memo(function InkSvg({ elements, files, dark, scale, inter
     const sw = el.strokeWidth ?? 1
     switch (el.type) {
       case 'freedraw': {
-        const d = outlinePath(freedrawOutline(el))
+        const d = freedrawPath(el)
         return (
           <g key={key} data-ink={el.id} transform={transform}>
             <path d={d} fill={stroke} opacity={opacity} style={pe('visiblePainted')} />
