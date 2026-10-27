@@ -11,6 +11,7 @@ import { Handles, Resizer } from './NodeChrome'
 import { Rotatable } from './Rotatable'
 import { PointHandles } from '@/features/ink/PointHandles'
 import { t, useLang } from '@/lib/i18n'
+import { IS_IPAD } from '@/lib/platform'
 
 export const EDIT_SKETCH_EVENT = 'sidera:edit-sketch'
 
@@ -41,17 +42,29 @@ export const SketchNode = memo(function SketchNode({ id, data, selected, width, 
     const w = width ?? data.object.width
     return (
       <>
-        <Resizer selected={selected} minWidth={16} minHeight={16} keepAspectRatio />
+        {!IS_IPAD && <Resizer selected={selected} minWidth={16} minHeight={16} keepAspectRatio />}
         <div className="sketch-frameless relative h-full w-full" onDoubleClick={edit}>
           <Rotatable id={id} rotation={rotation} selected={!!selected}>
-            <InkSvg elements={elements} files={files} dark={dark} scale={w / bounds.width} interactive viewBounds={preview ? bounds : null} className="absolute inset-0" />
-            {selected && stored && <PointHandles id={id} elements={stored} width={w} height={height ?? data.object.height} rotation={rotation} onPreview={setPreview} />}
-            <div
-              className={cn(
-                'ink-outline pointer-events-none absolute -inset-1.5 rounded-md border border-dashed border-brand/50 opacity-0 transition-opacity',
-                selected && 'border-solid border-brand/70 opacity-100'
-              )}
+            <InkSvg
+              elements={elements}
+              files={files}
+              dark={dark}
+              scale={w / bounds.width}
+              interactive
+              viewBounds={preview ? bounds : null}
+              className="absolute inset-0"
             />
+            {selected && stored && (
+              <PointHandles id={id} elements={stored} width={w} height={height ?? data.object.height} rotation={rotation} onPreview={setPreview} />
+            )}
+            {!IS_IPAD && (
+              <div
+                className={cn(
+                  'ink-outline pointer-events-none absolute -inset-1.5 rounded-md border border-dashed border-brand/50 opacity-0 transition-opacity',
+                  selected && 'border-solid border-brand/70 opacity-100'
+                )}
+              />
+            )}
           </Rotatable>
         </div>
         <Handles />

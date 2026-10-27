@@ -100,14 +100,17 @@ const toNodes = (d: WhiteboardDetail, prev: ObjectNode[] = [], autoEdit?: string
     .sort((a, b) => a.z - b.z)
     .map((o) => {
       const p = prevById.get(o.id)
+      // iPad: handwriting is never selected or dragged (no box popping up while writing); the eraser edits it
+      const ink = IS_IPAD && o.kind === 'sketch' && isFrameless(o.data)
       return {
         id: o.id,
         type: o.kind,
+        ...(ink ? { selectable: false, draggable: false } : {}),
         position: p?.dragging ? p.position : { x: o.x, y: o.y },
         width: o.width,
         height: o.height,
         zIndex: o.kind === 'section' ? -1 : 0,
-        selected: p?.selected ?? false,
+        selected: !ink && (p?.selected ?? false),
         data: {
           object: o,
           card: o.refId ? d.cards[o.refId] : undefined,
