@@ -19,7 +19,7 @@ import {
   type InkElement,
   type Rect
 } from '../src/renderer/src/features/ink/geometry'
-import { appendStrokes, eraseElements, newInk, penStroke, strokeToElement, type PenSettings } from '../src/renderer/src/features/ink/elements'
+import { HIGHLIGHTER_WIDTHS, INK_COLORS, INK_PALETTE, appendStrokes, eraseElements, newInk, penStroke, pushRecentColor, strokeToElement, type PenSettings } from '../src/renderer/src/features/ink/elements'
 import { framelessSize, toggledFrameBox } from '../src/renderer/src/features/ink/frame'
 
 const pen: PenSettings = { tool: 'pen', color: '#1e1e1e', width: 1 }
@@ -51,6 +51,14 @@ describe('ink elements', () => {
     expect(real).toMatchObject({ simulatePressure: false, pressures: [0.2, 0.9] })
     const hl = strokeToElement(penStroke([[0, 0, 0.2], [10, 0, 0.9]], { ...pen, tool: 'highlighter' }, true), 'h')
     expect(hl).toMatchObject({ opacity: 35, strokeColor: '#fab005', simulatePressure: false })
+  })
+
+  it('marker widths follow the width setting; recent colours move to the front and keep their count', () => {
+    expect(penStroke([[0, 0, 0.5]], { ...pen, tool: 'highlighter', width: 2 }, true).width).toBe(HIGHLIGHTER_WIDTHS[2])
+    const recent = INK_COLORS.map((c) => c.value)
+    expect(pushRecentColor(recent, '#7950f2')).toEqual(['#7950f2', ...recent.slice(0, -1)])
+    expect(pushRecentColor(recent, recent[2].toUpperCase())).toEqual([recent[2].toUpperCase(), ...recent.filter((_, i) => i !== 2)])
+    for (const c of INK_COLORS) expect(INK_PALETTE).toContain(c.value)
   })
 
   it('outline path is a closed Excalidraw-style quadratic path', () => {

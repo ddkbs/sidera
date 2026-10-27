@@ -27,6 +27,8 @@ export function strokeToElement(stroke: DrawStroke, id: string, now = Date.now()
 /** Ink pens (nominal diameter in px at pressure 0.5). */
 export const PEN_WIDTHS = [2.5, 4.5, 8] as const
 export const HIGHLIGHTER_WIDTH = 20
+/** Marker widths (index = PenSettings.width, like PEN_WIDTHS). */
+export const HIGHLIGHTER_WIDTHS = [12, HIGHLIGHTER_WIDTH, 32] as const
 export const HIGHLIGHTER_OPACITY = 0.35
 
 /** Default ink is Excalidraw's near-black: shown light in dark mode like every other sketch. */
@@ -39,10 +41,32 @@ export const INK_COLORS = [
   { name: 'Purple', value: '#9c36b5' }
 ] as const
 
+/**
+ * The full ink palette (colour picker): neutrals, then each hue light → dark. The first row's quick colours are
+ * INK_COLORS, so ink drawn before the palette existed keeps its colour.
+ */
+export const INK_PALETTE: readonly string[] = [
+  '#1e1e1e', '#495057', '#868e96', '#ced4da', '#ffffff', '#5c3d2e',
+  '#ffa8a8', '#ff6b6b', '#e03131', '#c92a2a', '#f783ac', '#c2255c',
+  '#ffc078', '#f08c00', '#e8590c', '#ffe066', '#fab005', '#e67700',
+  '#8ce99a', '#40c057', '#2f9e44', '#63e6be', '#12b886', '#087f5b',
+  '#74c0fc', '#339af0', '#1971c2', '#66d9e8', '#1098ad', '#364fc7',
+  '#b197fc', '#7950f2', '#5f3dc4', '#e599f7', '#9c36b5', '#862e9c'
+]
+
+/** Quick colours shown in the pen bar before the user picks others (most recent first). */
+export const DEFAULT_RECENT_COLORS: readonly string[] = INK_COLORS.map((c) => c.value)
+
+/** Recent colours after picking `color`: it moves to the front, the list keeps its length. */
+export function pushRecentColor(recent: readonly string[], color: string, max = DEFAULT_RECENT_COLORS.length): string[] {
+  return [color, ...recent.filter((c) => c.toLowerCase() !== color.toLowerCase())].slice(0, max)
+}
+
 /** The highlighter turns "ink" into classic yellow; other colours stay. */
 export const highlighterColor = (color: string): string => (color === INK_COLORS[0].value ? '#fab005' : color)
 
-export type PenTool = 'pen' | 'highlighter' | 'eraser'
+/** `laser`: a glowing trail that fades out, never saved (pointing while presenting). */
+export type PenTool = 'pen' | 'highlighter' | 'laser' | 'eraser'
 
 export interface PenSettings {
   tool: PenTool
@@ -51,6 +75,8 @@ export interface PenSettings {
   width: number
   /** pen strokes are cut into dashes */
   dashed?: boolean
+  /** quick colours of the pen bar, most recent first */
+  recent?: string[]
 }
 
 /** Dash and gap length (board units) of a dashed pen stroke of `width`. */
@@ -62,7 +88,7 @@ export function penStroke(points: [number, number, number][], settings: PenSetti
   return {
     tool: hl ? 'highlighter' : 'pen',
     color: hl ? highlighterColor(settings.color) : settings.color,
-    width: hl ? HIGHLIGHTER_WIDTH : PEN_WIDTHS[settings.width] ?? PEN_WIDTHS[1],
+    width: hl ? (HIGHLIGHTER_WIDTHS[settings.width] ?? HIGHLIGHTER_WIDTH) : (PEN_WIDTHS[settings.width] ?? PEN_WIDTHS[1]),
     opacity: hl ? HIGHLIGHTER_OPACITY : 1,
     points,
     pressure: realPressure && !hl

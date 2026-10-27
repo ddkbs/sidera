@@ -1,6 +1,7 @@
 import { createSlice, nanoid, type PayloadAction } from '@reduxjs/toolkit'
 import type { McpActivity } from '@shared/api'
 import { UI_KEY } from '@/lib/storage'
+import { IS_IPAD } from '@/lib/platform'
 
 export type View =
   | { type: 'whiteboard'; id: string }
@@ -80,12 +81,15 @@ const initialTabs: Tab[] = stored.tabs?.length
   : [newTab(migrateView(stored.view))]
 const initialActive = initialTabs.find((t) => t.id === stored.activeTabId) ?? initialTabs[0]
 
+/** Sidera for iPad opens ready to write (the Pencil draws only in the pen tool). */
+const DEFAULT_TOOL: CanvasTool = IS_IPAD ? 'pen' : 'select'
+
 const initialState: UiState = {
   sidebarOpen: stored.sidebarOpen ?? true,
   tabs: initialTabs,
   activeTabId: initialActive.id,
   view: initialActive.view,
-  tool: 'select',
+  tool: DEFAULT_TOOL,
   openCardId: null,
   paletteOpen: false,
   chatOpen: stored.chatOpen ?? false,
@@ -107,7 +111,7 @@ const sync = (s: UiState): void => {
   const tab = active(s)
   s.activeTabId = tab.id
   s.view = tab.view
-  s.tool = 'select'
+  s.tool = DEFAULT_TOOL
 }
 
 export const ui = createSlice({

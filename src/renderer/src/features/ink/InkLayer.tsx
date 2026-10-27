@@ -9,7 +9,7 @@ import { storageKey } from '@/lib/storage'
 import { useAppDispatch, useAppSelector } from '@/store'
 import { api } from '@/store/api'
 import type { ObjectNode } from '@/features/canvas/types'
-import { PEN_WIDTHS, appendStrokes, dashPattern, eraseElements, newInk, penStroke, strokeToElement, type PenSettings } from './elements'
+import { INK_COLORS, PEN_WIDTHS, appendStrokes, dashPattern, eraseElements, newInk, penStroke, strokeToElement, type PenSettings } from './elements'
 import { isFrameless } from './frame'
 import {
   GROUP_GAP_PX,
@@ -37,6 +37,17 @@ import { IS_IPAD } from '@/lib/platform'
 
 /** Eraser radius in screen px. */
 export const ERASER_PX = 10
+/** Laser: how long the trail behind the tip lasts, and how long it takes to fade after lifting the pen. */
+const LASER_TRAIL_MS = 900
+const LASER_FADE_MS = 500
+const LASER_DEFAULT = '#ff3b30'
+
+interface Laser {
+  /** [x, y, time] in board coordinates */
+  points: [number, number, number][]
+  color: string
+  upAt: number | null
+}
 
 interface Stroke {
   points: [number, number, number][]
@@ -97,13 +108,13 @@ const strokeBounds = (s: Stroke): Rect | null => inkBounds(strokeElements(s))
  * so xyflow never sees it (no selection / node drag); wheel and pinch still reach xyflow, so the board keeps panning
  * and zooming. Live strokes are painted on a canvas overlay with Excalidraw's own stroke outline; strokes drawn in
  * one go are committed as one frameless sketch object whose box equals the ink bounds (scale 1 → no jump).
- * `pencilOnly` (Sidera for iPad, any tool): only Apple Pencil input draws; fingers keep selecting, moving and panning.
+ * `pencilOnly` (Sidera for iPad): only Apple Pencil input draws; fingers pan and zoom. Laser: a fading trail, never saved.
  */
 export function InkLayer({
   host,
   boardId,
   pencilOnly = false,
-  palette = !pencilOnly
+  palette = true
 }: {
   host: RefObject<HTMLDivElement | null>
   boardId: string
@@ -121,6 +132,7 @@ export function InkLayer({
   settingsRef.current = settings
   const canvas = useRef<HTMLCanvasElement>(null)
   const strokes = useRef<Stroke[]>([])
+  const lasers = useRef<Laser[]>([])
   const group = useRef<Group | null>(null)
   const idle = useRef<ReturnType<typeof setTimeout>>(undefined)
   /** ink objects created in this pen session: new strokes near one are appended to it */
@@ -180,6 +192,37 @@ export function InkLayer({
       ctx.fill(cached.path)
     }
     ctx.globalAlpha = 1
+    paintLasers(ctx, vp.zoom)
+  }
+  const paintLasers = (ctx: CanvasRenderingContext2D, zoom: number): void => {
+    if (!lasers.current.length) return
+    const now = performance.now()
+    lasers.current = lasers.current.filter((l) => l.upAt === null || now - l.upAt < LASER_FADE_MS)
+    ctx.lineCap = 'round'
+    ctx.lineJoin = 'round'
+    for (const l of lasers.current) {
+      const pts = l.points.filter((p) => now - p[2] < LASER_TRAIL_MS)
+      if (l.upAt === null && l.points.length) pts.push(l.points[l.points.length - 1]) // the tip stays while held still
+      if (!pts.length) continue
+      const fade = l.upAt === null ? 1 : 1 - (now - l.upAt) / LASER_FADE_MS
+      const path = new Path2D()
+      path.moveTo(pts[0][0], pts[0][1])
+      for (const p of pts) path.lineTo(p[0], p[1])
+      if (pts.length === 1) path.lineTo(pts[0][0] + 0.01, pts[0][1])
+      ctx.globalAlpha = fade
+      ctx.shadowColor = l.color
+      ctx.shadowBlur = 14
+      ctx.strokeStyle = l.color
+      ctx.lineWidth = 5 / zoom
+      ctx.stroke(path)
+      ctx.shadowBlur = 0
+      ctx.strokeStyle = 'rgba(255,255,255,0.85)'
+      ctx.lineWidth = 1.6 / zoom
+      ctx.stroke(path)
+    }
+    ctx.globalAlpha = 1
+    // the trail keeps shrinking / fading on its own
+    if (lasers.current.length) schedule()
   }
   const schedule = (): void => {
     if (!frame.current) frame.current = requestAnimationFrame(paint)
@@ -317,6 +360,7 @@ export function InkLayer({
     const el = host.current
     if (!el) return
     let drawing: Stroke | null = null
+    let laser: Laser | null = null
     let erasing: { originals: Map<string, WhiteboardObject>; hit: Map<string, Set<string>> } | null = null
     let pointerId: number | null = null
     // hold the pen still mid-stroke → the stroke snaps to the shape it looks like (recognize.ts): a straight line,
@@ -441,6 +485,12 @@ export function InkLayer({
         eraseAt(p)
         return
       }
+      if (s.tool === 'laser') {
+        laser = { points: [[p.x, p.y, performance.now()]], color: s.color === INK_COLORS[0].value ? LASER_DEFAULT : s.color, upAt: null }
+        lasers.current.push(laser)
+        schedule()
+        return
+      }
       const now = performance.now()
       const gap = GROUP_GAP_PX / rf.getViewport().zoom
       if (!joinsGroup(group.current, p, now, gap)) {
@@ -473,6 +523,10 @@ export function InkLayer({
           eraseAt(p)
           continue
         }
+        if (laser) {
+          laser.points.push([p.x, p.y, performance.now()])
+          continue
+        }
         if (!drawing || shaped) continue
         if (straight) {
           drawing.points = straightLine(drawing.points[0], [p.x, p.y], straight.pressure)
@@ -481,7 +535,7 @@ export function InkLayer({
         addSample(fromPointer, p, pressure(ev), vpZoom)
       }
       if (drawing && !straight && !shaped && (!hold || Math.hypot(e.clientX - hold.x, e.clientY - hold.y) > STRAIGHTEN_SLOP_PX)) armHold(e)
-      if (drawing) schedule()
+      if (drawing || laser) schedule()
     }
 
     const onUp = (e: PointerEvent): void => {
@@ -499,6 +553,12 @@ export function InkLayer({
         /* ignore */
       }
       if (erasing) return void finishErase()
+      if (laser) {
+        laser.upAt = performance.now()
+        laser = null
+        schedule()
+        return
+      }
       const s = drawing
       drawing = null
       const g = group.current

@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client'
 import { Provider } from 'react-redux'
 import type { BoardRef } from '@shared/sync/protocol'
 import { Redo2, Tablet, Undo2, WifiOff } from '@/components/icons'
+import { Logo } from '@/components/Logo'
 import { Toaster } from '@/components/ui/sonner'
 import { TooltipProvider } from '@/components/ui/tooltip'
 import { WhiteboardView } from '@/features/canvas/WhiteboardView'
@@ -140,22 +141,39 @@ function IpadApp({ launch }: { launch: Launch }) {
 function StatusBar({ conn, board, host }: { conn: ConnectionState; board: BoardRef | null; host: string }) {
   const { undo: canUndo, redo: canRedo } = useUndoState()
   const live = conn === 'connected'
+  const status = live ? t('ipadApp.live') : conn === 'connecting' ? t('ipadApp.connecting') : t('ipadApp.reconnecting')
   return (
-    <header className="flex shrink-0 items-center gap-2 border-b bg-popover/95 px-3 pt-[env(safe-area-inset-top)] backdrop-blur" style={{ minHeight: 44 }}>
-      <span className={cn('size-2 shrink-0 rounded-full', live ? 'bg-emerald-500' : 'animate-pulse bg-amber-500')} />
-      <span className="min-w-0 truncate text-sm font-medium">{board?.name ?? 'Sidera'}</span>
-      <span className="shrink-0 text-xs text-muted-foreground">
-        {live ? (host ? `· ${host}` : '') : conn === 'connecting' ? `· ${t('ipadApp.connecting')}` : `· ${t('ipadApp.reconnecting')}`}
-      </span>
-      {!live && <WifiOff className="size-4 shrink-0 text-amber-500" />}
-      <div className="ml-auto flex items-center gap-1">
-        <button aria-label={t('common.undo')} disabled={!canUndo} onClick={() => void undo()} className="grid size-9 place-items-center rounded-lg disabled:opacity-30">
-          <Undo2 className="size-5" />
-        </button>
-        <button aria-label={t('cmd.edit.redo')} disabled={!canRedo} onClick={() => void redo()} className="grid size-9 place-items-center rounded-lg disabled:opacity-30">
-          <Redo2 className="size-5" />
-        </button>
+    <header className="relative flex shrink-0 items-center gap-3 bg-popover/85 px-4 pt-[env(safe-area-inset-top)] backdrop-blur-xl" style={{ minHeight: 52 }}>
+      <Logo className="size-[22px] shrink-0 text-foreground" />
+      <div className="flex min-w-0 items-baseline gap-2">
+        <span className="shrink-0 text-[13px] text-muted-foreground">Sidera</span>
+        <span className="shrink-0 text-[13px] text-muted-foreground/50">/</span>
+        <span className="min-w-0 truncate text-[15px] font-semibold tracking-[-0.01em]">{board?.name ?? '—'}</span>
       </div>
+      <div className="ml-auto flex items-center gap-2">
+        <div
+          className={cn(
+            'flex h-8 items-center gap-2 rounded-full border px-3 font-mono text-[10.5px] uppercase tracking-[0.14em]',
+            live ? 'border-foreground/10 text-muted-foreground' : 'border-amber-500/30 bg-amber-500/10 text-amber-600 dark:text-amber-400'
+          )}
+        >
+          <span className={cn('size-1.5 shrink-0 rounded-full', live ? 'bg-emerald-500 shadow-[0_0_8px_rgb(16_185_129)]' : 'animate-pulse bg-amber-500')} />
+          <span className="whitespace-nowrap">{status}</span>
+          {live && host && <span className="max-w-[18ch] truncate normal-case tracking-normal text-muted-foreground/70">{`· ${host}`}</span>}
+          {!live && <WifiOff className="size-3.5 shrink-0" />}
+        </div>
+        <div className="flex h-9 items-center rounded-xl border border-foreground/10 bg-foreground/[0.03] p-0.5">
+          <button aria-label={t('common.undo')} disabled={!canUndo} onClick={() => void undo()} className="grid h-8 w-10 place-items-center rounded-[9px] transition-colors active:bg-foreground/10 disabled:opacity-30">
+            <Undo2 className="size-[18px]" />
+          </button>
+          <span className="h-4 w-px bg-foreground/10" />
+          <button aria-label={t('cmd.edit.redo')} disabled={!canRedo} onClick={() => void redo()} className="grid h-8 w-10 place-items-center rounded-[9px] transition-colors active:bg-foreground/10 disabled:opacity-30">
+            <Redo2 className="size-[18px]" />
+          </button>
+        </div>
+      </div>
+      {/* dashed drafting rule, like the product site */}
+      <div className="absolute inset-x-0 bottom-0 h-px bg-[linear-gradient(to_right,var(--border)_50%,transparent_50%)] bg-[length:8px_1px] bg-repeat-x" />
     </header>
   )
 }
