@@ -278,6 +278,13 @@ export const Strikethrough = IconStrikethrough
 export const Highlighter = IconFatMarker
 export const Eraser = IconEraser
 export const Marker = IconMarkerAlt
+/** Lasso (no Obra glyph): a dashed loop with a tail, drawn in the Obra style. */
+export const Lasso: AppIcon = ({ size = 24, ...props }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" {...props}>
+    <path d="M7.5 16.2C4.8 15 3 13 3 10.5 3 6.4 7 3 12 3s9 3.4 9 7.5S17 18 12 18c-1 0-2-.1-2.9-.4" strokeDasharray="3 3.2" />
+    <path d="M7.5 16.2c-.9 1.2-.6 2.8.7 3.3 1.4.5 2.4-.6 1.9-1.8-.3-.7-1-1.2-1.6-1.4M8.2 19.5 7 22" />
+  </svg>
+)
 /** Laser pointer (no Obra glyph): a glowing dot with rays, drawn in the Obra style (24px grid, 2px round strokes). */
 export const LaserPointer: AppIcon = ({ size = 24, ...props }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" {...props}>

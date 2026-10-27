@@ -9,7 +9,8 @@ import { storageKey } from '@/lib/storage'
 import { useAppDispatch, useAppSelector } from '@/store'
 import { api } from '@/store/api'
 import type { ObjectNode } from '@/features/canvas/types'
-import { INK_COLORS, PEN_WIDTHS, appendStrokes, dashPattern, eraseElements, newInk, penStroke, strokeToElement, type PenSettings } from './elements'
+import { Trash2 } from '@/components/icons'
+import { INK_COLORS, PEN_WIDTHS, moveElements, appendStrokes, dashPattern, eraseElements, newInk, penStroke, strokeToElement, type PenSettings } from './elements'
 import { isFrameless } from './frame'
 import {
   GROUP_GAP_PX,
@@ -20,10 +21,12 @@ import {
   appendTarget,
   dashSegments,
   darkInk,
+  elementsBoardBounds,
   freedrawOutline,
   hitInkObject,
   inkBounds,
   joinsGroup,
+  lassoElements,
   outlinePath,
   screenToBoard,
   unionRects,
@@ -41,6 +44,14 @@ export const ERASER_PX = 10
 const LASER_TRAIL_MS = 900
 const LASER_FADE_MS = 500
 const LASER_DEFAULT = '#ff3b30'
+
+/** Ink strokes picked with the lasso: per ink object the object as it was and the selected element ids. */
+interface LassoSelection {
+  originals: Map<string, WhiteboardObject>
+  ids: Map<string, Set<string>>
+  /** board-space bounds of the selected strokes */
+  bounds: Rect
+}
 
 interface Laser {
   /** [x, y, time] in board coordinates */
@@ -133,6 +144,11 @@ export function InkLayer({
   const canvas = useRef<HTMLCanvasElement>(null)
   const strokes = useRef<Stroke[]>([])
   const lasers = useRef<Laser[]>([])
+  /** the lasso loop being drawn (board coordinates) */
+  const lassoLoop = useRef<Point[] | null>(null)
+  const [selection, setSelection] = useState<LassoSelection | null>(null)
+  /** live drag offset of the selection (board units) */
+  const [dragOffset, setDragOffset] = useState<Point | null>(null)
   const group = useRef<Group | null>(null)
   const idle = useRef<ReturnType<typeof setTimeout>>(undefined)
   /** ink objects created in this pen session: new strokes near one are appended to it */
@@ -149,6 +165,7 @@ export function InkLayer({
 
   const setSettings = (s: PenSettings): void => {
     if (s.tool === 'eraser') void flush()
+    if (s.tool !== 'lasso') setSelection(null)
     setSettingsState(s)
     try {
       localStorage.setItem(storageKey(SETTINGS_KEY), JSON.stringify(s))
@@ -193,6 +210,20 @@ export function InkLayer({
     }
     ctx.globalAlpha = 1
     paintLasers(ctx, vp.zoom)
+    const loop = lassoLoop.current
+    if (loop && loop.length > 1) {
+      const path = new Path2D()
+      path.moveTo(loop[0].x, loop[0].y)
+      for (const p of loop) path.lineTo(p.x, p.y)
+      path.closePath()
+      ctx.fillStyle = 'rgba(79,107,237,0.07)'
+      ctx.fill(path)
+      ctx.setLineDash([6 / vp.zoom, 5 / vp.zoom])
+      ctx.strokeStyle = '#4f6bed'
+      ctx.lineWidth = 1.5 / vp.zoom
+      ctx.stroke(path)
+      ctx.setLineDash([])
+    }
   }
   const paintLasers = (ctx: CanvasRenderingContext2D, zoom: number): void => {
     if (!lasers.current.length) return
@@ -355,12 +386,97 @@ export function InkLayer({
     []
   )
 
+  // ─── lasso selection ─────────────────────────────────────────────────────────────────────────────
+  /** An ink object as last written here (fresher than the node right after a commit), else as the board shows it. */
+  const objectNow = (n: ObjectNode): WhiteboardObject => {
+    const cached = written.current.get(n.id)
+    return cached && performance.now() - cached.at < WRITTEN_TTL_MS ? cached.object : { ...n.data.object, ...nodeBox(n) }
+  }
+  const boxOf = (o: WhiteboardObject): Rect => ({ x: o.x, y: o.y, width: o.width, height: o.height })
+  const elementsOf = (o: WhiteboardObject): unknown[] => (Array.isArray(o.data.elements) ? (o.data.elements as unknown[]) : [])
+
+  const selectLasso = async (loop: Point[]): Promise<void> => {
+    await flush() // strokes just drawn must be on the board to be picked
+    const originals = new Map<string, WhiteboardObject>()
+    const ids = new Map<string, Set<string>>()
+    let bounds: Rect | null = null
+    for (const n of rf.getNodes() as ObjectNode[]) {
+      if (n.type !== 'sketch' || n.hidden || !isFrameless(n.data.object.data) || Number(n.data.object.data.rotation)) continue
+      const o = objectNow(n)
+      const hit = lassoElements(elementsOf(o), boxOf(o), loop)
+      if (!hit.length) continue
+      const set = new Set(hit)
+      originals.set(o.id, o)
+      ids.set(o.id, set)
+      bounds = unionRects([bounds, elementsBoardBounds(elementsOf(o), boxOf(o), set)])
+    }
+    setSelection(bounds ? { originals, ids, bounds } : null)
+  }
+
+  /** Each selected ink object after moving its picked strokes by (dx, dy). */
+  const movedPatches = (sel: LassoSelection, dx: number, dy: number) =>
+    [...sel.originals.values()].flatMap((o) => {
+      const ink = moveElements(elementsOf(o), boxOf(o), sel.ids.get(o.id)!, dx, dy)
+      return ink ? [{ o, next: { id: o.id, ...ink.box, data: { ...o.data, elements: ink.elements } } }] : []
+    })
+
+  const previewMove = (sel: LassoSelection, dx: number, dy: number): void => {
+    for (const { next } of movedPatches(sel, dx, dy)) {
+      const n = rf.getNode(next.id) as ObjectNode | undefined
+      if (n) rf.updateNode(next.id, { position: { x: next.x, y: next.y }, width: next.width, height: next.height, data: { ...n.data, object: { ...n.data.object, ...next } } })
+    }
+  }
+
+  const commitMove = async (sel: LassoSelection, dx: number, dy: number): Promise<void> => {
+    const patches = movedPatches(sel, dx, dy)
+    if (!patches.length) return
+    const after = patches.map((p) => p.next)
+    const before = patches.map(({ o }) => ({ id: o.id, ...boxOf(o), data: o.data }))
+    for (const p of patches) written.current.set(p.o.id, { object: { ...p.o, ...p.next }, at: performance.now() })
+    setSelection({
+      originals: new Map(patches.map((p) => [p.o.id, { ...p.o, ...p.next }])),
+      ids: sel.ids,
+      bounds: { ...sel.bounds, x: sel.bounds.x + dx, y: sel.bounds.y + dy }
+    })
+    const apply = async (forward: boolean): Promise<void> => {
+      patches.forEach((p) => written.current.delete(p.o.id))
+      await window.api.updateObjects(forward ? after : before)
+      refresh()
+    }
+    await window.api.updateObjects(after)
+    refresh()
+    record({ label: t('undo.moveInk'), undo: () => (setSelection(null), apply(false)), redo: () => apply(true) })
+  }
+
+  const deleteSelection = async (): Promise<void> => {
+    const sel = selection
+    setSelection(null)
+    if (!sel) return
+    const patches = [...sel.originals.values()].map((o) => ({ o, next: erasedPatch(o, sel.ids.get(o.id)!) }))
+    patches.forEach((p) => written.current.delete(p.o.id))
+    const apply = async (forward: boolean): Promise<void> => {
+      const removed = patches.filter((p) => !p.next).map((p) => p.o)
+      const changed = patches.filter((p) => p.next)
+      if (forward) {
+        if (changed.length) await window.api.updateObjects(changed.map((p) => ({ id: p.o.id, ...p.next! })))
+        if (removed.length) await window.api.removeObjects(removed.map((o) => o.id))
+      } else {
+        if (removed.length) await window.api.restoreObjects(removed, [])
+        if (changed.length) await window.api.updateObjects(changed.map((p) => ({ id: p.o.id, ...boxOf(p.o), data: p.o.data })))
+      }
+      refresh()
+    }
+    await apply(true)
+    record({ label: t('undo.eraseInk'), undo: () => apply(false), redo: () => apply(true) })
+  }
+
   // ─── pointer input ───────────────────────────────────────────────────────────────────────────────
   useEffect(() => {
     const el = host.current
     if (!el) return
     let drawing: Stroke | null = null
     let laser: Laser | null = null
+    let lasso: Point[] | null = null
     let erasing: { originals: Map<string, WhiteboardObject>; hit: Map<string, Set<string>> } | null = null
     let pointerId: number | null = null
     // hold the pen still mid-stroke → the stroke snaps to the shape it looks like (recognize.ts): a straight line,
@@ -485,6 +601,13 @@ export function InkLayer({
         eraseAt(p)
         return
       }
+      if (s.tool === 'lasso') {
+        setSelection(null)
+        lasso = [p]
+        lassoLoop.current = lasso
+        schedule()
+        return
+      }
       if (s.tool === 'laser') {
         laser = { points: [[p.x, p.y, performance.now()]], color: s.color === INK_COLORS[0].value ? LASER_DEFAULT : s.color, upAt: null }
         lasers.current.push(laser)
@@ -527,6 +650,11 @@ export function InkLayer({
           laser.points.push([p.x, p.y, performance.now()])
           continue
         }
+        if (lasso) {
+          const last = lasso[lasso.length - 1]
+          if (Math.hypot(p.x - last.x, p.y - last.y) * vpZoom >= 2) lasso.push(p)
+          continue
+        }
         if (!drawing || shaped) continue
         if (straight) {
           drawing.points = straightLine(drawing.points[0], [p.x, p.y], straight.pressure)
@@ -535,7 +663,7 @@ export function InkLayer({
         addSample(fromPointer, p, pressure(ev), vpZoom)
       }
       if (drawing && !straight && !shaped && (!hold || Math.hypot(e.clientX - hold.x, e.clientY - hold.y) > STRAIGHTEN_SLOP_PX)) armHold(e)
-      if (drawing || laser) schedule()
+      if (drawing || laser || lasso) schedule()
     }
 
     const onUp = (e: PointerEvent): void => {
@@ -557,6 +685,14 @@ export function InkLayer({
         laser.upAt = performance.now()
         laser = null
         schedule()
+        return
+      }
+      if (lasso) {
+        const loop = lasso
+        lasso = null
+        lassoLoop.current = null
+        schedule()
+        void selectLasso(loop)
         return
       }
       const s = drawing
@@ -636,8 +772,98 @@ export function InkLayer({
   return (
     <>
       <canvas ref={canvas} className="pointer-events-none absolute inset-0 z-[5] size-full" />
+      {selection && (
+        <LassoBox
+          bounds={selection.bounds}
+          offset={dragOffset}
+          transform={transform}
+          onDrag={(d) => {
+            setDragOffset(d)
+            previewMove(selection, d.x, d.y)
+          }}
+          onDrop={(d) => {
+            setDragOffset(null)
+            if (d.x || d.y) void commitMove(selection, d.x, d.y)
+          }}
+          onDelete={() => void deleteSelection()}
+        />
+      )}
       {palette && <PenPalette settings={settings} onChange={setSettings} dark={dark} />}
     </>
+  )
+}
+
+/**
+ * The lasso selection: a dashed box around the picked strokes. Dragging it (Pencil or finger) moves them; the
+ * button above deletes them. Screen coordinates follow the viewport.
+ */
+function LassoBox({
+  bounds,
+  offset,
+  transform,
+  onDrag,
+  onDrop,
+  onDelete
+}: {
+  bounds: Rect
+  offset: Point | null
+  transform: [number, number, number]
+  onDrag: (d: Point) => void
+  onDrop: (d: Point) => void
+  onDelete: () => void
+}) {
+  const [tx, ty, zoom] = transform
+  const start = useRef<{ x: number; y: number; id: number } | null>(null)
+  const last = useRef<Point>({ x: 0, y: 0 })
+  const PAD = 8
+  const x = (bounds.x + (offset?.x ?? 0)) * zoom + tx - PAD
+  const y = (bounds.y + (offset?.y ?? 0)) * zoom + ty - PAD
+  const delta = (e: React.PointerEvent): Point => ({ x: (e.clientX - start.current!.x) / zoom, y: (e.clientY - start.current!.y) / zoom })
+  return (
+    <div data-pen-ui className="pointer-events-none absolute inset-0 z-[6] overflow-hidden">
+      <div
+        className="pointer-events-auto absolute cursor-move touch-none rounded-lg border-[1.5px] border-dashed border-[#4f6bed] bg-[#4f6bed]/[0.04]"
+        style={{ left: x, top: y, width: bounds.width * zoom + PAD * 2, height: bounds.height * zoom + PAD * 2 }}
+        onPointerDown={(e) => {
+          e.stopPropagation()
+          try {
+            e.currentTarget.setPointerCapture(e.pointerId)
+          } catch {
+            /* synthetic pointer */
+          }
+          start.current = { x: e.clientX, y: e.clientY, id: e.pointerId }
+          last.current = { x: 0, y: 0 }
+          // the drop is taken from the window too: a lost capture or a cancelled gesture must still end the drag
+          const end = (ev: PointerEvent): void => {
+            if (ev.pointerId !== e.pointerId) return
+            window.removeEventListener('pointerup', end, true)
+            window.removeEventListener('pointercancel', end, true)
+            if (!start.current) return
+            start.current = null
+            onDrop(last.current)
+          }
+          window.addEventListener('pointerup', end, true)
+          window.addEventListener('pointercancel', end, true)
+        }}
+        onPointerMove={(e) => {
+          if (start.current?.id !== e.pointerId) return
+          last.current = delta(e)
+          onDrag(last.current)
+        }}
+      >
+        {!offset && (
+          <button
+            type="button"
+            onPointerDown={(e) => e.stopPropagation()}
+            onClick={onDelete}
+            className="absolute -top-12 left-1/2 flex h-9 -translate-x-1/2 items-center gap-1.5 rounded-xl border border-foreground/10 bg-popover/95 px-3 text-sm font-medium whitespace-nowrap text-destructive shadow-[0_8px_24px_-8px_rgba(0,0,0,0.35)] backdrop-blur-xl"
+          >
+            <Trash2 className="size-4" />
+            {t('common.delete')}
+          </button>
+        )}
+      </div>
+    </div>
   )
 }
 

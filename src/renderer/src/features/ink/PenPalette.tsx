@@ -1,6 +1,6 @@
 import { AnimatePresence, motion, useDragControls, useMotionValue } from 'motion/react'
 import { useEffect, useRef, useState, type ReactNode } from 'react'
-import { Eraser, LaserPointer, Marker, PenTool, Plus } from '@/components/icons'
+import { Eraser, Lasso, LaserPointer, Marker, PenTool, Plus } from '@/components/icons'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { t } from '@/lib/i18n'
 import { storageKey } from '@/lib/storage'
@@ -22,11 +22,12 @@ const TOOLS: { id: Tool; label: () => string; icon: ReactNode }[] = [
   { id: 'pen', label: () => t('ink.pen'), icon: <PenTool /> },
   { id: 'highlighter', label: () => t('ink.marker'), icon: <Marker /> },
   { id: 'laser', label: () => t('ink.laser'), icon: <LaserPointer /> },
-  { id: 'eraser', label: () => t('ink.eraser'), icon: <Eraser /> }
+  { id: 'eraser', label: () => t('ink.eraser'), icon: <Eraser /> },
+  { id: 'lasso', label: () => t('ink.lasso'), icon: <Lasso /> }
 ]
 
 /**
- * Floating pen bar: pen / marker / laser / eraser, then only what the tool uses — recent colours with the full palette
+ * Floating pen bar: pen / marker / laser / eraser / lasso, then only what the tool uses — recent colours with the full palette
  * behind "+", widths, dashes. Dragged anywhere by its grip (position remembered); on the Mac a short hint on entry.
  */
 export function PenPalette({ settings, onChange, dark }: Props) {
@@ -133,7 +134,7 @@ export function PenPalette({ settings, onChange, dark }: Props) {
         </div>
 
         <AnimatePresence initial={false} mode="popLayout">
-          {tool === 'eraser' || tool === 'laser' ? (
+          {tool === 'eraser' || tool === 'laser' || tool === 'lasso' ? (
             <motion.span
               key={`hint-${tool}`}
               initial={{ opacity: 0 }}
@@ -141,12 +142,12 @@ export function PenPalette({ settings, onChange, dark }: Props) {
               exit={{ opacity: 0 }}
               className="px-2 font-mono text-[10.5px] uppercase tracking-[0.12em] whitespace-nowrap text-muted-foreground"
             >
-              {tool === 'eraser' ? t('ink.eraserHint') : t('ink.laserHint')}
+              {tool === 'eraser' ? t('ink.eraserHint') : tool === 'laser' ? t('ink.laserHint') : t('ink.lassoHint')}
             </motion.span>
           ) : null}
         </AnimatePresence>
 
-        {tool !== 'eraser' && (
+        {tool !== 'eraser' && tool !== 'lasso' && (
           <>
             <Divider />
             <div className="flex items-center gap-0.5">

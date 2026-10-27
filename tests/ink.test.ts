@@ -5,7 +5,10 @@ import {
   boardToScreen,
   darkInk,
   elementBounds,
+  elementsBoardBounds,
   elementsHit,
+  lassoElements,
+  pointInPolygon,
   fitTransform,
   freedrawOutline,
   freedrawPath,
@@ -19,7 +22,7 @@ import {
   type InkElement,
   type Rect
 } from '../src/renderer/src/features/ink/geometry'
-import { HIGHLIGHTER_WIDTHS, INK_COLORS, INK_PALETTE, appendStrokes, eraseElements, newInk, penStroke, pushRecentColor, strokeToElement, type PenSettings } from '../src/renderer/src/features/ink/elements'
+import { HIGHLIGHTER_WIDTHS, INK_COLORS, INK_PALETTE, appendStrokes, eraseElements, moveElements, newInk, penStroke, pushRecentColor, strokeToElement, type PenSettings } from '../src/renderer/src/features/ink/elements'
 import { framelessSize, toggledFrameBox } from '../src/renderer/src/features/ink/frame'
 
 const pen: PenSettings = { tool: 'pen', color: '#1e1e1e', width: 1 }
@@ -59,6 +62,18 @@ describe('ink elements', () => {
     expect(pushRecentColor(recent, '#7950f2')).toEqual(['#7950f2', ...recent.slice(0, -1)])
     expect(pushRecentColor(recent, recent[2].toUpperCase())).toEqual([recent[2].toUpperCase(), ...recent.filter((_, i) => i !== 2)])
     for (const c of INK_COLORS) expect(INK_PALETTE).toContain(c.value)
+  })
+
+  it('lasso picks the strokes mostly inside the loop; moving them keeps the rest in place', () => {
+    const ink = newInk([{ stroke: penStroke([[0, 0, 0.5], [20, 0, 0.5]], pen, false), id: 'a' }, { stroke: penStroke([[200, 0, 0.5], [220, 0, 0.5]], pen, false), id: 'b' }])!
+    const loop = [{ x: -10, y: -10 }, { x: 40, y: -10 }, { x: 40, y: 10 }, { x: -10, y: 10 }]
+    expect(pointInPolygon({ x: 5, y: 0 }, loop)).toBe(true)
+    expect(pointInPolygon({ x: 100, y: 0 }, loop)).toBe(false)
+    expect(lassoElements(ink.elements, ink.box, loop)).toEqual(['a'])
+    const before = elementsBoardBounds(ink.elements, ink.box, new Set(['b']))!
+    const moved = moveElements(ink.elements, ink.box, new Set(['a']), 0, 50)!
+    expect(elementsBoardBounds(moved.elements, moved.box, new Set(['a']))!.y).toBeCloseTo(elementsBoardBounds(ink.elements, ink.box, new Set(['a']))!.y + 50, 5)
+    near(elementsBoardBounds(moved.elements, moved.box, new Set(['b']))!, before)
   })
 
   it('outline path is a closed Excalidraw-style quadratic path', () => {

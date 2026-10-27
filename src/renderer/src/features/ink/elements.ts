@@ -65,8 +65,8 @@ export function pushRecentColor(recent: readonly string[], color: string, max = 
 /** The highlighter turns "ink" into classic yellow; other colours stay. */
 export const highlighterColor = (color: string): string => (color === INK_COLORS[0].value ? '#fab005' : color)
 
-/** `laser`: a glowing trail that fades out, never saved (pointing while presenting). */
-export type PenTool = 'pen' | 'highlighter' | 'laser' | 'eraser'
+/** `laser`: a glowing trail that fades out, never saved (pointing while presenting). `lasso`: select ink to move / delete. */
+export type PenTool = 'pen' | 'highlighter' | 'laser' | 'lasso' | 'eraser'
 
 export interface PenSettings {
   tool: PenTool
@@ -128,6 +128,15 @@ export function appendStrokes(elements: readonly unknown[], box: Rect, strokes: 
   )
   const all = [...(elements as InkElement[]), ...added]
   return { box: reboxed(t, inkBounds(all)!), elements: all }
+}
+
+/** Ink object with elements `ids` moved by (dx, dy) board units; the box follows, everything else stays in place. */
+export function moveElements(elements: readonly unknown[], box: Rect, ids: ReadonlySet<string>, dx: number, dy: number): Ink | null {
+  const old = inkBounds(elements)
+  if (!old) return null
+  const t = fitTransform(old, box)
+  const moved = (elements as InkElement[]).map((e) => (e?.id && ids.has(e.id) ? { ...e, x: e.x + dx / t.s, y: e.y + dy / t.s, version: ((e as { version?: number }).version ?? 1) + 1 } : e))
+  return { box: reboxed(t, inkBounds(moved)!), elements: moved }
 }
 
 /** Ink object without the erased elements (box shrunk, the rest stays in place); null when nothing is left. */

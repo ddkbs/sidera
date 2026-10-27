@@ -303,6 +303,51 @@ export function hitInkObject(elements: readonly unknown[] | undefined, box: Rect
   return elementsHit(elements, boardToScene(boardPoint, t), boardRadius / t.s)
 }
 
+// ─── lasso ───────────────────────────────────────────────────────────────────────────────────────────
+
+/** Even-odd ray cast: is `p` inside the closed polygon `poly`? */
+export function pointInPolygon(p: Point, poly: readonly Point[]): boolean {
+  let inside = false
+  for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
+    const a = poly[i]
+    const b = poly[j]
+    if (a.y > p.y !== b.y > p.y && p.x < ((b.x - a.x) * (p.y - a.y)) / (b.y - a.y) + a.x) inside = !inside
+  }
+  return inside
+}
+
+/** Sample points of an element in scene coordinates (its stroke, or the corners of its bounds). */
+const samplePoints = (el: InkElement): Point[] => {
+  if (el.points?.length) return absPoints(el)
+  const b = elementBounds(el)
+  return b ? [b, { x: b.x + b.width, y: b.y }, { x: b.x, y: b.y + b.height }, { x: b.x + b.width, y: b.y + b.height }] : []
+}
+
+/** Ids of the elements of an ink object (box in board coordinates) that lie mostly (`share` of their points) inside the lasso. */
+export function lassoElements(elements: readonly unknown[] | undefined, box: Rect, lasso: readonly Point[], share = 0.6): string[] {
+  const b = inkBounds(elements)
+  if (!b || lasso.length < 3) return []
+  const t = fitTransform(b, box)
+  return liveElements<InkElement>(elements)
+    .filter((el) => {
+      const pts = samplePoints(el)
+      if (!el.id || !pts.length) return false
+      const inside = pts.filter((p) => pointInPolygon(sceneToBoard(p, t), lasso)).length
+      return inside / pts.length >= share
+    })
+    .map((el) => el.id!)
+}
+
+/** Board-space bounds of some elements of an ink object. */
+export function elementsBoardBounds(elements: readonly unknown[] | undefined, box: Rect, ids: ReadonlySet<string>): Rect | null {
+  const b = inkBounds(elements)
+  if (!b) return null
+  const t = fitTransform(b, box)
+  const picked = liveElements<InkElement>(elements).filter((el) => el.id && ids.has(el.id))
+  const sb = inkBounds(picked)
+  return sb ? reboxed(t, sb) : null
+}
+
 // ─── grouping strokes into ink objects ───────────────────────────────────────────────────────────────
 
 /** Strokes drawn within this pause belong to the same ink object. */
