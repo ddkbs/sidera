@@ -19,12 +19,15 @@ export function installLongPress(): void {
   document.addEventListener(
     'pointerdown',
     (e) => {
+      // the Pencil touching down means the resting finger is a palm: no menu
+      if (e.pointerType === 'pen') return cancel()
       if (e.pointerType !== 'touch') return
       touches.add(e.pointerId)
       cancel()
       const target = e.target as HTMLElement
-      // one finger only (two = pinch), on the board, never inside text being edited or on controls
-      if (touches.size > 1 || !target.closest('.react-flow') || target.closest('[contenteditable="true"], input, textarea, button, .react-flow__panel')) return
+      // one finger only (two = pinch), on the board, never inside text being edited or on controls; never in the pen
+      // tool (a resting hand opened an invisible menu under the palm that swallowed the next stroke)
+      if (touches.size > 1 || !target.closest('.react-flow') || target.closest('.canvas-root.tool-pen') || target.closest('[contenteditable="true"], input, textarea, button, .react-flow__panel')) return
       start = { id: e.pointerId, x: e.clientX, y: e.clientY }
       timer = setTimeout(() => {
         const s = start
