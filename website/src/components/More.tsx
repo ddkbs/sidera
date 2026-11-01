@@ -1,9 +1,10 @@
 import { Reveal, Section, SectionHeader } from './Frame'
+import * as shots from '../shots'
 
 const ITEMS = [
-  ['Card library & ⌘K search', 'Rich-text cards with / commands, @ mentions and real backlinks — one card on any number of boards. SQLite FTS5 search.', '/shots/library-search-dark.webp', '48% 42%'],
-  ['Tasks & kanban', 'Tags become databases: kanban boards and lists, plus a Tasks area with priority, assignee, due dates and activity.', '/shots/tasks-dark.webp', '55% 28%'],
-  ['PDF reader with highlights', 'Dock a PDF next to your board in a split-screen reader and highlight as you go.', '/shots/pdf-reader-dark.webp', '88% 30%']
+  ['Card library & ⌘K search', 'Rich-text cards with / commands, @ mentions and real backlinks — one card on any number of boards. SQLite FTS5 search.', shots.librarySearch, '48% 42%'],
+  ['Tasks & kanban', 'Tags become databases: kanban boards and lists, plus a Tasks area with priority, assignee, due dates and activity.', shots.tasks, '55% 28%'],
+  ['PDF reader with highlights', 'Dock a PDF next to your board in a split-screen reader and highlight as you go.', shots.pdfReader, '88% 30%']
 ]
 
 export function More() {

@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react'
 import { IconBarChart, IconPen, IconGrid, IconText, IconTable, IconWorkflow, IconImage, IconLink, IconLayers, IconTrendingUp, IconCards, IconConnect } from 'obra-icons-react'
 import { Kbd, Reveal, Section, SectionHeader } from './Frame'
+import * as shots from '../shots'
 
 const STATS = [
   ['16', 'chart types'],
@@ -77,7 +78,7 @@ export function Boards() {
             className="h-full"
             label="02 · Charts"
             title="Charts that live on the board"
-            img="/shots/charts-dark.webp"
+            img={shots.charts}
             imgPos="38% 78%"
             zoom={1.25}
           >
@@ -92,7 +93,7 @@ export function Boards() {
               </>
             }
             title="Sketch straight onto the board"
-            img="/shots/pen-mode-dark.webp"
+            img={shots.penMode}
             imgPos="50% 100%"
             zoom={1.5}
           >
@@ -100,7 +101,7 @@ export function Boards() {
           </Card>
         </Reveal>
         <Reveal delay={0.14} className="md:col-span-5">
-          <Card label="04 · Home" title="Every board, previewed live" img="/shots/home-dark.webp" imgPos="62% 30%"
+          <Card label="04 · Home" title="Every board, previewed live" img={shots.home} imgPos="62% 30%"
             zoom={1.5}>
             Home shows your boards first, each tile a tiny live sketch of what's on it.
           </Card>

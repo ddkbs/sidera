@@ -4,6 +4,7 @@ import { useRef } from 'react'
 import { GridPulse } from './GridPulse'
 import { DownloadButton, DownloadMeta } from './DownloadButton'
 import { GithubButton } from './GithubButton'
+import * as shots from '../shots'
 
 const ease = [0.22, 1, 0.36, 1] as const
 const up = (delay: number) => ({ initial: { opacity: 0, y: 18 }, animate: { opacity: 1, y: 0 }, transition: { duration: 0.8, delay, ease } })
@@ -69,7 +70,7 @@ function Showcase() {
             </span>
           </div>
           <div className="relative overflow-hidden rounded-[10px] border border-border">
-            <img src="/shots/hero-dark.webp" width={2400} height={1500} alt="A Sidera board about a fictional satellite-internet company: tables, eight charts, a timeline, sketches and pen ink" className="block w-full" />
+            <img src={shots.hero} width={2400} height={1500} alt="A Sidera board about a fictional satellite-internet company: tables, eight charts, a timeline, sketches and pen ink" className="block w-full" />
             <div className="pointer-events-none absolute inset-0 hidden md:block">
               {CALLOUTS.map((c, i) => (
                 <motion.div

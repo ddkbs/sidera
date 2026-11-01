@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { AnimatePresence, motion, useInView } from 'motion/react'
 import { IconCheck, IconCopy } from 'obra-icons-react'
 import { Kbd, Reveal, Section, SectionHeader } from './Frame'
+import * as shots from '../shots'
 
 type Tab = { id: string; label: string; copy: string; code: ReactNode }
 
@@ -146,7 +147,7 @@ export function Mcp() {
             </p>
           </div>
           <div className="relative h-full min-h-[260px] border-t border-border md:border-l md:border-t-0">
-            <img src="/shots/ai-chat-dark.webp" alt="The in-app Claude chat summarizing the board next to it" loading="lazy" className="absolute inset-0 size-full object-cover object-[100%_0%]" />
+            <img src={shots.aiChat} alt="The in-app Claude chat summarizing the board next to it" loading="lazy" className="absolute inset-0 size-full object-cover object-[100%_0%]" />
           </div>
         </div>
       </Reveal>

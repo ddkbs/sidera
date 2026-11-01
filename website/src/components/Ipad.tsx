@@ -1,5 +1,6 @@
 import { IconGrid, IconLock, IconPencil, IconWifi } from 'obra-icons-react'
 import { Kbd, Reveal, Section, SectionHeader } from './Frame'
+import * as shots from '../shots'
 
 const POINTS = [
   [IconGrid, 'Every board, one tap away', 'The iPad opens on a live overview of all your whiteboards. Pick one, edit it, switch any time — it reopens where you left off.'],
@@ -34,13 +35,13 @@ export function Ipad() {
         <Reveal delay={0.1} className="relative pb-[18%]">
           <div className="pointer-events-none absolute inset-[10%] rounded-full bg-brand/25 blur-[100px]" />
           <img
-            src="/shots/ipad-dark.webp"
+            src={shots.ipad}
             alt="Sidera for iPad in dark mode: a board of charts with Apple Pencil ink and the pen bar at the bottom"
             loading="lazy"
             className="relative w-full drop-shadow-[0_40px_60px_rgba(0,0,0,0.7)]"
           />
           <img
-            src="/shots/ipad-boards-dark.webp"
+            src={shots.ipadBoards}
             alt="The iPad's start screen: every whiteboard as a live preview tile, with search"
             loading="lazy"
             className="absolute bottom-0 -left-[6%] w-[58%] drop-shadow-[0_30px_50px_rgba(0,0,0,0.8)]"
