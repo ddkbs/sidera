@@ -368,11 +368,7 @@ async function bootstrap(): Promise<void> {
     if (!fromMain(e)) throw new Error('Invalid request')
   }
   ipcMain.handle('ipad:status', () => requireSession().ipad.status())
-  ipcMain.handle('ipad:share', (e, whiteboardId: unknown) => {
-    mainOnly(e)
-    if (typeof whiteboardId !== 'string' || whiteboardId.length > 64) throw new Error('Invalid request')
-    return requireSession().ipad.share(whiteboardId)
-  })
+  ipcMain.handle('ipad:start', (e) => (mainOnly(e), requireSession().ipad.start()))
   ipcMain.handle('ipad:stop', (e) => (mainOnly(e), session?.ipad.stop()))
   ipcMain.handle('ipad:pair', (e) => (mainOnly(e), requireSession().ipad.pair()))
   ipcMain.handle('ipad:revoke', (e, id: unknown) => {

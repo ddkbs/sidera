@@ -4,6 +4,8 @@ import { toast } from 'sonner'
 import { APP_NAME } from '@shared/brand'
 import { Lock, Tablet } from '@/components/icons'
 import { Button } from '@/components/ui/button'
+import { Switch } from '@/components/ui/switch'
+import { startIpad } from './IpadControl'
 import { PairIpadDialog } from './PairIpadDialog'
 import { useIpadStatus } from './status'
 import { dateLocale, t } from '@/lib/i18n'
@@ -12,32 +14,51 @@ import { dateLocale, t } from '@/lib/i18n'
 export function IpadSettings() {
   const status = useIpadStatus()
   const [pairOpen, setPairOpen] = useState(false)
+  const [busy, setBusy] = useState(false)
   const online = new Set(status.connected.map((c) => c.id))
 
   return (
     <div className="space-y-6">
       <p className="text-sm text-muted-foreground">{t('ipad.settingsIntro', { app: APP_NAME })}</p>
       <section className="rounded-xl border p-4 text-sm">
-        {status.running ? (
-          <>
-            <div className="font-medium">{status.board ? t('ipad.sharing', { name: status.board.name }) : t('ipad.ready')}</div>
-            <div className="mt-0.5 text-muted-foreground">
-              {status.origin} · {status.connected.length ? t('ipad.connectedCount', { count: status.connected.length }) : t('ipad.noneConnected')}
-            </div>
-            <div className="mt-3 flex gap-2">
-              <Button size="sm" variant="outline" onClick={() => setPairOpen(true)}>
+        <div className="flex items-start gap-3">
+          <div className="min-w-0 flex-1">
+            <div className="font-medium">{t('ipad.enabled')}</div>
+            <div className="mt-0.5 text-muted-foreground">{t('ipad.enabledHint', { app: APP_NAME })}</div>
+          </div>
+          <Switch
+            checked={status.enabled}
+            disabled={busy}
+            onCheckedChange={async (on) => {
+              setBusy(true)
+              try {
+                if (on) await startIpad(() => setPairOpen(true))
+                else await window.ipad.stop()
+              } finally {
+                setBusy(false)
+              }
+            }}
+          />
+        </div>
+        <div className="mt-3 border-t pt-3">
+          {status.running ? (
+            <>
+              <div className="font-medium">{status.connected.length ? t('ipad.connectedCount', { count: status.connected.length }) : t('ipad.ready')}</div>
+              <div className="mt-0.5 text-muted-foreground">{status.origin}</div>
+              {status.connected.map((c) => (
+                <div key={c.id} className="mt-1 flex items-center gap-2 text-muted-foreground">
+                  <span className="size-1.5 rounded-full bg-emerald-500" />
+                  {c.board ? t('ipad.onBoard', { name: c.name, board: c.board.name }) : t('ipad.onList', { name: c.name })}
+                </div>
+              ))}
+              <Button size="sm" variant="outline" className="mt-3" onClick={() => setPairOpen(true)}>
                 {t('ipad.pairEllipsis')}
               </Button>
-              {status.board && (
-                <Button size="sm" variant="ghost" onClick={() => void window.ipad.stop()}>
-                  {t('ipad.stop')}
-                </Button>
-              )}
-            </div>
-          </>
-        ) : (
-          <div className="text-muted-foreground">{t('ipad.off')}</div>
-        )}
+            </>
+          ) : (
+            <div className="text-muted-foreground">{t('ipad.off')}</div>
+          )}
+        </div>
       </section>
       <section>
         <h3 className="mb-2 text-sm font-medium">{t('ipad.devices')}</h3>

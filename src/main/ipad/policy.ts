@@ -1,15 +1,16 @@
 import type { ApiMethod } from '@shared/api'
-import type { ObjectKind, ObjectPatch, SearchHit, WhiteboardObject } from '@shared/types'
+import type { ObjectKind, ObjectPatch, SearchHit, Whiteboard, WhiteboardObject } from '@shared/types'
 import { FILE_PROTOCOL, LEGACY_FILE_PROTOCOL } from '@shared/fileProtocol'
 import { validateUpload } from '@shared/sync/protocol'
 import type { Services } from '../services'
 
 /**
- * What a paired iPad may do: a strict whitelist of CanvasApi methods, every one scoped to the ONE shared whiteboard.
- * Reads return only the board, the cards placed on it and the files it references; writes may only touch objects /
- * connections of that board and cards placed on it (or created by this device for it). Anything else — other boards,
- * the card library, search, settings, native dialogs, file paths — is refused. Pure logic over `Services`, so it is
- * unit-tested against a real in-memory database.
+ * What a paired iPad may do: a strict whitelist of CanvasApi methods. The device sees the list of whiteboards (names
+ * and previews, `authorizeWorkspace`) and opens one; every other call is scoped to that ONE open whiteboard
+ * (`BoardScope`). Reads return only the board, the cards placed on it and the files it references; writes may only
+ * touch objects / connections of that board and cards placed on it (or created by this device for it). Anything
+ * else — the card library, search, settings, native dialogs, file paths — is refused. Pure logic over `Services`, so
+ * it is unit-tested against a real in-memory database.
  */
 
 export class PolicyError extends Error {}
@@ -44,6 +45,34 @@ export function referencedFileIds(value: unknown, into = new Set<string>()): Set
     }
   }
   return into
+}
+
+type Decision = { args: unknown[]; post?: (data: unknown) => unknown } | { result: unknown }
+
+/** Whiteboard fields the board list on the iPad needs (no properties: they may hold library data). */
+const listed = (w: Whiteboard & { objectCount?: number }) => ({
+  id: w.id,
+  name: w.name,
+  parentId: w.parentId,
+  folderId: w.folderId,
+  viewport: w.viewport,
+  properties: [],
+  createdAt: w.createdAt,
+  updatedAt: w.updatedAt,
+  ...(w.objectCount !== undefined ? { objectCount: w.objectCount } : {})
+})
+
+/** Calls allowed before / besides opening a whiteboard: the board list and its previews. null = not one of them. */
+export function authorizeWorkspace(method: ApiMethod, args: unknown[]): Decision | null {
+  switch (method) {
+    case 'listWhiteboards':
+    case 'listWhiteboardsWithStats':
+      return { args: [], post: (list) => (list as Whiteboard[]).map(listed) }
+    case 'getBoardPreviews':
+      return { args: [ids(args[0])] }
+    default:
+      return null
+  }
 }
 
 interface Snapshot {
@@ -148,7 +177,7 @@ export class BoardScope {
    * Checks one call and returns the (cleaned) arguments to run it with, or a ready result for calls answered without
    * touching the services (`result`). Throws PolicyError when the call is not allowed.
    */
-  authorize(method: ApiMethod, args: unknown[]): { args: unknown[]; post?: (data: unknown) => unknown } | { result: unknown } {
+  authorize(method: ApiMethod, args: unknown[]): Decision {
     const a0 = args[0]
     switch (method) {
       // ── reads ──
@@ -162,10 +191,6 @@ export class BoardScope {
         const f = id(a0)
         if (!this.fileAllowed(f)) deny('File is not on the shared whiteboard')
         return { args: [f] }
-      }
-      case 'getBoardPreviews': {
-        const list = ids(a0).filter((c) => this.snapshot().children.has(c))
-        return { args: [list] }
       }
       case 'search': {
         // card mentions in the editor: only cards placed on the shared board are found

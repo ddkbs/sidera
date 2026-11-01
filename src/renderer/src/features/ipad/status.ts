@@ -3,7 +3,7 @@ import type { IpadStatus } from '@shared/ipad'
 
 /** Desktop side of Sidera for iPad: one shared snapshot of the main process' iPad server status. */
 
-const EMPTY: IpadStatus = { running: false, board: null, origin: null, address: null, connected: [], devices: [] }
+const EMPTY: IpadStatus = { enabled: false, running: false, origin: null, address: null, connected: [], devices: [] }
 let snapshot = EMPTY
 const listeners = new Set<() => void>()
 let subscribed = false

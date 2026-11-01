@@ -67,7 +67,6 @@ import { NodeMenu, type NodeMenuAction } from './NodeMenu'
 import { nodeTypes } from './nodes'
 import { SAVE_LINK_DONE_EVENT, SAVE_LINK_EVENT } from './nodes/LinkNode'
 import { EDIT_SKETCH_EVENT } from './nodes/SketchNode'
-import { IpadButton } from '@/features/ipad/IpadButton'
 import { IS_IPAD } from '@/lib/platform'
 import { InkLayer } from '@/features/ink/InkLayer'
 import { isFrameless, toggledFrameBox } from '@/features/ink/frame'
@@ -1222,7 +1221,6 @@ function Canvas({ detail }: { detail: WhiteboardDetail }) {
       <ZoomControls />
       {/* the iPad sees only this board: no card library, no navigation */}
       {!IS_IPAD && <CardDrawer onBoard={cardIds} />}
-      {!IS_IPAD && <IpadButton boardId={boardId} />}
       {!IS_IPAD && <BoardBreadcrumb id={boardId} />}
       {edgeMenu && edgeConnection && (
         <EdgeMenu

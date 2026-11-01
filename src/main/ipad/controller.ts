@@ -1,10 +1,10 @@
 import { execFileSync } from 'node:child_process'
-import { existsSync } from 'node:fs'
+import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 import { hostname } from 'node:os'
 import { join } from 'node:path'
 import QRCode from 'qrcode'
 import type { ApiMethod, DbChangeScope } from '@shared/api'
-import type { IpadPairing, IpadShareResult, IpadStatus } from '@shared/ipad'
+import type { IpadPairing, IpadStartResult, IpadStatus } from '@shared/ipad'
 import { IPAD_DEFAULT_PORT, type MirroredSettings } from '@shared/sync/protocol'
 import type { Services } from '../services'
 import { DeviceStore, type SecretBox } from './devices'
@@ -50,9 +50,9 @@ const staticDir = (): string | null => {
 }
 
 /**
- * Sidera for iPad, per Session: the paired devices and the LAN server. The server runs while devices are paired (so
- * the home-screen app always opens, showing "waiting" until a board is shared) or while a board is shared (pairing).
- * Pressing the iPad button on a board shares it / moves the iPad to it; pressing it again stops sharing.
+ * Sidera for iPad, per Session: the paired devices and the LAN server. Switched on once (sidebar / Settings → iPad),
+ * the server runs whenever the app does — paired iPads open any whiteboard themselves — until it is switched off.
+ * The switch is remembered in the data folder; folders from before it existed count as on while devices are paired.
  */
 export class IpadController {
   readonly devices: DeviceStore
@@ -60,16 +60,36 @@ export class IpadController {
   /** bumped by every start/stop, so a start that finishes after a newer call never leaves a port open */
   private generation = 0
   private starting: Promise<{ ok: true } | { ok: false; message: string }> | null = null
+  private statePath: string
 
   constructor(private deps: IpadControllerDeps) {
     this.devices = new DeviceStore(join(deps.dataDir, 'ipad-devices.bin'), deps.box)
+    this.statePath = join(deps.dataDir, 'ipad.json')
+  }
+
+  get enabled(): boolean {
+    try {
+      const v = (JSON.parse(readFileSync(this.statePath, 'utf8')) as { enabled?: unknown }).enabled
+      if (typeof v === 'boolean') return v
+    } catch {
+      /* not written yet */
+    }
+    return this.devices.list().length > 0
+  }
+
+  private setEnabled(enabled: boolean): void {
+    try {
+      writeFileSync(this.statePath, JSON.stringify({ enabled }))
+    } catch (e) {
+      console.warn('[sidera-ipad] could not save the iPad switch', e)
+    }
   }
 
   status(): IpadStatus {
     const s = this.server
     return {
+      enabled: this.enabled,
       running: !!s,
-      board: s?.currentBoard ?? null,
       origin: s?.origin ?? null,
       address: s ? s.ipOrigin.replace(/^http:\/\//, '') : null,
       connected: s?.connected ?? [],
@@ -81,9 +101,12 @@ export class IpadController {
     this.deps.sendStatus(this.status())
   }
 
-  /** While devices are paired the server stays up (app + authenticated connections) so the iPad app always opens. */
+  /** On app start / sign-in: up again if it was switched on. */
   async autostart(): Promise<void> {
-    if (!this.server && this.devices.list().length) await this.ensureServer()
+    if (!this.server && this.enabled) {
+      const r = await this.ensureServer()
+      if (r.ok) this.emit()
+    }
   }
 
   private ensureServer(): Promise<{ ok: true } | { ok: false; message: string }> {
@@ -92,7 +115,6 @@ export class IpadController {
     this.starting ??= this.startServer().finally(() => (this.starting = null))
     return this.starting
   }
-
   private async startServer(): Promise<{ ok: true } | { ok: false; message: string }> {
     const gen = this.generation
     const dir = staticDir()
@@ -129,23 +151,18 @@ export class IpadController {
     return { ok: true }
   }
 
-  /** Show this board on the iPad (starting the server if needed, or moving the iPad over from another board). */
-  async share(whiteboardId: string): Promise<IpadShareResult> {
-    const board = this.deps.services.getWhiteboard(whiteboardId)?.whiteboard
-    if (!board) return { ok: false, message: 'Whiteboard not found' }
+  /** Switch the iPad connection on (and keep it on across restarts). */
+  async start(): Promise<IpadStartResult> {
+    this.setEnabled(true)
     const started = await this.ensureServer()
-    if (!started.ok) return started
-    this.server!.setBoard({ id: board.id, name: board.name })
     this.emit()
-    return { ok: true, status: this.status() }
+    return started.ok ? { ok: true, status: this.status() } : started
   }
 
-  /** Stop sharing: the iPad goes back to "waiting"; the server itself only stops when no device is paired. */
+  /** Switch it off: connected iPads are disconnected and wait until it is switched on again. */
   async stop(): Promise<void> {
-    if (this.devices.list().length) {
-      this.server?.setBoard(null)
-      this.emit()
-    } else await this.shutdown('stopped')
+    this.setEnabled(false)
+    await this.shutdown('stopped')
   }
 
   /** Closes the server for good (sign-out, last device revoked). */
@@ -158,7 +175,11 @@ export class IpadController {
   }
 
   async pair(): Promise<IpadPairing | { error: string }> {
-    if (!this.server) return { error: 'Start the iPad connection on a whiteboard first.' }
+    if (!this.server) {
+      const started = await this.start()
+      if (!started.ok) return { error: started.message }
+    }
+    if (!this.server) return { error: 'The iPad connection is off.' }
     const p = this.server.createPairing()
     const qr = (url: string): Promise<string> =>
       QRCode.toString(url, { type: 'svg', margin: 1, errorCorrectionLevel: 'M', color: { dark: '#000000', light: '#ffffff' } })
@@ -168,27 +189,11 @@ export class IpadController {
   revoke(id: string): void {
     this.devices.remove(id)
     this.server?.disconnectDevice(id)
-    // last device gone and nothing shared: nobody needs the server any more
-    if (!this.devices.list().length && !this.server?.currentBoard) void this.shutdown('no-devices')
-    else this.emit()
-  }
-
-  /** The shared board was renamed / deleted. */
-  refreshBoard(): void {
-    const s = this.server
-    const b = s?.currentBoard
-    if (!s || !b) return
-    const board = this.deps.services.getWhiteboard(b.id)?.whiteboard
-    if (!board) return void this.stop()
-    if (board.name !== b.name) {
-      s.setBoard({ id: board.id, name: board.name })
-      this.emit()
-    }
+    this.emit()
   }
 
   notifyChanged(scopes: DbChangeScope[]): void {
     this.server?.notifyChanged(scopes)
-    if (scopes.includes('whiteboards') || scopes.includes('all')) this.refreshBoard()
   }
 
   pushSettings(settings: MirroredSettings): void {

@@ -12,8 +12,8 @@ export function Ipad() {
     <Section id="ipad" className="overflow-hidden px-5 py-24 md:px-8 md:py-32">
       <div className="grid items-center gap-14 lg:grid-cols-[1fr_1.35fr]">
         <div>
-          <SectionHeader index="08" eyebrow="Sidera for iPad" title="Your board, live on the iPad.">
-            Press the iPad button (<Kbd>⇧</Kbd> <Kbd>⌘</Kbd> <Kbd>D</Kbd>) on any board and it opens on your iPad — pair once with a QR code, add it to the home screen, done.
+          <SectionHeader index="08" eyebrow="Sidera for iPad" title="Your boards, live on the iPad.">
+            Switch on the iPad connection once (<Kbd>⇧</Kbd> <Kbd>⌘</Kbd> <Kbd>D</Kbd>), pair with a QR code, add it to the home screen — then open any of your whiteboards on the iPad.
           </SectionHeader>
           <div className="mt-10 flex flex-col">
             {POINTS.map(([Icon, title, body], i) => (

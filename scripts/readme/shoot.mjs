@@ -243,7 +243,7 @@ async function frameIpad(chrome, screenPng, dir) {
  * One iPad shot: the dev app seeds + shares the showcase board and creates a pairing (step output `IPADURL`), then
  * waits while headless Chrome pairs (like a scanned QR code), reloads as the paired home-screen app and captures.
  */
-async function runIpad({ name, theme, viewport }) {
+async function runIpad({ name, theme, viewport, picker = false }) {
   const dir = join(scratch, `ipad-${name}`)
   rmSync(dir, { recursive: true, force: true })
   mkdirSync(dir, { recursive: true })
@@ -255,9 +255,9 @@ async function runIpad({ name, theme, viewport }) {
     `(async () => {
       const b = ${showcase}
       await window.api.updateWhiteboard({ id: b.id, viewport: ${JSON.stringify(viewport)} })
-      const s = await window.ipad.share(b.id)
+      await window.ipad.start()
       const p = await window.ipad.pair()
-      return { IPADURL: p.ipUrl, share: s }
+      return { IPADURL: p.ipUrl, BOARD: b.id }
     })()`,
     settle(90_000)
   ]
@@ -279,12 +279,12 @@ async function runIpad({ name, theme, viewport }) {
     }
   })
   let log = ''
-  const url = await new Promise((res, rej) => {
+  const { url, board } = await new Promise((res, rej) => {
     const timer = setTimeout(() => rej(new Error('no pairing URL within 3 min')), 180_000)
     const on = (d) => {
       log += d
-      const m = /"IPADURL":"([^"]+)"/.exec(log)
-      if (m) clearTimeout(timer), res(m[1])
+      const m = /"IPADURL":"([^"]+)","BOARD":"([^"]+)"/.exec(log)
+      if (m) clearTimeout(timer), res({ url: m[1], board: m[2] })
     }
     app.stdout.on('data', on)
     app.stderr.on('data', on)
@@ -293,8 +293,10 @@ async function runIpad({ name, theme, viewport }) {
   const chrome = await launchIpadChrome({ profileDir: join(dir, 'chrome'), ...IPAD, dark: theme === 'dark' })
   try {
     await chrome.goto(url, 4000)
+    // the iPad reopens the board it had open last (the board list otherwise)
+    await chrome.eval(`localStorage.${picker ? `removeItem('sidera.ipad.board')` : `setItem('sidera.ipad.board', ${JSON.stringify(board)})`}; 1`)
     await chrome.goto(url.replace(/#.*$/, ''), 6000)
-    // the status bar shows the Mac's own name — swap in a generic one
+    // the board list shows the Mac's own name — swap in a generic one
     await chrome.eval(`(() => { const walk = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT); let n; while ((n = walk.nextNode())) if (/^· /.test(n.textContent)) n.textContent = '· MacBook Pro'; return 1 })()`)
     const screen = await chrome.shot()
     writeFileSync(join(dir, 'screen.png'), screen)
@@ -311,7 +313,8 @@ async function runIpad({ name, theme, viewport }) {
 
 const ipadShots = [
   { name: 'ipad', theme: 'light', viewport: { x: 96, y: 58, zoom: 0.42 } },
-  { name: 'ipad-dark', theme: 'dark', viewport: { x: -176, y: -302, zoom: 0.62 } }
+  { name: 'ipad-dark', theme: 'dark', viewport: { x: -176, y: -302, zoom: 0.62 } },
+  { name: 'ipad-boards', theme: 'light', viewport: { x: 96, y: 58, zoom: 0.42 }, picker: true }
 ]
 
 const only = process.argv[2]

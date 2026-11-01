@@ -24,7 +24,11 @@ import {
 } from '@shared/sync/protocol'
 import type { Services } from '../services'
 import type { DeviceStore } from './devices'
-import { BoardScope, PolicyError } from './policy'
+import { BoardScope, PolicyError, authorizeWorkspace } from './policy'
+
+const refuse = (why: string): never => {
+  throw new PolicyError(why)
+}
 import { acceptWebSocket, type WsConnection } from './websocket'
 
 /**
@@ -138,6 +142,8 @@ class Conn {
   deviceId: string | null = null
   name = 'iPad'
   scope: BoardScope | null = null
+  /** the whiteboard this device has open */
+  board: BoardRef | null = null
   lastSeen = Date.now()
   tokens = CALL_BURST
   refilledAt = Date.now()
@@ -175,7 +181,6 @@ export class IpadServer {
   private conns = new Set<Conn>()
   private pairings = new Map<string, { key: Uint8Array; expiresAt: number }>()
   private failures = new Map<string, number[]>()
-  private board: BoardRef | null = null
   private watchdog: NodeJS.Timeout | null = null
   private closing: Promise<void> | null = null
   private log: (msg: string) => void
@@ -218,32 +223,39 @@ export class IpadServer {
     return `http://${this.opts.address}:${this.port}`
   }
 
-  get connected(): { id: string; name: string }[] {
-    return [...this.conns].filter((c) => c.deviceId).map((c) => ({ id: c.deviceId!, name: c.name }))
+  get connected(): { id: string; name: string; board: BoardRef | null }[] {
+    return [...this.conns].filter((c) => c.deviceId).map((c) => ({ id: c.deviceId!, name: c.name, board: c.board }))
   }
 
-  get currentBoard(): BoardRef | null {
-    return this.board
+  /** A device opens a whiteboard (or goes back to the list): its calls are scoped to that board from now on. */
+  private open(conn: Conn, boardId: unknown): void {
+    const w = typeof boardId === 'string' && boardId.length <= 64 ? this.opts.services.getWhiteboard(boardId)?.whiteboard : null
+    conn.board = w ? { id: w.id, name: w.name } : null
+    conn.scope = w ? new BoardScope(this.opts.services, w.id) : null
+    conn.send({ type: 'board', board: conn.board })
+    this.opts.onStatus()
   }
 
-  /** Which board the iPad shows; pushed to every connected device. */
-  setBoard(board: BoardRef | null): void {
-    this.board = board
-    for (const c of this.conns) {
-      if (!c.deviceId) continue
-      c.scope = board ? new BoardScope(this.opts.services, board.id) : null
-      c.send({ type: 'board', board })
-    }
-  }
-
-  /** Data changed somewhere (desktop, MCP, another device): devices refetch. */
+  /** Data changed somewhere (desktop, MCP, another device): devices refetch; renamed / deleted open boards follow. */
   notifyChanged(scopes: DbChangeScope[]): void {
     if (!scopes.length) return
+    const boards = scopes.includes('whiteboards') || scopes.includes('all')
+    let moved = false
     for (const c of this.conns) {
       if (!c.deviceId) continue
       c.scope?.invalidate()
+      if (boards && c.board) {
+        const w = this.opts.services.getWhiteboard(c.board.id)?.whiteboard
+        if (!w || w.name !== c.board.name) {
+          c.board = w ? { id: w.id, name: w.name } : null
+          if (!w) c.scope = null
+          c.send({ type: 'board', board: c.board })
+          moved = true
+        }
+      }
       c.send({ type: 'changed', scopes })
     }
+    if (moved) this.opts.onStatus()
   }
 
   pushSettings(settings: MirroredSettings): void {
@@ -431,8 +443,7 @@ export class IpadServer {
           ws.setMaxMessageBytes(MAX_FRAME_BYTES)
           conn.name = this.opts.devices.get(h.id)?.name ?? 'iPad'
           this.opts.devices.touch(h.id)
-          conn.scope = this.board ? new BoardScope(this.opts.services, this.board.id) : null
-          conn.send({ type: 'welcome', host: this.opts.macName, board: this.board, settings: this.opts.settings() })
+          conn.send({ type: 'welcome', host: this.opts.macName, board: null, settings: this.opts.settings() })
           this.log(`${conn.name} connected`)
           this.opts.onStatus()
           return
@@ -446,6 +457,7 @@ export class IpadServer {
 
   private async dispatch(conn: Conn, msg: Message): Promise<void> {
     if (msg.type === 'ping') return conn.send({ type: 'pong' })
+    if (msg.type === 'open') return this.open(conn, msg.boardId)
     const reqId = Number.isSafeInteger(msg.id) ? (msg.id as number) : -1
     if (msg.type === 'file') {
       if (!conn.allow('file')) return conn.send({ type: 'fileData', id: reqId, ok: false, error: 'Too many requests' })
@@ -466,11 +478,11 @@ export class IpadServer {
     const fail = (error: string): void => conn.send({ type: 'result', id: reqId, ok: false, error })
     if (typeof method !== 'string' || !Array.isArray(msg.args) || msg.args.length > 4) return fail('Invalid call')
     if (!conn.allow(method)) return fail('Too many requests — slow down')
-    if (!conn.scope) return fail('No whiteboard is shared right now')
     try {
-      const decision = conn.scope.authorize(method, msg.args)
+      // the board list is always readable; everything else only for the board the device has open
+      const decision = authorizeWorkspace(method, msg.args) ?? (conn.scope ?? refuse('Open a whiteboard first')).authorize(method, msg.args)
       const data = 'result' in decision ? decision.result : await this.opts.call(method, decision.args).then((d) => (decision.post ? decision.post(d) : d))
-      conn.scope.learn(method, data)
+      conn.scope?.learn(method, data)
       // the Mac's file system layout is none of the iPad's business
       const safe = method === 'importFileData' && data && typeof data === 'object' ? { ...(data as object), path: '' } : data
       conn.send({ type: 'result', id: reqId, ok: true, data: safe ?? null })

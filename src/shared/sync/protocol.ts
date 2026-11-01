@@ -10,8 +10,8 @@
  *  3. `SecureChannel` (crypto.ts): every further frame is sealed under per-connection keys derived from the device key
  *     (mode `device`) or the one-time pairing key from the QR code (mode `pair`). The first sealed client message
  *     (`auth` / `pair`) proves possession of the secret; nothing is answered before it.
- *  4. Messages: RPC `call` → `result` onto the whitelisted CanvasApi subset, `file` → `fileData`, and pushes
- *     `board` / `changed` / `settings` from the Mac.
+ *  4. Messages: `open` picks the whiteboard the device works on (answered with `board`), RPC `call` → `result` onto
+ *     the whitelisted CanvasApi subset, `file` → `fileData`, and pushes `board` / `changed` / `settings` from the Mac.
  */
 import type { ApiMethod, DbChangeScope } from '../api'
 import type { Lang } from '../i18n'
@@ -98,6 +98,8 @@ export type ClientMessage =
   | { type: 'auth'; name: string }
   | { type: 'pair'; name: string }
   | { type: 'call'; id: number; method: ApiMethod; args: unknown[] }
+  /** open a whiteboard (null = back to the board list); the Mac answers with `board` */
+  | { type: 'open'; boardId: string | null }
   | { type: 'file'; id: number; fileId: string }
   | { type: 'ping' }
 

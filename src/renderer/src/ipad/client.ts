@@ -110,6 +110,16 @@ export async function pair(pairingId: string, key: Uint8Array, name: string): Pr
   return { credential: { deviceId: reply.deviceId, deviceKey: reply.deviceKey }, host: String(reply.host ?? 'Mac') }
 }
 
+/** The whiteboard open on this iPad, reopened after a reconnect or app restart. */
+const BOARD_KEY = 'sidera.ipad.board'
+const storedBoard = (): string | null => {
+  try {
+    return localStorage.getItem(BOARD_KEY)
+  } catch {
+    return null
+  }
+}
+
 export interface ClientEvents {
   state: (s: ConnectionState, reason?: RejectReason) => void
   board: (b: BoardRef | null) => void
@@ -125,6 +135,8 @@ export class SyncClient {
   state: ConnectionState = 'connecting'
   host = ''
   board: BoardRef | null = null
+  /** the board the user picked (kept while offline, so a reconnect reopens it) */
+  private wanted: string | null = storedBoard()
   settings: MirroredSettings | null = null
   private session: Session | null = null
   private nextId = 1
@@ -211,8 +223,9 @@ export class SyncClient {
       this.host = String(reply.host ?? '')
       this.settings = (reply.settings as MirroredSettings) ?? null
       if (this.settings) this.emit('settings', this.settings)
-      this.board = (reply.board as BoardRef | null) ?? null
-      this.emit('board', this.board)
+      this.board = null
+      if (this.wanted) this.send({ type: 'open', boardId: this.wanted })
+      else this.emit('board', null)
       this.setState('connected')
       clearInterval(this.heartbeat)
       this.heartbeat = setInterval(() => {
@@ -263,6 +276,8 @@ export class SyncClient {
     } else if (m.type === 'changed' && Array.isArray(m.scopes)) this.emit('changed', m.scopes as DbChangeScope[])
     else if (m.type === 'board') {
       this.board = (m.board as BoardRef | null) ?? null
+      // gone on the Mac (deleted): back to the list for good
+      if (!this.board) this.remember(null)
       this.emit('board', this.board)
     } else if (m.type === 'settings') {
       this.settings = m.settings as MirroredSettings
@@ -286,6 +301,26 @@ export class SyncClient {
       this.pending.set(id, { resolve, reject })
       this.send({ ...msg, id })
     })
+  }
+
+  /** Opens a whiteboard (null = back to the board list); `board` fires once the Mac has switched. */
+  open(boardId: string | null): void {
+    this.remember(boardId)
+    if (!boardId) {
+      this.board = null
+      this.emit('board', null)
+    }
+    if (this.state === 'connected') this.send({ type: 'open', boardId })
+  }
+
+  private remember(boardId: string | null): void {
+    this.wanted = boardId
+    try {
+      if (boardId) localStorage.setItem(BOARD_KEY, boardId)
+      else localStorage.removeItem(BOARD_KEY)
+    } catch {
+      /* private mode */
+    }
   }
 
   call(method: ApiMethod, args: unknown[]): Promise<unknown> {

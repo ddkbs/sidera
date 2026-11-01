@@ -94,7 +94,7 @@ const appBridge: AppBridge = {
 
 const ipad: IpadBridge = {
   status: () => ipcRenderer.invoke('ipad:status'),
-  share: (whiteboardId) => ipcRenderer.invoke('ipad:share', whiteboardId),
+  start: () => ipcRenderer.invoke('ipad:start'),
   stop: () => ipcRenderer.invoke('ipad:stop'),
   pair: () => ipcRenderer.invoke('ipad:pair'),
   revokeDevice: (id) => ipcRenderer.invoke('ipad:revoke', id),

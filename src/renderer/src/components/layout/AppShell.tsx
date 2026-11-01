@@ -20,6 +20,7 @@ import { ChatPanel } from '@/features/chat/ChatPanel'
 import { PdfReader } from '@/features/pdf/PdfReader'
 import { ErrorBoundary } from '@/components/ErrorBoundary'
 import { Sidebar } from './Sidebar'
+import { IpadControl } from '@/features/ipad/IpadControl'
 
 export function AppShell() {
   const dispatch = useAppDispatch()
@@ -75,6 +76,7 @@ export function AppShell() {
         </div>
       </main>
       <CommandPalette />
+      <IpadControl />
       <ShortcutsDialog />
       <SettingsDialog />
       <ProfileDialog />

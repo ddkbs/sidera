@@ -2,8 +2,7 @@ import { StrictMode, useEffect, useState } from 'react'
 import { createRoot } from 'react-dom/client'
 import { Provider } from 'react-redux'
 import type { BoardRef } from '@shared/sync/protocol'
-import { Redo2, Tablet, Undo2, WifiOff } from '@/components/icons'
-import { Logo } from '@/components/Logo'
+import { GridLayout, Redo2, Tablet, Undo2, WifiOff } from '@/components/icons'
 import { Toaster } from '@/components/ui/sonner'
 import { TooltipProvider } from '@/components/ui/tooltip'
 import { WhiteboardView } from '@/features/canvas/WhiteboardView'
@@ -15,6 +14,7 @@ import { store, useAppDispatch } from '@/store'
 import { api, scopeTags } from '@/store/api'
 import { settingsLoaded } from '@/store/settings'
 import type { Launch } from './boot'
+import { BoardPicker } from './BoardPicker'
 import { pair, type ConnectionState } from './client'
 import { credentialFragment, isStandalone, saveCredential } from './credentials'
 
@@ -122,59 +122,61 @@ function IpadApp({ launch }: { launch: Launch }) {
     )
 
   return (
-    <div className="fixed inset-0 flex flex-col bg-background text-foreground">
-      <StatusBar conn={conn} board={board} host={client.host} />
-      <main className="relative min-h-0 flex-1">
-        {board ? (
+    <div className="fixed inset-0 bg-background text-foreground">
+      {board ? (
+        <main className="relative h-full">
           <WhiteboardView key={board.id} id={board.id} />
-        ) : (
-          <Screen title={t('ipadApp.waiting')} inline>
-            <p>{conn === 'connected' ? t('ipadApp.waitingConnected') : t('ipadApp.waitingOffline')}</p>
-          </Screen>
-        )}
-      </main>
+          <BoardChrome conn={conn} board={board} onBoards={() => client.open(null)} />
+        </main>
+      ) : (
+        <BoardPicker conn={conn} host={client.host} onOpen={(id) => client.open(id)} />
+      )}
       <Toaster theme={theme} position="bottom-center" />
     </div>
   )
 }
 
-function StatusBar({ conn, board, host }: { conn: ConnectionState; board: BoardRef | null; host: string }) {
+const PILL =
+  'pointer-events-auto flex h-11 items-center rounded-[14px] border border-foreground/10 bg-popover/90 p-1 shadow-[0_1px_0_0_rgb(255_255_255/0.06)_inset,0_12px_32px_-12px_rgba(0,0,0,0.35)] backdrop-blur-xl'
+
+/**
+ * The only chrome on an open board (no bar across the top): back to the board list with the board's name, and undo /
+ * redo. A pill shows up only while the connection to the Mac is down.
+ */
+function BoardChrome({ conn, board, onBoards }: { conn: ConnectionState; board: BoardRef; onBoards: () => void }) {
   const { undo: canUndo, redo: canRedo } = useUndoState()
   const live = conn === 'connected'
-  const status = live ? t('ipadApp.live') : conn === 'connecting' ? t('ipadApp.connecting') : t('ipadApp.reconnecting')
   return (
-    <header className="relative flex shrink-0 items-center gap-3 bg-popover/85 px-4 pt-[env(safe-area-inset-top)] backdrop-blur-xl" style={{ minHeight: 52 }}>
-      <Logo className="size-[22px] shrink-0 text-foreground" />
-      <div className="flex min-w-0 items-baseline gap-2">
-        <span className="shrink-0 text-[13px] text-muted-foreground">Sidera</span>
-        <span className="shrink-0 text-[13px] text-muted-foreground/50">/</span>
-        <span className="min-w-0 truncate text-[15px] font-semibold tracking-[-0.01em]">{board?.name ?? '—'}</span>
-      </div>
-      <div className="ml-auto flex items-center gap-2">
-        <div
-          className={cn(
-            'flex h-8 items-center gap-2 rounded-full border px-3 font-mono text-[10.5px] uppercase tracking-[0.14em]',
-            live ? 'border-foreground/10 text-muted-foreground' : 'border-amber-500/30 bg-amber-500/10 text-amber-600 dark:text-amber-400'
-          )}
+    <div className="pointer-events-none absolute inset-x-3 top-[calc(env(safe-area-inset-top)+12px)] z-20 flex items-start justify-between gap-3">
+      <div className={PILL}>
+        <button
+          aria-label={t('ipadApp.boards')}
+          onClick={onBoards}
+          className="flex h-9 min-w-0 items-center gap-2 rounded-[10px] pr-3 pl-2.5 transition-colors active:bg-foreground/10"
         >
-          <span className={cn('size-1.5 shrink-0 rounded-full', live ? 'bg-emerald-500 shadow-[0_0_8px_rgb(16_185_129)]' : 'animate-pulse bg-amber-500')} />
-          <span className="whitespace-nowrap">{status}</span>
-          {live && host && <span className="max-w-[18ch] truncate normal-case tracking-normal text-muted-foreground/70">{`· ${host}`}</span>}
-          {!live && <WifiOff className="size-3.5 shrink-0" />}
-        </div>
-        <div className="flex h-9 items-center rounded-xl border border-foreground/10 bg-foreground/[0.03] p-0.5">
-          <button aria-label={t('common.undo')} disabled={!canUndo} onClick={() => void undo()} className="grid h-8 w-10 place-items-center rounded-[9px] transition-colors active:bg-foreground/10 disabled:opacity-30">
+          <GridLayout className="size-[18px] shrink-0 text-muted-foreground" />
+          <span className="max-w-[40vw] truncate text-[15px] font-medium tracking-[-0.01em]">{board.name}</span>
+        </button>
+      </div>
+      <div className="flex items-center gap-2">
+        {!live && (
+          <div className="pointer-events-auto flex h-9 items-center gap-2 rounded-full border border-amber-500/30 bg-amber-500/10 px-3 font-mono text-[10.5px] tracking-[0.14em] text-amber-600 uppercase backdrop-blur-xl dark:text-amber-400">
+            <span className="size-1.5 animate-pulse rounded-full bg-amber-500" />
+            {conn === 'connecting' ? t('ipadApp.connecting') : t('ipadApp.reconnecting')}
+            <WifiOff className="size-3.5" />
+          </div>
+        )}
+        <div className={PILL}>
+          <button aria-label={t('common.undo')} disabled={!canUndo} onClick={() => void undo()} className="grid h-9 w-10 place-items-center rounded-[10px] transition-colors active:bg-foreground/10 disabled:opacity-30">
             <Undo2 className="size-[18px]" />
           </button>
           <span className="h-4 w-px bg-foreground/10" />
-          <button aria-label={t('cmd.edit.redo')} disabled={!canRedo} onClick={() => void redo()} className="grid h-8 w-10 place-items-center rounded-[9px] transition-colors active:bg-foreground/10 disabled:opacity-30">
+          <button aria-label={t('cmd.edit.redo')} disabled={!canRedo} onClick={() => void redo()} className="grid h-9 w-10 place-items-center rounded-[10px] transition-colors active:bg-foreground/10 disabled:opacity-30">
             <Redo2 className="size-[18px]" />
           </button>
         </div>
       </div>
-      {/* dashed drafting rule, like the product site */}
-      <div className="absolute inset-x-0 bottom-0 h-px bg-[linear-gradient(to_right,var(--border)_50%,transparent_50%)] bg-[length:8px_1px] bg-repeat-x" />
-    </header>
+    </div>
   )
 }
 

@@ -1,4 +1,5 @@
 import { record } from '@/lib/undo'
+import { IpadNavItem } from '@/features/ipad/IpadControl'
 import {
   BookOpen,
   ChevronDown,
@@ -345,6 +346,7 @@ export function Sidebar() {
                 >
                   {t('sidebar.tasks')}
                 </NavItem>
+                <IpadNavItem />
               </>
             )}
           </div>

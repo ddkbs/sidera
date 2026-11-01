@@ -29,8 +29,8 @@ Claude Code or any other MCP client can read and build your boards alongside you
 
 ## On your iPad, live
 
-Press the iPad button on any board and it opens on your iPad — both ways, in real time, over your own Wi-Fi. A finger
-pans and zooms, **Apple Pencil draws**, everything else stays editable. End-to-end encrypted, no cloud, no App Store.
+Switch on the iPad connection once and every whiteboard opens on your iPad — both ways, in real time, over your own
+Wi-Fi. A finger pans and zooms, **Apple Pencil writes**, everything else stays editable. End-to-end encrypted, no cloud, no App Store.
 
 <table>
 <tr>
@@ -168,16 +168,17 @@ claude mcp add --scope user --transport http sidera http://127.0.0.1:3845/mcp
 Headless (no UI) stdio mode is also available: `Sidera --mcp-stdio`. Your data never leaves the Mac — the
 server only binds to `127.0.0.1`.
 
-**Sidera for iPad** — the iPad button in a board's top-right corner (or ⇧⌘D) shows that board live on your iPad, both
-ways: edit text, cards, tables, shapes, add photos; a finger pans and zooms, Apple Pencil draws ink. Pair once with a QR
-code (Share → Add to Home Screen for the full-screen app); afterwards the iPad reconnects by itself whenever you share
-a board, and follows the board where you pressed the button last. Paired devices are listed (and revocable) in
-Settings → iPad.
+**Sidera for iPad** — switch it on once (sidebar → iPad, or ⇧⌘D) and pair with a QR code (Share → Add to Home Screen
+for the full-screen app). The iPad then opens with a list of all your whiteboards; pick one and work on it live, both
+ways: edit text, cards, tables, shapes, add photos; a finger pans and zooms, Apple Pencil writes (pen, marker, laser,
+eraser, lasso, palm rejection). It reconnects by itself and reopens the board it had open. The switch and the paired
+devices (revocable) live in Settings → iPad.
 
 How it works: the iPad app is a second build of the desktop renderer (`vite.ipad.config.ts`), served by the Mac on your
-private LAN address while an iPad is paired (it only sees a board while you share one). Every message is end-to-end encrypted (XChaCha20-Poly1305 under
+private LAN address while the connection is on. Every message is end-to-end encrypted (XChaCha20-Poly1305 under
 per-connection keys derived from a per-device key that was handed over once via the QR code fragment) with replay
-protection, and the Mac only answers a whitelist of calls scoped to the shared board (`src/main/ipad/policy.ts`).
+protection, and the Mac only answers a whitelist of calls: the board list, and everything else scoped to the one board the iPad
+has open (`src/main/ipad/policy.ts`) — never the card library, settings or file paths.
 The protocol (`src/shared/sync`) is transport-agnostic: the LAN WebSocket can later be replaced by a cloud relay
 that only forwards ciphertext between device and Mac.
 

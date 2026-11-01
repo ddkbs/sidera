@@ -191,11 +191,10 @@ describe('iPad server', () => {
       onStatus: () => {},
       log: () => {}
     })
-    server.setBoard({ id: board, name: 'Shared' })
   })
   afterEach(() => server.close('test'))
 
-  it('pairs once with the QR secret, then talks to the shared board only', async () => {
+  it('pairs once with the QR secret, then lists the boards and works on the one it opened', async () => {
     const { url } = server.createPairing()
     const p = parsePairingFragment(new URL(url).hash)!
     const pairing = await connect(server.port, 'pair', p.id, p.key, { type: 'pair', name: 'Test iPad' })
@@ -207,7 +206,25 @@ describe('iPad server', () => {
 
     const key = fromB64u(paired.deviceKey as string)
     const dev = await connect(server.port, 'device', paired.deviceId as string, key, { type: 'auth', name: 'Test iPad' })
-    expect(await dev.next()).toMatchObject({ type: 'welcome', board: { id: board }, settings: { theme: 'dark' } })
+    expect(await dev.next()).toMatchObject({ type: 'welcome', board: null, settings: { theme: 'dark' } })
+
+    // before opening a board: only the board list and previews
+    const other = api.createWhiteboard({ name: 'Other' }).id
+    dev.send({ type: 'call', id: 10, method: 'getWhiteboard', args: [board] })
+    expect(await dev.next()).toMatchObject({ type: 'result', id: 10, ok: false })
+    dev.send({ type: 'call', id: 11, method: 'listWhiteboardsWithStats', args: [] })
+    const list = await dev.next()
+    expect((list.data as { name: string; properties: unknown[] }[]).map((w) => w.name).sort()).toEqual(['Other', 'Shared'])
+    expect((list.data as { properties: unknown[] }[]).every((w) => w.properties.length === 0)).toBe(true)
+
+    dev.send({ type: 'open', boardId: 'nope' })
+    expect(await dev.next()).toMatchObject({ type: 'board', board: null })
+    dev.send({ type: 'open', boardId: board })
+    expect(await dev.next()).toMatchObject({ type: 'board', board: { id: board, name: 'Shared' } })
+    expect(server.connected).toMatchObject([{ name: 'Test iPad', board: { id: board } }])
+    // scoped to the open board: another board is refused
+    dev.send({ type: 'call', id: 12, method: 'getWhiteboard', args: [other] })
+    expect(await dev.next()).toMatchObject({ type: 'result', id: 12, ok: false })
 
     dev.send({ type: 'call', id: 1, method: 'getWhiteboard', args: [board] })
     expect(await dev.next()).toMatchObject({ type: 'result', id: 1, ok: true, data: { whiteboard: { id: board } } })
@@ -221,6 +238,15 @@ describe('iPad server', () => {
     // pushes from the Mac
     server.notifyChanged(['cards'])
     expect(await dev.next()).toMatchObject({ type: 'changed', scopes: ['cards'] })
+    // the open board renamed, then deleted on the Mac: the device follows, then is back at the list
+    api.updateWhiteboard({ id: board, name: 'Renamed' })
+    server.notifyChanged(['whiteboards'])
+    expect(await dev.next()).toMatchObject({ type: 'board', board: { id: board, name: 'Renamed' } })
+    expect(await dev.next()).toMatchObject({ type: 'changed' })
+    api.deleteWhiteboard(board)
+    server.notifyChanged(['whiteboards'])
+    expect(await dev.next()).toMatchObject({ type: 'board', board: null })
+    expect(await dev.next()).toMatchObject({ type: 'changed' })
 
     // a replayed frame kills the connection
     const frame = JSON.stringify(dev.channel.seal({ type: 'ping' }))
