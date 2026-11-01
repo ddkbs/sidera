@@ -1,10 +1,11 @@
-import { IconLock, IconPencil, IconWifi } from 'obra-icons-react'
+import { IconGrid, IconLock, IconPencil, IconWifi } from 'obra-icons-react'
 import { Kbd, Reveal, Section, SectionHeader } from './Frame'
 
 const POINTS = [
-  [IconWifi, 'Your Wi-Fi, no cloud', 'The Mac serves the board on your local network. No account, no App Store, no relay.'],
-  [IconLock, 'End-to-end encrypted', 'XChaCha20-Poly1305 with per-connection keys from a device key handed over once by QR code.'],
-  [IconPencil, 'Pencil draws, finger pans', 'Edit text, tables and shapes; drop in photos. Changes flow both ways in real time.']
+  [IconGrid, 'Every board, one tap away', 'The iPad opens on a live overview of all your whiteboards. Pick one, edit it, switch any time — it reopens where you left off.'],
+  [IconPencil, 'Write like on paper', 'Apple Pencil with palm rejection: pen, marker, laser pointer, eraser and lasso, a full colour palette, a bar you drag out of the way.'],
+  [IconWifi, 'Your Wi-Fi, no cloud', 'The Mac serves your boards on your local network. No account, no App Store, no relay.'],
+  [IconLock, 'End-to-end encrypted', 'XChaCha20-Poly1305 with per-connection keys from a device key handed over once by QR code.']
 ] as const
 
 export function Ipad() {
@@ -30,9 +31,20 @@ export function Ipad() {
             ))}
           </div>
         </div>
-        <Reveal delay={0.1} className="relative">
+        <Reveal delay={0.1} className="relative pb-[18%]">
           <div className="pointer-events-none absolute inset-[10%] rounded-full bg-brand/25 blur-[100px]" />
-          <img src="/shots/ipad-dark.webp" alt="Sidera for iPad in dark mode showing the board's charts, with the pen palette at the bottom" loading="lazy" className="relative w-full drop-shadow-[0_40px_60px_rgba(0,0,0,0.7)]" />
+          <img
+            src="/shots/ipad-dark.webp"
+            alt="Sidera for iPad in dark mode: a board of charts with Apple Pencil ink and the pen bar at the bottom"
+            loading="lazy"
+            className="relative w-full drop-shadow-[0_40px_60px_rgba(0,0,0,0.7)]"
+          />
+          <img
+            src="/shots/ipad-boards-dark.webp"
+            alt="The iPad's start screen: every whiteboard as a live preview tile, with search"
+            loading="lazy"
+            className="absolute bottom-0 -left-[6%] w-[58%] drop-shadow-[0_30px_50px_rgba(0,0,0,0.8)]"
+          />
         </Reveal>
       </div>
     </Section>

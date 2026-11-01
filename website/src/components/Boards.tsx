@@ -93,10 +93,10 @@ export function Boards() {
             }
             title="Sketch straight onto the board"
             img="/shots/pen-mode-dark.webp"
-            imgPos="42% 30%"
+            imgPos="50% 100%"
             zoom={1.5}
           >
-            Pen, highlighter, eraser. Ink is part of the board — circle the bar that matters.
+            Pen, marker, laser pointer, eraser and lasso. Ink is part of the board — circle the bar that matters.
           </Card>
         </Reveal>
         <Reveal delay={0.14} className="md:col-span-5">

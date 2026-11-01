@@ -16,7 +16,7 @@ export function Hero() {
       <div className="relative z-10 mx-auto flex max-w-[1240px] flex-col items-center px-5 pb-16 pt-20 text-center md:pt-28">
         <motion.a {...up(0)} href="#ipad" data-grid-avoid className="group mb-8 inline-flex items-center gap-2.5 rounded-md border border-border-strong bg-panel/80 py-1 pl-1 pr-3 text-[13px] text-foreground/90 backdrop-blur transition-colors hover:border-white/25">
           <span className="rounded-[4px] bg-white/10 px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-widest">New</span>
-          Sidera for iPad<span className="hidden sm:inline"> — your board, live, with Apple Pencil</span>
+          Sidera for iPad<span className="hidden sm:inline"> — all your boards, with Apple Pencil</span>
           <IconArrowRight size={14} className="text-muted-foreground transition-transform group-hover:translate-x-0.5" />
         </motion.a>
         <motion.h1 {...up(0.08)} data-grid-avoid className="guard text-[clamp(48px,9vw,112px)] font-semibold leading-[0.92] tracking-[-0.05em]">
