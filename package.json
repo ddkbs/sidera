@@ -1,7 +1,7 @@
 {
   "name": "sidera",
   "productName": "Sidera",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Free, open-source, local-first visual notes: whiteboards with text blocks, tables, charts and sketches — MCP-ready.",
   "main": "./out/main/index.js",
   "author": "ddkbs",
