@@ -21,3 +21,6 @@ textarea {
   user-select: text;
   touch-action: manipulation;
 }
+/* The Apple Pencil hovers: :hover must not pop up connection points while writing. They show on a selected object
+   and in the connector tool only. */
+.canvas-root:not(.tool-connector) .react-flow__node:not(.selected):hover .canvas-handle { opacity: 0; }

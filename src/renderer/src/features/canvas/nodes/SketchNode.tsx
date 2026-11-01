@@ -67,7 +67,8 @@ export const SketchNode = memo(function SketchNode({ id, data, selected, width, 
             )}
           </Rotatable>
         </div>
-        <Handles />
+        {/* iPad: handwriting has no connection points (they popped up under the hovering Pencil) */}
+        {!IS_IPAD && <Handles />}
       </>
     )
   }
