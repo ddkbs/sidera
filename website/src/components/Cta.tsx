@@ -37,7 +37,9 @@ export function Footer() {
     ['Releases', `${REPO_URL}/releases`],
     ['Changelog', `${REPO_URL}/blob/main/CHANGELOG.md`],
     ['Security', `${REPO_URL}/blob/main/SECURITY.md`],
-    ['License (MIT)', `${REPO_URL}/blob/main/LICENSE`]
+    ['License (MIT)', `${REPO_URL}/blob/main/LICENSE`],
+    ['Impressum', 'https://davidkubus.dev/impressum'],
+    ['Datenschutz', 'https://davidkubus.dev/datenschutz']
   ]
   return (
     <Section>
