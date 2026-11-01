@@ -314,7 +314,8 @@ async function runIpad({ name, theme, viewport, picker = false }) {
 const ipadShots = [
   { name: 'ipad', theme: 'light', viewport: { x: 96, y: 58, zoom: 0.42 } },
   { name: 'ipad-dark', theme: 'dark', viewport: { x: -176, y: -302, zoom: 0.62 } },
-  { name: 'ipad-boards', theme: 'light', viewport: { x: 96, y: 58, zoom: 0.42 }, picker: true }
+  { name: 'ipad-boards', theme: 'light', viewport: { x: 96, y: 58, zoom: 0.42 }, picker: true },
+  { name: 'ipad-boards-dark', theme: 'dark', viewport: { x: 96, y: 58, zoom: 0.42 }, picker: true }
 ]
 
 const only = process.argv[2]
